@@ -78,6 +78,14 @@ WSGI_APPLICATION = 'quizapp.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/3.2/ref/settings/#databases
 
+# import mongoengine
+# DATABASE_URL = os.getenv("DATABASE")
+# mongoengine.connect(host=DATABASE_URL)
+
+
+# import mongoengine
+# mongoengine.connect(db='quizedb', host='cluster0.zyhzn0o.mongodb.net', username='admin', password='admin')
+
 DATABASES = {
     "default": {
         "ENGINE": "djongo",
@@ -88,6 +96,10 @@ DATABASES = {
         }
     }
 }
+
+
+# client = MongoClient(os.getenv('DATABASE'))
+# db = client.quizedb 
 
 # Password validation
 # https://docs.djangoproject.com/en/3.2/ref/settings/#auth-password-validators
