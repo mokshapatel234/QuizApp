@@ -4,12 +4,180 @@ from django.core.validators import FileExtensionValidator, RegexValidator
 from django.conf import settings
 from django.utils.timezone import now
 import uuid
-from superadmin.models import *
+
 
 class ParanoidModelManager(models.Manager):
     def get_queryset(self):
         return super(ParanoidModelManager, self).get_queryset().filter(deleted_at__isnull=True)
+    
 
+#------------------------------------------------------------------------------------------------#
+#----------------------------------------SUPERADMIN----------------------------------------------#
+#------------------------------------------------------------------------------------------------#
+
+
+class States(models.Model):
+    CHOICES = (('inactive','inactive'),('active','active'))
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    name = models.CharField(("State*"), max_length=50,unique=True)
+    status = models.CharField(("status"),choices=CHOICES, max_length=50,default='active') 
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    deleted_at = models.DateTimeField(blank=True,null=True ,default=None, editable=False)
+    objects = ParanoidModelManager()   
+
+    def delete(self, hard=False, **kwargs):
+        if hard:
+            super(States, self).delete()
+        else:
+            self.deleted_at = now()
+            self.save()
+
+    def __str__(self):
+        return self.name
+
+    class Meta:
+        verbose_name_plural = "1. States"
+
+
+class Cities(models.Model):
+    CHOICES = (('inactive','inactive'),('active','active'))
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    state = models.ForeignKey(States, on_delete=models.CASCADE, related_name="state", verbose_name="State*")
+    name = models.CharField(("City*"), max_length=50,unique=True)
+    status = models.CharField(("status"),choices=CHOICES, max_length=50,default='active') 
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    deleted_at = models.DateTimeField(blank=True,null=True ,default=None, editable=False)
+    objects = ParanoidModelManager()   
+
+    def delete(self, hard=False, **kwargs):
+        if hard:
+            super(Cities, self).delete()
+        else:
+            self.deleted_at = now()
+            self.save()
+
+    def __str__(self):
+        return self.name
+    class Meta:
+        verbose_name_plural = "2. Cities"
+
+
+class BusinessOwners(models.Model):
+    CHOICES = (('competitive','competitive'),('academic','academic'))
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    business_name = models.CharField(max_length=50,verbose_name='Business Name*')
+    business_type = models.CharField(("Business Type*"),choices=CHOICES, max_length=50)
+    first_name = models.CharField(max_length=50,verbose_name='First Name*')
+    last_name = models.CharField(max_length=50,verbose_name='Last Name*')
+    email = models.EmailField(unique=True, verbose_name='Email*')
+    password = models.CharField(max_length=40, verbose_name='Password*')
+    contact_no = models.CharField(validators=[RegexValidator(regex=r"^\+?1?\d{10}$")], max_length=10, unique=True, verbose_name='Contact No*')
+    city = models.ForeignKey(Cities, on_delete=models.CASCADE, related_name="owner_city", verbose_name='City*')
+    address = models.TextField(verbose_name='Address*')
+    logo = models.ImageField(blank=True, upload_to="owner", validators=[FileExtensionValidator(['jpg','jpeg','png'])], height_field=None, width_field=None, max_length=None, null=True)
+    tuition_tagline = models.CharField(max_length=50, null=True, verbose_name='Tuition Tagline', blank=True)
+    CHOICES = (('inactive','inactive'),('active','active'))
+    status = models.CharField(("status"),choices=CHOICES, max_length=50,default='active')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    deleted_at = models.DateTimeField(blank=True,null=True ,default=None, editable=False)
+    objects = ParanoidModelManager()   
+
+    def delete(self, hard=False, **kwargs):
+        if hard:
+            super(BusinessOwners, self).delete()
+        else:
+            self.deleted_at = now()
+            self.save()
+
+    def __str__(self):
+        return self.business_name
+    
+    class Meta:
+        verbose_name_plural = "3. Business Owners"
+
+ 
+class Plans(models.Model):
+    PLAN_CHOICES = ((3, '3 months'), (6, '6 months'), (9, '9 months'), (12, '12 months'))
+    CHOICES = (('inactive','inactive'),('active','active'))
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    plan_name = models.CharField(max_length=50, verbose_name='Plan Name*')
+    image = models.ImageField(blank=True, upload_to="plan", validators=[FileExtensionValidator(['jpg','jpeg','png'])], height_field=None, width_field=None, max_length=None)
+    description = models.TextField(verbose_name='Description*')
+    price = models.FloatField(verbose_name='Price*')
+    validity = models.IntegerField(choices=PLAN_CHOICES,default='3', verbose_name='Validity*')
+    status = models.CharField(("status"),choices=CHOICES, max_length=50,default='active')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    deleted_at = models.DateTimeField(blank=True,null=True ,default=None, editable=False)
+    objects = ParanoidModelManager()
+    
+    def delete(self, hard=False, **kwargs):
+        if hard:
+            super(Plans, self).delete()
+        else:
+            self.deleted_at = now()
+            self.save()
+
+    def __str__(self):
+        return self.plan_name
+    
+    class Meta:
+        verbose_name_plural = "4. Plans"
+
+
+class PurchaseHistory(models.Model):
+    CHOICES = (('inactive','inactive'),('active','active'))
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    plan = models.ForeignKey(Plans, on_delete=models.CASCADE, related_name="plan")
+    business_owner = models.ForeignKey(BusinessOwners, on_delete=models.CASCADE, related_name="owner")
+    order_id = models.CharField(max_length=20)
+    status = models.CharField(("status"),choices=CHOICES, max_length=50,default='active')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    deleted_at = models.DateTimeField(blank=True,null=True ,default=None, editable=False)
+    objects = ParanoidModelManager()
+    
+    def delete(self, hard=False, **kwargs):
+        if hard:
+            super(Plans, self).delete()
+        else:
+            self.deleted_at = now()
+            self.save()
+
+    def __str__(self):
+        return f"{self.plan.plan_name} ({self.business_owner.first_name} {self.business_owner.last_name})"
+    
+
+class Notifications(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    business_owner = models.ArrayReferenceField(BusinessOwners, verbose_name='Business Owner')
+    title = models.CharField(max_length=50)
+    message = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    deleted_at = models.DateTimeField(blank=True,null=True ,default=None, editable=False)
+    objects = ParanoidModelManager()
+    
+    def delete(self, hard=False, **kwargs):
+        if hard:
+            super(Notifications, self).delete()
+        else:
+            self.deleted_at = now()
+            self.save()
+            
+    def __str__(self):
+        return self.title
+    
+    class Meta:
+        verbose_name_plural = "5. Notifications"
+
+
+#------------------------------------------------------------------------------------------------#
+#---------------------------------------BUSINESS-OWNER-------------------------------------------#
+#------------------------------------------------------------------------------------------------#        
 
 class CompetitiveBatches(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -30,6 +198,8 @@ class CompetitiveBatches(models.Model):
 
     def __str__(self):
         return self.batch_name
+    
+
 class CompetitiveSubjects(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     subject_name = models.CharField(max_length=50, unique=True)
@@ -50,6 +220,7 @@ class CompetitiveSubjects(models.Model):
 
     def __str__(self):
         return self.subject_name
+    
 class CompetitiveChapters(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     subject_name = models.ForeignKey(CompetitiveSubjects, on_delete=models.CASCADE, related_name="competitive_subject")
@@ -71,15 +242,16 @@ class CompetitiveChapters(models.Model):
 
     def __str__(self):
         return self.chapter_name
+    
+
 class Options(models.Model):
-    id = models.UUIDField(default=uuid.uuid4,primary_key=True)
+    id = models.UUIDField(default=uuid.uuid4,primary_key=True, editable=False)
     option1 = models.CharField(("a"), max_length=50) 
     option2 = models.CharField(("b"), max_length=50)
     option3 = models.CharField(("c"), max_length=50)
     option4 = models.CharField(("d"), max_length=50)
     # option5 = models.CharField(("e"), null=True, default=False)
     objects = models.DjongoManager()
-
 
 
 class CompetitiveQuestions(models.Model):
@@ -108,9 +280,8 @@ class CompetitiveQuestions(models.Model):
             self.save()
 
 
-
 class CompetitiveExamData(models.Model):
-    id = models.UUIDField(default=uuid.uuid4,primary_key=True)
+    id = models.UUIDField(default=uuid.uuid4,primary_key=True, editable=False)
     subject = models.ForeignKey(CompetitiveSubjects, on_delete=models.CASCADE, related_name="examdata_comp_subject")
     chapter = models.ArrayReferenceField(CompetitiveChapters)
     easy_question = models.IntegerField()
@@ -121,7 +292,6 @@ class CompetitiveExamData(models.Model):
     objects = models.DjongoManager()
 
     
-
 class CompetitiveExams(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     business_owner = models.ForeignKey(BusinessOwners, on_delete=models.CASCADE, related_name="competitive_exam")
@@ -149,8 +319,10 @@ class CompetitiveExams(models.Model):
         else:
             self.deleted_at = now()
             self.save()
+    
     def __str__(self):
         return self.exam_title
+
 
 class AcademicBoards(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -173,6 +345,7 @@ class AcademicBoards(models.Model):
     def __str__(self):
         return self.board_name
 
+
 class AcademicMediums(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     medium_name = models.CharField(max_length=50, unique=True)
@@ -193,6 +366,8 @@ class AcademicMediums(models.Model):
 
     def __str__(self):
         return self.medium_name
+    
+
 class AcademicStandards(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     standard = models.CharField(max_length=50, unique=True)
@@ -210,8 +385,11 @@ class AcademicStandards(models.Model):
         else:
             self.deleted_at = now()
             self.save()
+
     def __str__(self):
         return self.standard
+    
+
 class AcademicSubjects(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     subject_name = models.CharField(max_length=50, unique=True)
@@ -232,6 +410,8 @@ class AcademicSubjects(models.Model):
 
     def __str__(self):
         return self.subject_name
+
+
 class AcademicChapters(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     chapter_name = models.CharField(max_length=50, unique=True)
@@ -252,19 +432,21 @@ class AcademicChapters(models.Model):
 
     def __str__(self):
         return self.chapter_name
+    
+
 class Students(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     business_owner = models.ForeignKey(BusinessOwners, on_delete=models.CASCADE, related_name="owner_student")
     first_name = models.CharField(max_length=50)
     last_name = models.CharField(max_length=50)
     email = models.EmailField(unique=True)
-    contact_number = models.IntegerField()
+    contact_no = models.CharField(validators=[RegexValidator(regex=r"^\+?1?\d{10}$")], max_length=10)
     parent_name = models.CharField(max_length=50)
     parent_contact_no = models.CharField(validators=[RegexValidator(regex=r"^\+?1?\d{10}$")], max_length=10)
     profile_image = models.ImageField(blank=True, upload_to="students", validators=[FileExtensionValidator(['jpg','jpeg','png'])], max_length=None, null=True)
     address = models.TextField()
-    batch = models.ForeignKey(CompetitiveBatches, on_delete=models.CASCADE, related_name="student_batch", null=True)
-    standard = models.ForeignKey(AcademicStandards, on_delete=models.CASCADE, related_name="student_standard", null=True)
+    batch = models.ForeignKey(CompetitiveBatches, on_delete=models.CASCADE, related_name="student_batch", null=True, blank=True)
+    standard = models.ForeignKey(AcademicStandards, on_delete=models.CASCADE, related_name="student_standard", null=True, blank=True)
     CHOICES = (('inactive','inactive'),('active','active'))
     status = models.CharField(("status"),choices=CHOICES, max_length=50,default='active')
     created_at = models.DateTimeField(auto_now_add=True)
@@ -281,6 +463,7 @@ class Students(models.Model):
 
     def __str__(self):
         return self.email
+    
 
 class AcademicQuestions(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
