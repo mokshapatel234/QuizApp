@@ -1,4 +1,5 @@
 from django.db import models
+from djongo import models
 from django.core.validators import FileExtensionValidator, RegexValidator
 from django.core.mail import send_mail
 from django.conf import settings
@@ -20,7 +21,7 @@ class States(models.Model):
     status = models.CharField(("status"),choices=CHOICES, max_length=50,default='active') 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    deleted_at = models.DateTimeField(blank=True,null=True ,default=None)
+    deleted_at = models.DateTimeField(blank=True,null=True ,default=None, editable=False)
     objects = ParanoidModelManager()   
 
 
@@ -34,6 +35,10 @@ class States(models.Model):
     def __str__(self):
         return self.name
 
+    class Meta:
+        verbose_name_plural = "1. States"
+
+
 class Cities(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     state = models.ForeignKey(States, on_delete=models.CASCADE, related_name="state")
@@ -42,7 +47,7 @@ class Cities(models.Model):
     status = models.CharField(("status"),choices=CHOICES, max_length=50,default='active') 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    deleted_at = models.DateTimeField(blank=True,null=True ,default=None)
+    deleted_at = models.DateTimeField(blank=True,null=True ,default=None, editable=False)
     objects = ParanoidModelManager()   
 
 
@@ -55,7 +60,8 @@ class Cities(models.Model):
 
     def __str__(self):
         return self.name
-
+    class Meta:
+        verbose_name_plural = "2. Cities"
 
 class BusinessOwners(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -75,7 +81,7 @@ class BusinessOwners(models.Model):
     status = models.CharField(("status"),choices=CHOICES, max_length=50,default='active')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    deleted_at = models.DateTimeField(blank=True,null=True ,default=None, verbose_name='Deleted At')
+    deleted_at = models.DateTimeField(blank=True,null=True ,default=None, editable=False)
     objects = ParanoidModelManager()   
 
 
@@ -90,7 +96,7 @@ class BusinessOwners(models.Model):
         return self.business_name
     
     class Meta:
-        verbose_name = "Business Owner"
+        verbose_name_plural = "3. Business Owners"
 
  
 class Plans(models.Model):
@@ -110,7 +116,7 @@ class Plans(models.Model):
     status = models.CharField(("status"),choices=CHOICES, max_length=50,default='active')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    deleted_at = models.DateTimeField(blank=True,null=True ,default=None, verbose_name='Deleted At')
+    deleted_at = models.DateTimeField(blank=True,null=True ,default=None, editable=False)
     objects = ParanoidModelManager()
     
     def delete(self, hard=False, **kwargs):
@@ -123,6 +129,8 @@ class Plans(models.Model):
     def __str__(self):
         return self.plan_name
     
+    class Meta:
+        verbose_name_plural = "4. Plans"
 
 class PurchaseHistory(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -133,7 +141,7 @@ class PurchaseHistory(models.Model):
     status = models.CharField(("status"),choices=CHOICES, max_length=50,default='active')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    deleted_at = models.DateTimeField(blank=True,null=True ,default=None)
+    deleted_at = models.DateTimeField(blank=True,null=True ,default=None, editable=False)
     objects = ParanoidModelManager()
     
     def delete(self, hard=False, **kwargs):
@@ -149,17 +157,22 @@ class PurchaseHistory(models.Model):
 
 class Notifications(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    business_owner = models.ForeignKey(BusinessOwners, on_delete=models.CASCADE, verbose_name='Business Owner')
+    business_owner = models.ArrayReferenceField(BusinessOwners, verbose_name='Business Owner')
     title = models.CharField(max_length=50)
     message = models.TextField()
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    deleted_at = models.DateTimeField(blank=True,null=True ,default=None)
+    deleted_at = models.DateTimeField(blank=True,null=True ,default=None, editable=False)
     objects = ParanoidModelManager()
     
     def delete(self, hard=False, **kwargs):
         if hard:
-            super(Plans, self).delete()
+            super(Notifications, self).delete()
         else:
             self.deleted_at = now()
             self.save()
+            
+    def __str__(self):
+        return self.title
+    class Meta:
+        verbose_name_plural = "5. Notifications"
