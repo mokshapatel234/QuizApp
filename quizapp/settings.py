@@ -27,7 +27,7 @@ SECRET_KEY = 'django-insecure-#c0obgfu6=g=k=aftas&ciou2qz6a@@$s#ig)3hi1p9_esf0*f
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ["*"]
 
 
 # Application definition
@@ -52,7 +52,7 @@ MIDDLEWARE = [
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
-    'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'django.middleware.clickjacking.XFrameOptionsMiddleware',   
 ]
 
 ROOT_URLCONF = 'quizapp.urls'
@@ -138,8 +138,8 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/3.2/howto/static-files/
 
-STATIC_URL = '/static/'
-
+# STATIC_URL = '/static/'
+# STATIC_ROOT = os.path.join(BASE_DIR,"static")
 # Default primary key field type
 # https://docs.djangoproject.com/en/3.2/ref/settings/#default-auto-field
 
@@ -158,6 +158,8 @@ AWS_S3_OBJECT_PARAMETERS = {
 }
 AWS_STATIC_LOCATION = 'static'
 AWS_LOCATION = 'static'
+STATICFILES_STORAGE = 'quizapp.storage.StaticStorage'
+STATIC_URL = "https://%s/%s/" % (AWS_S3_CUSTOM_DOMAIN, AWS_LOCATION)
 
 DEFAULT_FILE_STORAGE = 'quizapp.storage.MediaStorage'
 AWS_DEFAULT_ACL = None

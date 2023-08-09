@@ -1,0 +1,19 @@
+version: '3.8'
+
+services:
+  backend:
+    build: .
+    command: sh -c "uvicorn quizapp.asgi:application --host 0.0.0.0 --port 8000 --reload"
+
+    ports:
+      - '8000:8000'
+    volumes:
+      - .:/quizapp-docker
+    
+    stdin_open: true
+    tty: true
+
+volumes:
+  data:
+  logs:
+  
