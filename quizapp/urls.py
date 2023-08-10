@@ -18,9 +18,13 @@ from django.urls import path
 from django.conf.urls.static import static
 from django.conf import settings
 from django.contrib.staticfiles.urls import staticfiles_urlpatterns
-
+from ninja import NinjaAPI
+from ninja.security import django_auth
+from businessowner.views import ownerapi
+# api = NinjaAPI(auth=django_auth, csrf=True)
 # ... the rest of your URLconf goes here ...
 
 urlpatterns = [
-    path('', admin.site.urls),
+    path('admin', admin.site.urls),
+    path("ownerapi/", ownerapi.urls),
 ]+static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
