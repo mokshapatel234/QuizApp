@@ -184,3 +184,9 @@ def create_owner_response(user, is_valid, message):
         return response_data
     except BusinessOwners.DoesNotExist:
         return None
+
+
+def update_owner_data(owner, update_data):
+    for field, value in update_data.items():
+        setattr(owner, field, value)
+    owner.save()
