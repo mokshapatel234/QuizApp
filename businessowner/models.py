@@ -104,14 +104,6 @@ class BusinessOwners(models.Model):
             return mark_safe('<img src="/directory/%s" width="150" height="150" />' % (self.logo))
 
 
-
-    # Class Model1(models.Model):
-    #     image = models.ImageField(upload_to=directory)
-
-    #     def image_tag(self):
-    #         return mark_safe('<img src="/directory/%s" width="150" height="150" />' % (self.image))
-
-    #     image_tag.short_description = 'Image'
 class Plans(models.Model):
     PLAN_CHOICES = ((3, '3 months'), (6, '6 months'), (9, '9 months'), (12, '12 months'))
     CHOICES = (('inactive','inactive'),('active','active'))
@@ -142,12 +134,11 @@ class Plans(models.Model):
 
 
 class PurchaseHistory(models.Model):
-    CHOICES = (('inactive','inactive'),('active','active'))
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     plan = models.ForeignKey(Plans, on_delete=models.CASCADE, related_name="plan")
     business_owner = models.ForeignKey(BusinessOwners, on_delete=models.CASCADE, related_name="owner")
     order_id = models.CharField(max_length=20)
-    status = models.CharField(("status"),choices=CHOICES, max_length=50,default='active')
+    status = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     deleted_at = models.DateTimeField(blank=True,null=True ,default=None, editable=False)
