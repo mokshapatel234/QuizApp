@@ -959,7 +959,7 @@ def get_boards(user):
             {
                 "id": board.id,
                 "board_name": board.board_name,
-                "business_owner_id": board.business_owner_id,
+                "business_owner": board.business_owner.business_name,
                 "status": board.status,
                 "created_at": board.created_at,
                 "updated_at": board.updated_at,
@@ -980,3 +980,219 @@ def get_boards(user):
             "message": "Something went wrong."
         }
         return JsonResponse(response_data,status=200)
+    
+
+
+def add_baord(user, data):
+    try:
+        # Create a new AcademicBoard instance
+        board = AcademicBoards.objects.create(
+            board_name=data.board_name,
+            business_owner=user,
+        )
+        
+        # Return the saved board data as a response
+        saved_board = {
+            "id": board.id,
+            "board_name": board.board_name,
+            "business_owner": user.business_name,  # Use the business owner's name from the token
+            "status": board.status,
+            "created_at": board.created_at,
+            "updated_at": board.updated_at,
+        }
+
+        response_data = {
+            "result": True,
+            "data": saved_board,
+            "message": "board added successfully."
+        }
+
+        return JsonResponse(response_data, status=201)
+
+    except Exception as e:
+        return JsonResponse(print(e), status=500)
+    
+
+
+def update_board_data(user,data,board_id):
+    try:
+        # Check if the academic board exists
+        academic_board = AcademicBoards.objects.get(id=board_id, business_owner=user)
+
+        update_data = {field: value for field, value in data.dict().items() if value is not None}
+        
+        # Update the board_name and status
+        for field, value in update_data.items():
+            setattr(academic_board, field, value)
+        
+        academic_board.save()
+
+        updated_board = {
+            "id": academic_board.id,
+            "board_name": academic_board.board_name,
+            "business_owner_name": academic_board.business_owner.business_name,
+            "status": academic_board.status,
+            "created_at": academic_board.created_at,
+            "updated_at": academic_board.updated_at,
+        }
+
+        response_data = {
+            "result": True,
+            "data": updated_board,
+            "message": "Academic board updated successfully."
+        }
+
+        return JsonResponse(response_data, status=200)
+
+    except AcademicBoards.DoesNotExist:
+        return JsonResponse({"error": "Academic board not found."}, status=404)
+    
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
+
+
+def delete_board_data(user,board_id):
+    try:
+        # Check if the academic board exists
+        academic_board = AcademicBoards.objects.get(id=board_id, business_owner=user)
+        
+        # Delete the academic board
+        academic_board.delete()
+
+        response_data = {
+            "result": True,
+            "message": "Academic board deleted successfully."
+        }
+
+        return JsonResponse(response_data, status=200)
+
+    except AcademicBoards.DoesNotExist:
+        response_data = {
+            "result": False,
+            "message": "Academic board not found."
+        }
+        return JsonResponse(response_data, status=404)
+    
+    except Exception as e:
+        response_data = {
+            "error": str(e)
+        }
+        return JsonResponse(response_data, status=500)
+    
+
+def get_academic_mediums():
+    try:
+        academic_mediums = AcademicMediums.objects.all()
+
+        academic_medium_list = [
+            {
+                "id": medium.id,
+                "medium_name": medium.medium_name,
+                "board_name": medium.board_name.board_name,
+                "status": medium.status,
+                "created_at": medium.created_at,
+                "updated_at": medium.updated_at,
+            }
+            for medium in academic_mediums
+        ]
+        
+        response_data = {
+            "result": True,
+            "data": academic_medium_list,
+            "message": "Academic mediums retrieved successfully."
+        }
+
+        return JsonResponse(response_data, status=200)
+
+    except Exception as e:
+        response_data = {
+            "result": False,
+            "message": "Something went wrong."
+        }
+        return JsonResponse(response_data, status=500)
+
+
+from django.http import JsonResponse
+import uuid
+
+def add_medium_data(user, data):
+    try:
+        board_id = data.get('board_id')  # Fetch board_id (UUID) from the request data
+        board_instance = AcademicBoards.objects.get(id=board_id) 
+        print(board_instance) # Convert to UUID and fetch the corresponding board instance
+        
+        medium = AcademicMediums.objects.create(
+            medium_name=data.get('medium_name'),
+            board_name=board_instance,  # Use the fetched board instance
+        )
+    
+        
+        saved_medium = {
+            "id": medium.id,
+            "medium_name": medium.medium_name,
+            "board_name": medium.board_name.board_name,
+            "business_owner": user.business_name,
+            "status": medium.status,
+            "created_at": medium.created_at,
+            "updated_at": medium.updated_at,
+        }
+
+        response_data = {
+            "result": True,
+            "data": saved_medium,
+            "message": "Medium added successfully."
+        }
+
+        return JsonResponse(response_data, status=201)
+
+    except Exception as e:
+        error_response = {
+            "result": False,
+            "error": str(e),
+            "message": "An error occurred while adding the medium."
+        }
+        return JsonResponse(error_response, status=500, safe=False)
+
+
+
+def update_medium_data(user,data,medium_id):
+    try:
+        # Check if the academic board exists
+        academic_medium = AcademicMediums.objects.get(id=medium_id)
+        board_id=data.board_name
+
+        academic_board = AcademicBoards.objects.get(id=board_id)
+       
+        update_data = {field: value for field, value in data.dict().items() if field != "board_name" and value is not None}
+        
+        # Update the board_name and status
+        for field, value in update_data.items():
+            setattr(academic_medium, field, value)
+
+        academic_medium.board_name = academic_board
+        
+        academic_medium.save()
+
+        updated_board = {
+            "id": academic_medium.id,
+            "medium_name":academic_medium.medium_name,
+            "board_name": academic_medium.board_name.board_name,
+            # "business_owner_name": academic_medium.business_owner.business_name,
+            "status": academic_medium.status,
+            "created_at": academic_medium.created_at,
+            "updated_at": academic_medium.updated_at,
+        }
+
+        response_data = {
+            "result": True,
+            "data": updated_board,
+            "message": "Academic board updated successfully."
+        }
+
+        return JsonResponse(response_data, status=200)
+
+    except AcademicBoards.DoesNotExist:
+        return JsonResponse({"error": "Academic medium not found."}, status=404)
+    
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)

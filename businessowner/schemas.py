@@ -244,5 +244,30 @@ class AcademicBoardSchema(Schema):
     updated_at: datetime
   
 
-    class Config:
-        orm_mode = True
+class BoardSchema(Schema):
+    board_name: str
+
+class BoardUpdateSchema(Schema):
+    board_name: str = None
+    status : str = None
+
+
+class AcademicMedium(Schema):
+    id: int = None
+    medium_name: str = None
+    board_name: str = None
+    business_owner_id: int = None
+    status: str = None
+    created_at: datetime  = None
+    updated_at: datetime = None
+
+
+class AddAcademicMedium(Schema):
+    medium_name: str
+    board_id: str
+
+
+class updateMedium(Schema):
+    medium_name: str = None
+    board_name: str = None
+    status: str = None
