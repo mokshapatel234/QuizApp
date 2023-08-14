@@ -3,6 +3,10 @@ from .schemas import *
 from django.http import JsonResponse
 from .authentication import JWTAuthentication 
 from asgiref.sync import sync_to_async
+from ninja import UploadedFile, File
+from django.core.serializers.json import DjangoJSONEncoder
+from django.db.models import Q
+from ninja.errors import HttpError
 
 
 def authenticate_with_jwt_token(request):
@@ -57,33 +61,39 @@ def perform_change_password(change_data):
     
 
         if change_data.old_password != user.password:
-            return {"result": False, "message": "Invalid old password"}
+            return {"result": False, "message": "Invalid old password"},400
 
         if change_data.new_password != change_data.confirm_password:
-            return {"result": False, "message": "New password and confirm password do not match"}
+            return {"result": False, "message": "New password and confirm password do not match"},400
 
         user.password = change_data.new_password
         user.save()
 
-        return {"result": True, "message": "Password changed successfully"}
+        return {"result": True, "message": "Password changed successfully"},200
     
     except BusinessOwners.DoesNotExist:
-        return {"result": False, "message": "Business owner not found"}
+        return {"result": False, "message": "Business owner not found"},400
     
 
-def generate_change_password_response(result):
-    if "result" in result and result["result"]:
-        response_data = {
-            "result": True,
-            "message": "Password changed successfully"
-        }
+# def generate_change_password_response(result):
+#     if "result" in result and result["result"]:
+#         response_data = {
+#             "result": True,
+#             "message": "Password changed successfully"
+#         }
         
-    else:
-        response_data = {
-            "result": False,
-            "message": result["message"]  # Use the message from the result
-        }
-    return JsonResponse(response_data)
+#     else:
+#         response_data = {
+#             "result": False,
+#             "message": result["message"]  # Use the message from the result
+#         }
+#     return JsonResponse(response_data)
+
+
+#-----------------------------------------------------------------------------------------------------------#
+#---------------------------------------------PLAN PURCHASE-------------------------------------------------#
+#-----------------------------------------------------------------------------------------------------------#
+
 
 def get_plan_purchase_response():
     try:
@@ -144,6 +154,11 @@ def get_purchase_history_response(user):
         return JsonResponse(response_data)
     
 
+#-----------------------------------------------------------------------------------------------------------#
+#---------------------------------------------OWNER PROFILE-------------------------------------------------#
+#-----------------------------------------------------------------------------------------------------------#
+
+
 def create_owner_response(user, is_valid, message):
     try:
         owner = BusinessOwners.objects.get(id=user.id)
@@ -152,25 +167,25 @@ def create_owner_response(user, is_valid, message):
             city = Cities.objects.get(id=owner.city_id)
             state = States.objects.get(id=city.state_id)
         
-            owner_data = BusinessOwnerOut(
-                business_name=owner.business_name,
-                business_type=owner.business_type,
-                first_name=owner.first_name,
-                last_name=owner.last_name,
-                email=owner.email,
-                contact_no=owner.contact_no,
-                address=owner.address,
-                logo=owner.logo.url if owner.logo else None,
-                tuition_tagline=owner.tuition_tagline,
-                status=owner.status,
-                created_at=owner.created_at,
-                city={
-                    "city_id": city.id,
-                    "city_name": city.name,
-                    "state_id": city.state_id,
-                    "state_name": state.name,
-                },
-            )
+            owner_data = {
+                    "business_name": owner.business_name,
+                    "business_type": owner.business_type,
+                    "first_name": owner.first_name,
+                    "last_name": owner.last_name,
+                    "email": owner.email,
+                    "contact_no": owner.contact_no,
+                    "address": owner.address,
+                    "logo": owner.logo.url if owner.logo else None,
+                    "tuition_tagline": owner.tuition_tagline if owner.tuition_tagline else None,
+                    "status": owner.status,
+                    "created_at": owner.created_at,
+                    "city": {
+                        "city_id": city.id,
+                        "city_name": city.name,
+                        "state_id": city.state_id,
+                        "state_name": state.name,
+                    },
+                }
 
             response_data = {
                 "result": is_valid,
@@ -190,19 +205,94 @@ def create_owner_response(user, is_valid, message):
         return None
 
 
-def update_owner_data(owner, update_data):
-    for field, value in update_data.items():
-        setattr(owner, field, value)
-    owner.save()
-
-def get_batches_response():
+def update_owner_data(user, data):
     try:
-        batches = CompetitiveBatches.objects.all()
+        owner = BusinessOwners.objects.get(id=user.id)
+        if owner:
+            update_data = {field: value for field, value in data.dict().items() if value is not None}
+            city_id = update_data.pop('city', None)
+            if city_id:
+                city = Cities.objects.get(id=city_id)
+                owner.city = city
+            
+            # Handle the logo update
+            logo = update_data.pop('logo', None)
+            if logo:
+                owner.logo = logo
+            if update_data:
+                for field, value in update_data.items():
+                    setattr(owner, field, value)
+                owner.save()
+                updated_owner_data = create_owner_response(owner, True, message="Owner updated successfully")
+                return updated_owner_data
+            else:
+                raise HttpError(400, "No fields to update")
+        else:
+            raise HttpError(404, "Owner not found")
+        
 
+    except BusinessOwners.DoesNotExist:
+        return JsonResponse({"error": "Owner not found"}, status=404)
+    except Cities.DoesNotExist:
+        return JsonResponse({"error": "City not found"}, status=404)
+    except Exception as e:
+        print("Error:", str(e))
+        return JsonResponse({"error": "An error occurred"}, status=500)
+
+
+    
+
+
+#-----------------------------------------------------------------------------------------------------------#
+#-------------------------------------------COMPETITIVE BATCH-----------------------------------------------#
+#-----------------------------------------------------------------------------------------------------------#
+
+
+def add_batch(data, user):
+    try:
+        batch_name = data.batch_name
+
+        if CompetitiveBatches.objects.filter(batch_name=batch_name, business_owner=user).exists():
+            response_data = {
+                "result": False,
+                "message": "Batch name already exists",
+            }
+            return JsonResponse(response_data, status=400)
+
+        batch = CompetitiveBatches.objects.create(batch_name=batch_name, business_owner=user)
+        business_owner = BusinessOwners.objects.get(id=batch.business_owner_id)
+        saved_batch = {
+            "id": str(batch.id),
+            "batch_name": batch.batch_name,
+            "business_owner_id": str(batch.business_owner_id),
+            "business_owner_name": business_owner.business_name,
+            "status": batch.status,
+            "created_at": batch.created_at.strftime('%Y-%m-%dT%H:%M:%S.%fZ'),
+            "updated_at": batch.updated_at.strftime('%Y-%m-%dT%H:%M:%S.%fZ'),
+        }
+        response_data = {
+            "result": True,
+            "data": saved_batch,
+            "message": "Batch created successfully",
+        }
+        return JsonResponse(response_data, status=201)
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
+
+
+def get_batches_response(user):
+    try:
+        batches = CompetitiveBatches.objects.filter(business_owner=user, status="active")
+        business_owner = BusinessOwners.objects.get(id=user.id)
         batches_list = [
             {
+                "id": batch.id,
                 "batch_name": batch.batch_name,
+                "business_owner_id": batch.business_owner_id,
+                "business_owner_name": business_owner.business_name,
                 "status": batch.status,
+                "created_at": batch.created_at,
+                "updated_at": batch.updated_at,
             }
             for batch in batches
         ]
@@ -223,19 +313,147 @@ def get_batches_response():
         return JsonResponse(response_data)
 
 
+def update_batch(batch_id, data):
+    try:
+        batch = CompetitiveBatches.objects.get(id=batch_id)
+        if batch:
+            update_data = {field: value for field, value in data.dict().items() if value is not None}
+            if update_data:
+                for field, value in update_data.items():
+                    setattr(batch, field, value)
+                batch.save()
+                business_owner = BusinessOwners.objects.get(id=batch.business_owner_id)
+                response_data = {
+                    "result": True,
+                    "data": {
+                        "id": str(batch.id),
+                        "batch_name": batch.batch_name,
+                        "business_owner_id": str(batch.business_owner_id),
+                        "business_owner_name": business_owner.business_name,
+                        "status": batch.status,
+                        "created_at": batch.created_at.strftime('%Y-%m-%dT%H:%M:%S.%fZ'),
+                        "updated_at": batch.updated_at.strftime('%Y-%m-%dT%H:%M:%S.%fZ'),
+                    },
+                    "message": "Batch updated successfully",
+                }
+                return JsonResponse(response_data)
+            else:
+                return JsonResponse({"result": False, "message": "No fields to update"}, status=400)
+        else:
+            return JsonResponse({"result": False, "message": "Batch not found"}, status=404)
+    except Exception as e:
+        print(e)
+        return JsonResponse({"result": False, "error": str(e)}, status=500)
 
 
+#-----------------------------------------------------------------------------------------------------------#
+#------------------------------------------COMPETITIVE SUBJECT----------------------------------------------#
+#-----------------------------------------------------------------------------------------------------------#
 
 
+def add_comp_sub(data, user):
+    try:
+        subject_name = data.subject_name
+
+        if CompetitiveSubjects.objects.filter(subject_name=subject_name, business_owner=user).exists():
+            response_data = {
+                "result": False,
+                "message": "Subject name already exists",
+            }
+            return JsonResponse(response_data, status=400)
+        
+        subject = CompetitiveSubjects.objects.create(subject_name=subject_name, business_owner=user)
+        business_owner = BusinessOwners.objects.get(id=subject.business_owner_id)
+        saved_subject = {
+            "id": str(subject.id),
+            "subject_name": subject.subject_name,
+            "business_owner_id": str(subject.business_owner_id),
+            "business_owner_name": business_owner.business_name,
+            "status": subject.status,
+            "created_at": subject.created_at.strftime('%Y-%m-%dT%H:%M:%S.%fZ'),
+            "updated_at": subject.updated_at.strftime('%Y-%m-%dT%H:%M:%S.%fZ'),
+        }
+        response_data = {
+            "result": True,
+            "data": saved_subject,
+            "message": "Subject created successfully",
+        }
+        return JsonResponse(response_data, status=201)
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
 
 
+def get_subjects_response(user):
+    try:
+        subjects = CompetitiveSubjects.objects.select_related('business_owner').filter(
+            Q(business_owner=user) & Q(status="active")
+        )
+        business_owner = BusinessOwners.objects.get(id=user.id)
+        subjects_list = [
+            {
+                "id": subject.id,
+                "subject_name": subject.subject_name,
+                "business_owner_id": subject.business_owner_id,
+                "business_owner_name": business_owner.business_name,
+                "status": subject.status,
+                "created_at": subject.created_at,
+                "updated_at": subject.updated_at,
+            }
+            for subject in subjects
+        ]
+
+        response_data = {
+            "result": True,
+            "data": subjects_list,
+            "message": "Purchase history retrieved successfully"
+        }
+
+        return JsonResponse(response_data)
+    
+    except Exception as e:
+        response_data = {
+            "result": False,
+            "message": str(e)
+        }
+        return JsonResponse(response_data)
 
 
+def update_comp_sub(subject_id, data):
+    try:
+        subject = CompetitiveSubjects.objects.get(id=subject_id)
+        if subject:
+            update_data = {field: value for field, value in data.dict().items() if value is not None}
+            if update_data:
+                for field, value in update_data.items():
+                    setattr(subject, field, value)
+                subject.save()
+                business_owner = BusinessOwners.objects.get(id=subject.business_owner_id)
+                response_data = {
+                    "result": True,
+                    "data": {
+                        "id": str(subject.id),
+                        "batch_name": subject.subject_name,
+                        "business_owner_id": str(subject.business_owner_id),
+                        "business_owner_name": business_owner.business_name,
+                        "status": subject.status,
+                        "created_at": subject.created_at.strftime('%Y-%m-%dT%H:%M:%S.%fZ'),
+                        "updated_at": subject.updated_at.strftime('%Y-%m-%dT%H:%M:%S.%fZ'),
+                    },
+                    "message": "Batch updated successfully",
+                }
+                return JsonResponse(response_data)
+            else:
+                return JsonResponse({"result": False, "message": "No fields to update"}, status=400)
+        else:
+            return JsonResponse({"result": False, "message": "Batch not found"}, status=404)
+    except Exception as e:
+        print(e)
+        return JsonResponse({"result": False, "error": str(e)}, status=500)
 
 
-
-
-
+#-----------------------------------------------------------------------------------------------------------#
+#------------------------------------------COMPETITIVE CHAPTER----------------------------------------------#
+#-----------------------------------------------------------------------------------------------------------#
 
 
 

@@ -1,4 +1,4 @@
-from django.shortcuts import render
+from django.shortcuts import get_object_or_404, render
 from django.http import JsonResponse
 from businessowner.schemas import *
 from .utils import generate_token
@@ -7,7 +7,7 @@ from .models import *
 from .authentication import JWTAuthentication
 from ninja import Router
 from ninja.errors import HttpError
-
+from .authentication import verify_token
 router = Router()
 
 
@@ -24,23 +24,23 @@ async def login(request, login_data: LoginIn):
 
 
 @router.post("/changePassword", response={200: ChangePasswordOut, 400: dict, 401: dict})
+@verify_token
 def change_password(request, change_data: ChangePasswordIn):
-    user, error_response = authenticate_with_jwt_token(request)
-    if error_response:
-        return JsonResponse(error_response, status=401)
     
-    result = perform_change_password(change_data)
-    response = generate_change_password_response(result)
+    result,status = perform_change_password(change_data) 
     
-    if not result["result"]:
-        return JsonResponse(response, status=401)  
-        
-    return JsonResponse(response)
+    return JsonResponse(result,status=status)
 
 
 @router.post("/forgotPassword", response={400: dict, 401: dict})
 def forgot_password(request):
     pass
+
+
+#-----------------------------------------------------------------------------------------------------------#
+#---------------------------------------------PLAN PURCHASE-------------------------------------------------#
+#-----------------------------------------------------------------------------------------------------------#
+
 
 @router.get("/planPurchase", response={200: dict, 400: dict, 401: dict})
 def plan_purchase(request):
@@ -60,6 +60,11 @@ def purchase_history(request):
     return get_purchase_history_response(user)
 
 
+#-----------------------------------------------------------------------------------------------------------#
+#---------------------------------------------OWNER PROFILE-------------------------------------------------#
+#-----------------------------------------------------------------------------------------------------------#
+
+
 @router.get("/ownerProfile", response={200: dict})
 def get_business_owner(request):
     user, error_response = authenticate_with_jwt_token(request)
@@ -75,25 +80,13 @@ def update_business_owner(request, data: BusinessOwnerIn):
     user, error_response = authenticate_with_jwt_token(request)
     if error_response:
         return JsonResponse(error_response, status=401)
+    return update_owner_data(user, data)
+    
+    
 
-    try:
-        owner = BusinessOwners.objects.get(id=user.id)
-        if owner:
-            update_data = {field: value for field, value in data.dict().items() if value is not None}
-            
-            if update_data:
-                update_owner_data(owner, update_data)
-                updated_owner_data = create_owner_response(owner, True, message="Owner updated successfully")
-                return updated_owner_data
-            else:
-                raise HttpError(400, "No fields to update")
-        else:
-            raise HttpError(404, "Owner not found")
-    except BusinessOwners.DoesNotExist:
-        return JsonResponse({"error": "Owner not found"}, status=404)
-    except Exception as e:
-        print("Error:", str(e))
-        return JsonResponse({"error": "An error occurred"}, status=500)
+#-----------------------------------------------------------------------------------------------------------#
+#-------------------------------------------COMPETITIVE BATCH-----------------------------------------------#
+#-----------------------------------------------------------------------------------------------------------#
 
 
 @router.post("/competitive/batch", response={200: dict})
@@ -102,13 +95,7 @@ def add_competitive_batch(request, data: BatchIn):
     if error_response:
         return JsonResponse(error_response, status=401)
     
-    try:
-        batch = CompetitiveBatches.objects.create(**data.dict())
-        
-        return JsonResponse({"message": "Batch created successfully"}, status=201)
-    except Exception as e:
-        return JsonResponse({"error": str(e)}, status=500)
-
+    return add_batch(data, user)
 
 
 @router.get("/competitive/batch",  response={200: dict, 400: dict, 401: dict})
@@ -117,4 +104,105 @@ def get_competitive_batch(request):
     if error_response:
         return JsonResponse(error_response, status=401)
     
-    return get_batches_response()
+    return get_batches_response(user)
+
+
+@router.put("/competitive/batch/{batch_id}",  response={200: dict, 400: dict, 401: dict})
+def update_competitive_batch(request, batch_id, data: BatchUpdate):
+    user, error_response = authenticate_with_jwt_token(request)
+    if error_response:
+        return JsonResponse(error_response, status=401)
+    return update_batch(batch_id, data)
+
+
+@router.delete("/competitive/batch/{batch_id}",  response={200: dict, 400: dict, 401: dict})
+def delete_competitive_batch(request, batch_id):
+    user, error_response = authenticate_with_jwt_token(request)
+    if error_response:
+        return JsonResponse(error_response, status=401)
+    
+    batch = get_object_or_404(CompetitiveBatches, id=batch_id)
+    batch.delete()
+
+    return JsonResponse({"status":True,
+                         "message":"Data Deleted Successfully"})
+
+
+#-----------------------------------------------------------------------------------------------------------#
+#------------------------------------------COMPETITIVE SUBJECT----------------------------------------------#
+#-----------------------------------------------------------------------------------------------------------#
+
+
+@router.post("/competitive/subject", response={200: dict})
+def add_competitive_subject(request, data: SubjectIn):
+    user, error_response = authenticate_with_jwt_token(request)
+    if error_response:
+        return JsonResponse(error_response, status=401)
+    
+    return add_comp_sub(data, user)
+
+
+@router.get("/competitive/subject",  response={200: dict, 400: dict, 401: dict})
+def get_competitive_subject(request):
+    user, error_response = authenticate_with_jwt_token(request)
+    if error_response:
+        return JsonResponse(error_response, status=401)
+    
+    return get_subjects_response(user)
+
+
+@router.put("/competitive/subject/{subject_id}",  response={200: dict, 400: dict, 401: dict})
+def update_competitive_subject(request, subject_id, data: SubjectUpdate):
+    user, error_response = authenticate_with_jwt_token(request)
+    if error_response:
+        return JsonResponse(error_response, status=401)
+    
+    return update_comp_sub(subject_id, data)
+
+
+@router.delete("/competitive/subject/{subject_id}",  response={200: dict, 400: dict, 401: dict})
+def delete_competitive_subject(request, subject_id):
+    user, error_response = authenticate_with_jwt_token(request)
+    if error_response:
+        return JsonResponse(error_response, status=401)
+    
+    subject = get_object_or_404(CompetitiveSubjects, id=subject_id)
+    subject.delete()
+
+    return JsonResponse({"status":True,
+                         "message":"Data Deleted Successfully"})
+
+
+#-----------------------------------------------------------------------------------------------------------#
+#------------------------------------------COMPETITIVE CHAPTER----------------------------------------------#
+#-----------------------------------------------------------------------------------------------------------#
+
+
+@router.post("/competitive/chapter", response={200: str})
+def add_competitive_chapter(request, data: ChapterIn):
+    user, error_response = authenticate_with_jwt_token(request)
+    if error_response:
+        return JsonResponse(error_response, status=401)
+    
+    try:
+        try:
+            subject_instance = CompetitiveSubjects.objects.get(id=data.subject_name)
+        except CompetitiveSubjects.DoesNotExist:
+            return JsonResponse({"error": "Subject does not exist"}, status=400)
+        
+        batches_instances = CompetitiveBatches.objects.filter(id__in=data.batches)
+        batches = list(batches_instances)
+        
+        # Create a new chapter instance
+        chapter_instance = CompetitiveChapters(
+            subject_name=subject_instance,
+            chapter_name=data.chapter_name,
+        )
+
+        for batch in batches:
+            chapter_instance.batches.add(batch)
+        # chapter_instance.batches = list(batches_instances)
+        chapter_instance.save()
+        return JsonResponse({"message": "Chapter added successfully!"}, status=200)
+    except Exception as e:
+        return JsonResponse({"error": f"An error occurred: {str(e)}"}, status=500)

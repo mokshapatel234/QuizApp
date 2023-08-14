@@ -240,7 +240,7 @@ class CompetitiveChapters(models.Model):
     
     def delete(self, hard=False, **kwargs):
         if hard:
-            super(CompetitiveBatches, self).delete()
+            super(CompetitiveChapters, self).delete()
         else:
             self.deleted_at = now()
             self.save()

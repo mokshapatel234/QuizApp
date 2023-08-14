@@ -1,7 +1,7 @@
-from ninja import Schema
+from ninja import Schema, UploadedFile
 from datetime import datetime
 from pydantic import BaseModel
-
+from uuid import UUID
 
 class LoginIn(Schema):
     email: str
@@ -48,13 +48,15 @@ class PurchaseHistoryOut(Schema):
     purchase_date: datetime
 
 
-class BusinessOwnerIn(Schema):
+class BusinessOwnerIn(BaseModel):
     business_name: str = None
     first_name: str = None
     last_name: str = None
     email: str = None
     address: str = None
     tuition_tagline: str = None
+    city: int = None  
+    logo: str = None
     status: str = None
 
 
@@ -73,8 +75,8 @@ class BusinessOwnerOut(Schema):
     email: str
     contact_no: str 
     address: str
-    logo: str
-    tuition_tagline: str
+    logo: str = None
+    tuition_tagline: str= None
     status: str
     created_at: datetime
     city: CitySchema 
@@ -85,15 +87,28 @@ class BusinessOwnerOut(Schema):
 ####################################################################################################
 
 class BatchIn(Schema):
-    batch_name = str
+    batch_name :str
+
+class BatchUpdate(Schema):
+    id: int =None
+    batch_name: str = None
+    status: str = None
 
 
+class SubjectIn(Schema):
+    subject_name :str
+
+class SubjectUpdate(Schema):
+    id: int =None
+    subject_name: str = None
+    status: str = None
 
 
-
-
-
-
+class ChapterIn(Schema):
+    subject_name: UUID
+    chapter_name: str
+    batches: list[UUID]
+  
 
 
 
