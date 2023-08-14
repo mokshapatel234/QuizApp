@@ -69,19 +69,21 @@ def perform_change_password(change_data):
     
     except BusinessOwners.DoesNotExist:
         return {"result": False, "message": "Business owner not found"}
+    
 
 def generate_change_password_response(result):
     if "result" in result and result["result"]:
-        response = {
+        response_data = {
             "result": True,
             "message": "Password changed successfully"
         }
+        
     else:
-        response = {
+        response_data = {
             "result": False,
             "message": result["message"]  # Use the message from the result
         }
-    return response
+    return JsonResponse(response_data)
 
 def get_plan_purchase_response():
     try:
@@ -102,14 +104,14 @@ def get_plan_purchase_response():
             "message": "Data found successfully"
         }
 
-        return response_data
+        return JsonResponse(response_data)
     
     except Exception as e:
         response_data = {
             "result": True,
             "message": "Something went wrong"
         }
-        return response_data
+        return JsonResponse(response_data)
 
 
 def get_purchase_history_response(user):
@@ -132,14 +134,14 @@ def get_purchase_history_response(user):
             "message": "Purchase history retrieved successfully"
         }
 
-        return response_data
+        return JsonResponse(response_data)
     
     except Exception as e:
         response_data = {
-            "result": True,
+            "result": False,
             "message": "Something went wrong"
         }
-        return response_data
+        return JsonResponse(response_data)
     
 
 def create_owner_response(user, is_valid, message):
@@ -181,7 +183,9 @@ def create_owner_response(user, is_valid, message):
                 "message": message
             }
         
-        return response_data
+        return JsonResponse(response_data)
+    
+
     except BusinessOwners.DoesNotExist:
         return None
 
@@ -191,7 +195,32 @@ def update_owner_data(owner, update_data):
         setattr(owner, field, value)
     owner.save()
 
+def get_batches_response():
+    try:
+        batches = CompetitiveBatches.objects.all()
 
+        batches_list = [
+            {
+                "batch_name": batch.batch_name,
+                "status": batch.status,
+            }
+            for batch in batches
+        ]
+
+        response_data = {
+            "result": True,
+            "data": batches_list,
+            "message": "Purchase history retrieved successfully"
+        }
+
+        return JsonResponse(response_data)
+    
+    except Exception as e:
+        response_data = {
+            "result": False,
+            "message": str(e)
+        }
+        return JsonResponse(response_data)
 
 
 
@@ -702,3 +731,34 @@ def update_owner_data(owner, update_data):
 ####################################################################################
 ####--------------------------------ACADEMIC------------------------------------####
 ####################################################################################
+
+
+def get_boards(user):
+    try:
+        academic_boards = AcademicBoards.objects.all()
+
+        academic_list = [
+            {
+                "id": board.id,
+                "board_name": board.board_name,
+                "business_owner_id": board.business_owner_id,
+                "status": board.status,
+                "created_at": board.created_at,
+                "updated_at": board.updated_at,
+            }
+            for board in academic_boards
+        ]
+        response_data = {
+            "result": True,
+            "data": academic_list,
+            "message": "Academic boards retrieved successfully."
+        }
+
+        return JsonResponse(response_data,status=200)
+    
+    except Exception as e:
+        response_data = {
+            "result": False,
+            "message": "Something went wrong."
+        }
+        return JsonResponse(response_data,status=200)

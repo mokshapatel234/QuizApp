@@ -1,9 +1,12 @@
 from ninja import Schema
 from datetime import datetime
 from pydantic import BaseModel
+
+
 class LoginIn(Schema):
     email: str
     password: str
+
 
 class LoginOut(Schema):
     email: str
@@ -12,18 +15,22 @@ class LoginOut(Schema):
     result:bool
     data: list[LoginIn]
 
+
 class ChangePasswordIn(Schema):
     email: str
     old_password: str
     new_password: str
     confirm_password: str
 
+
 class ChangePasswordOut(Schema):
     result: bool
     message: str
 
+
 class ForgotPasswordIn(Schema):
     email: str
+
 
 class PlanSchemaIn(Schema):
     plan_name: str
@@ -33,11 +40,13 @@ class PlanSchemaIn(Schema):
     image: str
     status: str
     
+
 class PurchaseHistoryOut(Schema):
     plan_name: str
     order_id: str
     status: str
     purchase_date: datetime
+
 
 class BusinessOwnerIn(Schema):
     business_name: str = None
@@ -71,10 +80,12 @@ class BusinessOwnerOut(Schema):
     city: CitySchema 
 
 
+####################################################################################################
+####---------------------------------------COMPETITIVE------------------------------------------####
+####################################################################################################
 
-
-
-
+class BatchIn(Schema):
+    batch_name = str
 
 
 
@@ -207,3 +218,16 @@ class BusinessOwnerOut(Schema):
 ####################################################################################
 ####--------------------------------ACADEMIC------------------------------------####
 ####################################################################################
+
+
+class AcademicBoardSchema(Schema):
+    id: int
+    board_name: str
+    business_owner_id: int
+    status: str
+    created_at: datetime
+    updated_at: datetime
+  
+
+    class Config:
+        orm_mode = True

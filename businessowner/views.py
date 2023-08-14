@@ -95,3 +95,26 @@ def update_business_owner(request, data: BusinessOwnerIn):
         print("Error:", str(e))
         return JsonResponse({"error": "An error occurred"}, status=500)
 
+
+@router.post("/competitive/batch", response={200: dict})
+def add_competitive_batch(request, data: BatchIn):
+    user, error_response = authenticate_with_jwt_token(request)
+    if error_response:
+        return JsonResponse(error_response, status=401)
+    
+    try:
+        batch = CompetitiveBatches.objects.create(**data.dict())
+        
+        return JsonResponse({"message": "Batch created successfully"}, status=201)
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
+
+
+
+@router.get("/competitive/batch",  response={200: dict, 400: dict, 401: dict})
+def get_competitive_batch(request):
+    user, error_response = authenticate_with_jwt_token(request)
+    if error_response:
+        return JsonResponse(error_response, status=401)
+    
+    return get_batches_response()

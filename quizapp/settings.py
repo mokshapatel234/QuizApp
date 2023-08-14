@@ -92,7 +92,7 @@ WSGI_APPLICATION = 'quizapp.wsgi.application'
 DATABASES = {
     "default": {
         "ENGINE": "djongo",
-        "NAME":"quizedb",
+        "NAME":"mindscapeqdb",
         'ENFORCE_SCHEMA': False,
         "CLIENT":{
             "host": os.getenv('DATABASE'),
