@@ -1,6 +1,7 @@
 from ninja import Schema, UploadedFile
 from datetime import datetime
 from pydantic import BaseModel
+from typing import Optional,List
 from uuid import UUID
 
 class LoginIn(Schema):
@@ -233,16 +234,17 @@ class ChapterIn(Schema):
 ####################################################################################
 ####--------------------------------ACADEMIC------------------------------------####
 ####################################################################################
-
+class DeleteOut(Schema):
+    result: bool
+    message: str
 
 class AcademicBoardSchema(Schema):
-    id: int
+    id: str
     board_name: str
-    business_owner_id: int
+    business_owner: str
     status: str
     created_at: datetime
     updated_at: datetime
-  
 
 class BoardSchema(Schema):
     board_name: str
@@ -251,23 +253,189 @@ class BoardUpdateSchema(Schema):
     board_name: str = None
     status : str = None
 
+class AcademicBoardListOut(Schema):
+    result: bool
+    data: List[AcademicBoardSchema]
+    message: str  
+
+class AcademicFilter(Schema):
+    status : Optional[str] 
+    board_id : Optional[str]
+
+class AcademicBoardOut(Schema):
+    result: bool
+    data: AcademicBoardSchema=None
+    message: str 
+
+class BoardUpdateSchemaOut(Schema):
+    result: bool
+    data: AcademicBoardSchema
+    message: str 
+
+
+
 
 class AcademicMedium(Schema):
-    id: int = None
+    id: str = None
     medium_name: str = None
+    board_id: str = None 
     board_name: str = None
-    business_owner_id: int = None
     status: str = None
     created_at: datetime  = None
     updated_at: datetime = None
 
+class AcademicMediumListOut(Schema):
+    result: bool
+    data: List[AcademicMedium]
+    message: str  
 
-class AddAcademicMedium(Schema):
+class AddAcademicMediumIn(Schema):
     medium_name: str
     board_id: str
 
+class AddAcademicMediumOut(Schema):
+    result: bool
+    data: AcademicMedium
+    message: str 
 
-class updateMedium(Schema):
-    medium_name: str = None
-    board_name: str = None
-    status: str = None
+class updateMediumIn(Schema):
+    medium_name: Optional[str]
+    board_name: Optional[str]
+    status: Optional[str] 
+
+class UpdateAcademicMediumOut(Schema):
+    result: bool
+    data: AcademicMedium
+    message: str 
+
+
+
+
+
+
+
+class AcademicStandard(Schema):
+    id: Optional[str]
+    standard : Optional[str]
+    medium_id: Optional[str]
+    medium_name: Optional[str]
+    status : Optional[str]
+    created_at : Optional[datetime]
+    updated_at : Optional[datetime]
+
+class AcademicStandardList(Schema):
+    result : bool
+    data : List[AcademicStandard]
+    message : str
+
+class AcademicStandardOut(Schema):
+    result : bool
+    data : AcademicStandard
+    message : str
+
+class AcademicStandardIn(Schema):
+    standard : Optional[str]
+    medium_id: Optional[str]
+
+
+class updateStandardIn(Schema):
+    standard_name: Optional[str]
+    medium_name: Optional[str]
+    status: Optional[str] 
+
+
+
+class AcademicSubject(Schema):
+    id: Optional[str]
+    subject_name : Optional[str]
+    standard_id: Optional[str]
+    standard: Optional[str]
+    status : Optional[str]
+    created_at : Optional[datetime]
+    updated_at : Optional[datetime]
+
+class AcademicSubjectList(Schema):
+    result : bool
+    data : List[AcademicSubject]
+    message : str
+
+
+class AcademicSubjectOut(Schema):
+    result : bool
+    data : AcademicSubject
+    message : str
+
+class AcademicSubjectIn(Schema):
+    subject_name : Optional[str]
+    standard_id: Optional[str]
+
+
+class updateSubjectIn(Schema):
+    subject_name: Optional[str]
+    standard: Optional[str]
+    status: Optional[str] 
+
+
+
+class AcademicChapter(Schema):
+    id: Optional[str]
+    chapter_name : Optional[str]
+    subject_id: Optional[str]
+    subject_name: Optional[str]
+    status : Optional[str]
+    created_at : Optional[datetime]
+    updated_at : Optional[datetime]
+
+class AcademicChapterList(Schema):
+    result : bool
+    data : List[AcademicChapter]
+    message : str
+
+
+class AcademicChapterIn(Schema):
+    chapter_name : Optional[str]
+    subject_id: Optional[str]
+
+class AcademicChapterOut(Schema):
+    result : bool
+    data : AcademicChapter
+    message : str
+
+
+class updateChaptertIn(Schema):
+    chapter_name:Optional[str]
+    subject_name: Optional[str]
+    status: Optional[str] 
+
+
+
+# class AcademicQuestion(Schema):
+#     id: Optional[str]
+#     chapter_id : Optional[str]
+#     question: Optional[str]
+#     options: Optional[str]
+#     answer : Optional[str]
+#     question_category: Optional[str]
+#     marks : Optional[int]
+#     time_duration: Optional[datetime]
+#     owner_id : Optional[str]
+#     status: Optional[str]
+#     created_at : Optional[datetime]
+#     updated_at : Optional[datetime]
+
+
+
+class Optionschema(Schema):
+    option1: str
+    option2: str
+    option3: Optional[str]
+    option4: Optional[str]
+
+class QuestionIn(Schema):
+   question: str
+   options: Optionschema
+   answer: str 
+   chapter: UUID
+   question_category: str
+   marks: int
+   time: str

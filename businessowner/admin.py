@@ -8,6 +8,8 @@ from import_export.formats import base_formats
 from import_export import fields, resources
 from import_export.widgets import ForeignKeyWidget
 
+
+
 admin.site.unregister(Group)
 
 class CityResource(resources.ModelResource):
@@ -144,7 +146,12 @@ admin.site.register(States, StateAdmin)
 admin.site.register(Cities, CityAdmin)
 admin.site.register(BusinessOwners, BusinessOwnerAdmin)
 admin.site.register(Plans)
-admin.site.register(AcademicMediums)
+# admin.site.register(AcademicMediums)
+# admin.site.register(AcademicStandards)
+# admin.site.register(AcademicChapters)
+# admin.site.register(AcademicSubjects)
+admin.site.register(AcademicQuestions)
+# admin.site.register(AcademicExams)
 admin.site.register(Notifications, NotificationAdmin)
 admin.site.register(Students, StudentAdmin)
 admin.site.register(CompetitiveExams, CompetitiveExamAdmin)
