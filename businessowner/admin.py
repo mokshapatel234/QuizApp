@@ -59,20 +59,29 @@ class StudentResource(resources.ModelResource):
         attribute='standard__standard',
         readonly=True
     )
+    business_owner_name = fields.Field(
+        column_name='business_owner',
+        attribute='business_owner__business_name',
+        readonly=True
+    )
 
     class Meta:
         model = Students
-        fields = ('first_name', 'last_name', 'email', 'contact_no', 'batch', 'standard', 'created_at', 'status')
+        fields = ('first_name', 'last_name', 'email', 'contact_no', 'batch', 'standard', 'created_at', 'status', 'business_owner')
 
 
 class StudentAdmin(ExportActionMixin, admin.ModelAdmin):
-    list_display = ('first_name', 'last_name', 'batch', 'standard','email','contact_no' )
+    list_display = ('first_name', 'last_name', 'batch', 'standard','email','contact_no', 'business_owner', "get_business_type" )
     resource_class = StudentResource
+    list_filter = ('business_owner__business_type', 'batch', 'standard')
     formats = (base_formats.CSV, base_formats.XLSX, )
 
     def has_add_permission(self, request, obj=None):
         return False
     
+    @admin.display(description='Business Type', ordering='business_owner__business_type')
+    def get_business_type(self, obj):
+        return obj.business_owner.business_type
 
 class CompetitiveExamResource(resources.ModelResource):
     business_owner = fields.Field(
@@ -148,7 +157,6 @@ admin.site.register(Notifications, NotificationAdmin)
 admin.site.register(Students, StudentAdmin)
 admin.site.register(CompetitiveExams, CompetitiveExamAdmin)
 admin.site.register(AcademicExams, AcademicExamAdmin)
-
 # admin.site.register(AcademicQuestions)
 # admin.site.register(AcademicBoards)
 # admin.site.register(AcademicMediums)

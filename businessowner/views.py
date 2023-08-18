@@ -5,31 +5,29 @@ from .utils import generate_token
 from .helpers import *
 from .models import *
 from .authentication import JWTAuthentication
-from ninja import Router
+from ninja import Router, Query
 from ninja.errors import HttpError
 from .authentication import verify_token
+from typing import List
+from ninja.files import UploadedFile
+from rest_framework.parsers import MultiPartParser
+import pandas as pd
+
 router = Router()
 
 
 
 @router.post("/login", response={200: LoginOut, 401: dict})
-async def login(request, login_data: LoginIn):
-    is_valid, message, user_id = await verify_user_credentials(login_data.email, login_data.password)
-    
-    if is_valid:
-        token = generate_token(user_id)  # Generate the token here
-        return create_login_response(login_data, is_valid, message, token)
-    else:
-        return create_login_response(login_data, is_valid, message)
+def login(request, data: LoginIn):
+    return perform_login(data)
+   
 
 
 @router.post("/changePassword", response={200: ChangePasswordOut, 400: dict, 401: dict})
 @verify_token
-def change_password(request, change_data: ChangePasswordIn):
+def change_password(request, data: ChangePasswordIn):
     
-    result,status = perform_change_password(change_data) 
-    
-    return JsonResponse(result,status=status)
+    return perform_change_password(data, request.user) 
 
 
 @router.post("/forgotPassword", response={400: dict, 401: dict})
@@ -42,22 +40,16 @@ def forgot_password(request):
 #-----------------------------------------------------------------------------------------------------------#
 
 
-@router.get("/planPurchase", response={200: dict, 400: dict, 401: dict})
+@router.get("/planPurchase", response={200: PlanSchemaOut, 400: dict, 401: dict})
+@verify_token
 def plan_purchase(request):
-    user, error_response = authenticate_with_jwt_token(request)
-    if error_response:
-        return JsonResponse(error_response, status=401)
-    print(user)
     return get_plan_purchase_response()
 
 
-@router.get("/purchaseHistory", response={200: dict, 400: dict, 401: dict})
+@router.get("/purchaseHistory", response={200: PurchaseHistoryOut, 400: dict, 401: dict})
+@verify_token
 def purchase_history(request):
-    user, error_response = authenticate_with_jwt_token(request)
-    if error_response:
-        return JsonResponse(error_response, status=401)
-
-    return get_purchase_history_response(user)
+    return get_purchase_history_response(request.user)
 
 
 #-----------------------------------------------------------------------------------------------------------#
@@ -65,22 +57,16 @@ def purchase_history(request):
 #-----------------------------------------------------------------------------------------------------------#
 
 
-@router.get("/ownerProfile", response={200: dict})
+@router.get("/ownerProfile", response={200: BusinessOwnerOut, 400: dict, 401: dict})
+@verify_token
 def get_business_owner(request):
-    user, error_response = authenticate_with_jwt_token(request)
-    if error_response:
-        return JsonResponse(error_response, status=401)
-
-    return create_owner_response(user, True, "Owner retrieved successfully")
+    return create_owner_response(request.user, True, "Owner retrieved successfully")
 
 
-@router.patch("/ownerProfile", response={200: dict})
+@router.patch("/ownerProfile", response={200: BusinessOwnerOut, 400: dict, 401: dict})
+@verify_token
 def update_business_owner(request, data: BusinessOwnerIn):
-
-    user, error_response = authenticate_with_jwt_token(request)
-    if error_response:
-        return JsonResponse(error_response, status=401)
-    return update_owner_data(user, data)
+    return update_owner_data(data, request.user)
     
     
 
@@ -89,43 +75,34 @@ def update_business_owner(request, data: BusinessOwnerIn):
 #-----------------------------------------------------------------------------------------------------------#
 
 
-@router.post("/competitive/batch", response={200: dict})
+@router.post("/competitive/batch", response={200: BatchOut, 400: dict, 401: dict})
+@verify_token
 def add_competitive_batch(request, data: BatchIn):
-    user, error_response = authenticate_with_jwt_token(request)
-    if error_response:
-        return JsonResponse(error_response, status=401)
-    
-    return add_batch(data, user)
+    return add_batch(data, request.user)
 
 
-@router.get("/competitive/batch",  response={200: dict, 400: dict, 401: dict})
-def get_competitive_batch(request):
-    user, error_response = authenticate_with_jwt_token(request)
-    if error_response:
-        return JsonResponse(error_response, status=401)
-    
-    return get_batches_response(user)
+@router.get("/competitive/batch",  response={200: BatchListout, 400: dict, 401: dict})
+@verify_token
+def get_competitive_batchlist(request, query:BatchFilter = Query(...)):
+    return get_batchlist(request.user, query)
 
 
-@router.put("/competitive/batch/{batch_id}",  response={200: dict, 400: dict, 401: dict})
+@router.get("/competitive/batch/{batch_id}",  response={200: BatchOut, 400: dict, 401: dict})
+@verify_token
+def get_competitive_batch(request, batch_id):
+    return get_batch(batch_id, request.user)
+
+
+@router.patch("/competitive/batch/{batch_id}",  response={200: BatchOut, 400: dict, 401: dict})
+@verify_token
 def update_competitive_batch(request, batch_id, data: BatchUpdate):
-    user, error_response = authenticate_with_jwt_token(request)
-    if error_response:
-        return JsonResponse(error_response, status=401)
     return update_batch(batch_id, data)
 
 
-@router.delete("/competitive/batch/{batch_id}",  response={200: dict, 400: dict, 401: dict})
-def delete_competitive_batch(request, batch_id):
-    user, error_response = authenticate_with_jwt_token(request)
-    if error_response:
-        return JsonResponse(error_response, status=401)
-    
-    batch = get_object_or_404(CompetitiveBatches, id=batch_id)
-    batch.delete()
-
-    return JsonResponse({"status":True,
-                         "message":"Data Deleted Successfully"})
+@router.delete("/competitive/batch/{batch_id}",  response={200: DeleteOut, 400: dict, 401: dict})
+@verify_token
+def delete_competitive_batch(request, batch_id):    
+    return delete_batch(batch_id)
 
 
 #-----------------------------------------------------------------------------------------------------------#
@@ -133,76 +110,144 @@ def delete_competitive_batch(request, batch_id):
 #-----------------------------------------------------------------------------------------------------------#
 
 
-@router.post("/competitive/subject", response={200: dict})
-def add_competitive_subject(request, data: SubjectIn):
-    user, error_response = authenticate_with_jwt_token(request)
-    if error_response:
-        return JsonResponse(error_response, status=401)
-    
-    return add_comp_sub(data, user)
+@router.post("/competitive/subject", response={200: CompSubjectOut, 400: dict, 401: dict})
+@verify_token
+def add_competitive_subject(request, data: CompSubjectIn):
+    return add_comp_subect(data, request.user)
 
 
-@router.get("/competitive/subject",  response={200: dict, 400: dict, 401: dict})
-def get_competitive_subject(request):
-    user, error_response = authenticate_with_jwt_token(request)
-    if error_response:
-        return JsonResponse(error_response, status=401)
-    
-    return get_subjects_response(user)
+@router.get("/competitive/subject",  response={200: CompSubjectListOut, 400: dict, 401: dict})
+@verify_token
+def get_competitive_subjectlist(request, query:BatchFilter = Query(...)):
+    return get_comp_subjectlist(request.user, query)
 
 
-@router.put("/competitive/subject/{subject_id}",  response={200: dict, 400: dict, 401: dict})
-def update_competitive_subject(request, subject_id, data: SubjectUpdate):
-    user, error_response = authenticate_with_jwt_token(request)
-    if error_response:
-        return JsonResponse(error_response, status=401)
-    
-    return update_comp_sub(subject_id, data)
+@router.get("/competitive/subject/{subject_id}",  response={200: CompSubjectOut, 400: dict, 401: dict})
+@verify_token
+def get_competitive_subject(request, subject_id):
+    return get_comp_subject(subject_id, request.user)
 
 
-@router.delete("/competitive/subject/{subject_id}",  response={200: dict, 400: dict, 401: dict})
+@router.patch("/competitive/subject/{subject_id}",  response={200: CompSubjectOut, 400: dict, 401: dict})
+@verify_token
+def update_competitive_subject(request, subject_id, data: CompSubjectUpdate):
+    return update_comp_subject(subject_id, data)
+
+
+@router.delete("/competitive/subject/{subject_id}",  response={200: DeleteOut, 400: dict, 401: dict})
+@verify_token
 def delete_competitive_subject(request, subject_id):
-    user, error_response = authenticate_with_jwt_token(request)
-    if error_response:
-        return JsonResponse(error_response, status=401)
+    return delete_comp_subject(subject_id)
     
-    subject = get_object_or_404(CompetitiveSubjects, id=subject_id)
-    subject.delete()
-
-    return JsonResponse({"status":True,
-                         "message":"Data Deleted Successfully"})
-
 
 #-----------------------------------------------------------------------------------------------------------#
 #------------------------------------------COMPETITIVE CHAPTER----------------------------------------------#
 #-----------------------------------------------------------------------------------------------------------#
 
 
-@router.post("/competitive/chapter", response={200: str})
-def add_competitive_chapter(request, data: ChapterIn):
-    user, error_response = authenticate_with_jwt_token(request)
-    if error_response:
-        return JsonResponse(error_response, status=401)
+@router.post("/competitive/chapter", response={200: CompChapterOut, 400: dict, 401: dict})
+@verify_token
+def add_competitive_chapter(request, data: CompChapterIn):
+    return add_comp_chapter(data)
     
-    try:
-        try:
-            subject_instance = CompetitiveSubjects.objects.get(id=data.subject_name)
-        except CompetitiveSubjects.DoesNotExist:
-            return JsonResponse({"error": "Subject does not exist"}, status=400)
-        
-        batches_instances = CompetitiveBatches.objects.filter(id__in=data.batches)
-        batches = list(batches_instances)
-        
-        # Create a new chapter instance
-        chapter_instance = CompetitiveChapters(
-            subject_name=subject_instance,
-            chapter_name=data.chapter_name,
-        )
 
-        for batch in batches:
-            chapter_instance.batches.add(batch)
-        # chapter_instance.batches = list(batches_instances)
-        chapter_instance.save()
-        return JsonResponse({"message": "Chapter added successfully!"}, status=200)
-    except Exception as e:
-        return JsonResponse({"error": f"An error occurred: {str(e)}"}, status=500)
+@router.get("/competitive/chapter", response={200: CompChapterListOut, 400: dict, 401: dict})
+@verify_token
+def get_competitive_chapterlist(request, query:CompChapterFilter = Query(...)):
+    return get_comp_chapterlist(request.user, query)
+
+
+@router.get("/competitive/chapter/{chapter_id}", response={200: CompChapterOut, 400: dict, 401: dict})
+@verify_token
+def get_competitive_chapter(request, chapter_id):
+    return get_comp_chapter(request.user, chapter_id)
+
+
+@router.patch("/competitive/chapter/{chapter_id}",  response={200: CompChapterOut, 400: dict, 401: dict})
+@verify_token
+def update_competitive_chapter(request, chapter_id, data: CompChapterUpdate):
+    return update_comp_chapter(chapter_id, data)
+
+
+@router.delete("/competitive/chapter/{chapter_id}",  response={200: DeleteOut, 400: dict, 401: dict})
+@verify_token
+def delete_competitive_chapter(request, chapter_id):
+    return delete_comp_chapter(chapter_id)
+    
+
+#-----------------------------------------------------------------------------------------------------------#
+#-----------------------------------------COMPETITIVE QUESTIONS---------------------------------------------#
+#-----------------------------------------------------------------------------------------------------------#
+
+
+@router.post("/competitive/question", response={200: dict, 400: dict, 401: dict})
+@verify_token
+def add_competitive_question(request, data: QuestionIn):
+    return add_comp_question(request.user,data)
+    
+
+# @router.get("/competitive/chapter", response={200: CompChapterListOut, 400: dict, 401: dict})
+# @verify_token
+# def get_competitive_chapterlist(request, query:CompChapterFilter = Query(...)):
+#     return get_comp_chapterlist(request.user, query)
+
+
+# @router.get("/competitive/chapter/{chapter_id}", response={200: CompChapterOut, 400: dict, 401: dict})
+# @verify_token
+# def get_competitive_chapter(request, chapter_id):
+#     return get_comp_chapter(request.user, chapter_id)
+
+
+# @router.patch("/competitive/chapter/{chapter_id}",  response={200: CompChapterOut, 400: dict, 401: dict})
+# @verify_token
+# def update_competitive_chapter(request, chapter_id, data: CompChapterUpdate):
+#     return update_comp_chapter(chapter_id, data)
+
+
+# @router.delete("/competitive/chapter/{chapter_id}",  response={200: DeleteOut, 400: dict, 401: dict})
+# @verify_token
+# def delete_competitive_chapter(request, chapter_id):
+#     return delete_comp_chapter(chapter_id)
+
+#-----------------------------------------------------------------------------------------------------------#
+#------------------------------------------------STUDENT----------------------------------------------------#
+#-----------------------------------------------------------------------------------------------------------#
+
+
+@router.post("/student", response={200: StudentOut, 400: dict, 401: dict})
+@verify_token
+def add_student(request, data: StudentIn):
+    return create_student(data, request.user)
+
+@router.post("/student/upload", response={200: DeleteOut, 400: dict, 401: dict})
+@verify_token
+def upload_studentfile(request, xl_file: UploadedFile = File(...)):
+    return upload_student(xl_file, request.user)
+ 
+
+@router.get("/student", response={200: StudentListOut, 400: dict, 401: dict})
+@verify_token
+def get_student_list(request, query: StudentFilter = Query(...)):
+    return student_list(request.user, query)
+
+
+@router.get("/student/{student_id}", response={200: StudentOut, 400: dict, 401: dict})
+@verify_token
+def get_student(request, student_id):
+    return student_detail(student_id)
+
+
+@router.patch("/student/{student_id}", response={200: StudentOut, 400: dict, 401: dict})
+@verify_token
+def update_student(request, student_id, data:StudentUpdate):
+    return student_updation(student_id, data)
+
+@router.patch("/student/uploads", response={200: DeleteOut, 400: dict, 401: dict})
+@verify_token
+def update_studentfile(request, xl_file: UploadedFile = File(...)):
+    return student_file_updation(xl_file,request.user)
+
+@router.delete("/student/{student_id}", response={200: DeleteOut, 400: dict, 401: dict})
+@verify_token
+def delete_student(request, student_id):
+    return remove_student(student_id)

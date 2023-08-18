@@ -81,6 +81,7 @@ class BusinessOwners(models.Model):
     address = models.TextField(verbose_name='Address*')
     logo = models.ImageField(blank=True, upload_to="owner", validators=[FileExtensionValidator(['jpg','jpeg','png'])], height_field=None, width_field=None, max_length=None, null=True)
     tuition_tagline = models.CharField(max_length=50, null=True, verbose_name='Tuition Tagline', blank=True) 
+    is_reset = models.BooleanField(default=False, blank=True)  # # # # # have to add editable=False # # # # #
     status = models.CharField(("status"),choices=CHOICES, max_length=50,default='active')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -186,7 +187,7 @@ class Notifications(models.Model):
 class CompetitiveBatches(models.Model):
     CHOICES = (('inactive','inactive'),('active','active'))
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    batch_name = models.CharField(max_length=50, unique=True)
+    batch_name = models.CharField(max_length=50,blank=True,null=True)
     business_owner = models.ForeignKey(BusinessOwners, on_delete=models.CASCADE,default=None, related_name="owner_batches")
     status = models.CharField(("status"),choices=CHOICES, max_length=50,default='active')
     created_at = models.DateTimeField(auto_now_add=True)
@@ -208,7 +209,7 @@ class CompetitiveBatches(models.Model):
 class CompetitiveSubjects(models.Model):
     CHOICES = (('inactive','inactive'),('active','active'))
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    subject_name = models.CharField(max_length=50, unique=True)
+    subject_name = models.CharField(max_length=50)
     business_owner = models.ForeignKey(BusinessOwners, on_delete=models.CASCADE, related_name="owner_subject")
     status = models.CharField(("status"),choices=CHOICES, max_length=50,default='active')
     created_at = models.DateTimeField(auto_now_add=True)
@@ -230,7 +231,7 @@ class CompetitiveChapters(models.Model):
     CHOICES = (('inactive','inactive'),('active','active'))
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     subject_name = models.ForeignKey(CompetitiveSubjects, on_delete=models.CASCADE, related_name="competitive_subject")
-    chapter_name = models.CharField(max_length=50, unique=True)
+    chapter_name = models.CharField(max_length=50)
     batches = models.ArrayReferenceField(CompetitiveBatches)
     status = models.CharField(("status"),choices=CHOICES, max_length=50,default='active')
     created_at = models.DateTimeField(auto_now_add=True)
@@ -251,10 +252,10 @@ class CompetitiveChapters(models.Model):
 
 class Options(models.Model):
     id = models.UUIDField(default=uuid.uuid4,primary_key=True, editable=False)
-    option1 = models.CharField(("a"), max_length=50) 
-    option2 = models.CharField(("b"), max_length=50)
-    option3 = models.CharField(("c"), max_length=50, blank=True, null=True)
-    option4 = models.CharField(("d"), max_length=50, blank=True, null=True)
+    option1 = models.CharField(max_length=50) 
+    option2 = models.CharField(max_length=50)
+    option3 = models.CharField(max_length=50, blank=True, null=True)
+    option4 = models.CharField(max_length=50, blank=True, null=True)
     # option5 = models.CharField(("e"), null=True, default=False, )
     objects = models.DjongoManager()
    
@@ -336,7 +337,7 @@ class CompetitiveExams(models.Model):
 class AcademicBoards(models.Model):
     CHOICES = (('inactive','inactive'),('active','active'))
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    board_name = models.CharField(max_length=50, unique=True)
+    board_name = models.CharField(max_length=50)
     business_owner = models.ForeignKey(BusinessOwners, on_delete=models.CASCADE, related_name="owner_academic")
     status = models.CharField(("status"),choices=CHOICES, max_length=50,default='active')
     created_at = models.DateTimeField(auto_now_add=True)
@@ -358,7 +359,7 @@ class AcademicBoards(models.Model):
 class AcademicMediums(models.Model):
     CHOICES = (('inactive','inactive'),('active','active'))
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    medium_name = models.CharField(max_length=50, unique=True)
+    medium_name = models.CharField(max_length=50)
     board_name = models.ForeignKey(AcademicBoards, on_delete=models.CASCADE, related_name="academic_boards")
     status = models.CharField(("status"),choices=CHOICES, max_length=50,default='active')
     created_at = models.DateTimeField(auto_now_add=True)
@@ -380,7 +381,7 @@ class AcademicMediums(models.Model):
 class AcademicStandards(models.Model):
     CHOICES = (('inactive','inactive'),('active','active'))
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    standard = models.CharField(max_length=50, unique=True)
+    standard = models.CharField(max_length=50)
     medium_name = models.ForeignKey(AcademicMediums, on_delete=models.CASCADE, related_name="academic_mediums")
     status = models.CharField(("status"),choices=CHOICES, max_length=50,default='active')
     created_at = models.DateTimeField(auto_now_add=True)
@@ -402,7 +403,7 @@ class AcademicStandards(models.Model):
 class AcademicSubjects(models.Model):
     CHOICES = (('inactive','inactive'),('active','active'))
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    subject_name = models.CharField(max_length=50, unique=True)
+    subject_name = models.CharField(max_length=50)
     standard = models.ForeignKey(AcademicStandards, on_delete=models.CASCADE, related_name="academic_standards")
     status = models.CharField(("status"),choices=CHOICES, max_length=50,default='active')
     created_at = models.DateTimeField(auto_now_add=True)
@@ -424,7 +425,7 @@ class AcademicSubjects(models.Model):
 class AcademicChapters(models.Model):
     CHOICES = (('inactive','inactive'),('active','active'))
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    chapter_name = models.CharField(max_length=50, unique=True)
+    chapter_name = models.CharField(max_length=50)
     subject_name = models.ForeignKey(AcademicSubjects, on_delete=models.CASCADE, related_name="academic_subjects")
     status = models.CharField(("status"),choices=CHOICES, max_length=50,default='active')
     created_at = models.DateTimeField(auto_now_add=True)
@@ -449,7 +450,7 @@ class Students(models.Model):
     business_owner = models.ForeignKey(BusinessOwners, on_delete=models.CASCADE, related_name="owner_student")
     first_name = models.CharField(max_length=50)
     last_name = models.CharField(max_length=50)
-    email = models.EmailField(unique=True)
+    email = models.EmailField()
     contact_no = models.CharField(validators=[RegexValidator(regex=r"^\+?1?\d{10}$")], max_length=10)
     parent_name = models.CharField(max_length=50)
     parent_contact_no = models.CharField(validators=[RegexValidator(regex=r"^\+?1?\d{10}$")], max_length=10)

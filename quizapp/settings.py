@@ -92,7 +92,7 @@ WSGI_APPLICATION = 'quizapp.wsgi.application'
 DATABASES = {
     "default": {
         "ENGINE": "djongo",
-        "NAME":"mindscapeqdb",
+        "NAME":"mindscapeqdb_staging",
         'ENFORCE_SCHEMA': False,
         "CLIENT":{
             "host": os.getenv('DATABASE'),
@@ -177,3 +177,10 @@ CSRF_COOKIE_SECURE = False
 CSRF_COOKIE_HTTPONLY = True
 
 CORS_ALLOWED_ORIGINS = ['*']
+
+
+
+EMAIL_HOST = os.getenv("EMAIL_HOST")
+EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER")
+EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD")
+EMAIL_PORT = os.getenv("EMAIL_PORT")
