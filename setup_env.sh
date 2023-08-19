@@ -20,6 +20,8 @@ which pip3
 # echo "Upgrading pip in the virtual environment"
 python3 -m pip install --upgrade --force pip
 
+sudo chmod -R a+rwx env
+
 echo "Installing dependencies in the virtual environment"
 pip3 install -r requirements.txt
 
