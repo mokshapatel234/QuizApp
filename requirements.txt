@@ -41,3 +41,4 @@ django-storages==1.13.2
 djangorestframework==3.13.1
 djangorestframework-simplejwt==5.2.2
 PyJWT==1.7.1
+pandas==2.0.3

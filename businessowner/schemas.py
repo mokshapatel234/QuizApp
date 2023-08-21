@@ -12,6 +12,19 @@ class CitySchema(Schema):
     state_id: str
     state_name: str
 
+class StateSchema(Schema):
+    state_id: str
+    state_name: str
+
+class CityOut(Schema):
+    result: bool
+    data: List[CitySchema]
+    message: str
+
+class StateOut(Schema):
+    result: bool
+    data: List[StateSchema]
+    message: str
 
 class LoginIn(Schema):
     email: str
@@ -154,6 +167,7 @@ class BatchListout(Schema):
 
 class BatchFilter(Schema):
     status: Optional[str]
+    search: Optional[str]
 
 
 #-----------------------------------------------------------------------------------------------------------#
@@ -199,12 +213,12 @@ class CompSubjectListOut(Schema):
 class CompChapterIn(Schema):
     subject_id: UUID
     chapter_name: str
-    batches: list[UUID]
+    batches: List[UUID]
   
 class CompChapterUpdate(Schema):
     subject_id: Optional[UUID]  
     chapter_name: Optional[str] 
-    batches: list[UUID] =None
+    batches: List[UUID] =None
     status: Optional[str]  
 
 
@@ -212,6 +226,7 @@ class CompChapterFilter(Schema):
     status: Optional[str]
     batch: Optional[UUID]
     subject: Optional[UUID]
+    search: Optional[str]
 
 class ChapterBatch(Schema):
     id: str
@@ -259,6 +274,83 @@ class QuestionIn(Schema):
    marks: int
    time: str
 
+class CompQuestionFilter(Schema):
+    status: Optional[str]
+    chapter: Optional[UUID]
+    subject: Optional[UUID]
+    batch: Optional[UUID]
+    question_category: Optional[str]
+    search: Optional[str]
+    
+class OptionUpdateSchema(Schema):
+    option1: Optional[str]
+    option2: Optional[str]
+    option3: Optional[str]
+    option4: Optional[str]
+
+class QuestionUpdate(Schema):
+   question: Optional[str]
+   options: Optional[OptionUpdateSchema]
+   answer: Optional[str] 
+   chapter: Optional[UUID]
+   question_category: Optional[str]
+   marks: Optional[int]
+   time: Optional[str]
+   status: Optional[str]
+
+class Question(Schema):
+    id: str
+    question: str
+    options: Optionschema
+    answer: str 
+    chapter_id: str
+    chapter_name: str
+    subject_id: str
+    subject_name: str
+    question_category: str
+    marks: int
+    time: str
+    status: str
+    created_at: datetime  
+    updated_at: datetime 
+
+
+class QuestionOut(Schema):
+    result: bool
+    data: Question
+    message: str
+
+class QuestionListOut(Schema):
+    result: bool
+    data: List[Question]
+    message: str
+
+
+#-----------------------------------------------------------------------------------------------------------#
+#--------------------------------------------COMPETITIVE EXAM-----------------------------------------------#
+#-----------------------------------------------------------------------------------------------------------#
+
+class CompExamChapter(Schema):
+    id: UUID
+    chapter_name: str
+
+class CompExamData(Schema):
+    subject: UUID
+    chapter: List[UUID]
+    easy_question: int
+    medium_question: int
+    hard_question: int
+
+class CompExamIn(Schema):
+    exam_title: str
+    batch: UUID
+    total_questions: int
+    time_duration: int
+    negative_marks: str
+    passing_marks: int
+    total_marks: int
+    option_e: bool
+    exam_data: List[CompExamData]
 
 #-----------------------------------------------------------------------------------------------------------#
 #------------------------------------------------STUDENT----------------------------------------------------#
@@ -296,6 +388,7 @@ class StudentFilter(Schema):
     board: Optional[UUID]
     medium: Optional[UUID]
     standard: Optional[UUID]
+    search: Optional[str]
 
 class Competitive(Schema):
     batch: str =None
@@ -319,8 +412,8 @@ class Student(Schema):
     parent_contact_no: str
     profile_image: str =None
     address: str =None
-    competitive: Competitive =None
-    academic: Academic =None
+    competitive: Optional[Competitive] 
+    academic: Optional[Academic] 
 
 
 class StudentOut(Schema):
@@ -332,6 +425,137 @@ class StudentListOut(Schema):
     result: bool
     data: List[Student]
     message: str
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

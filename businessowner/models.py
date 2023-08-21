@@ -290,14 +290,17 @@ class CompetitiveQuestions(models.Model):
 class CompetitiveExamData(models.Model):
     id = models.UUIDField(default=uuid.uuid4,primary_key=True, editable=False)
     subject = models.ForeignKey(CompetitiveSubjects, on_delete=models.CASCADE, related_name="examdata_comp_subject")
-    chapter = models.ArrayReferenceField(CompetitiveChapters)
+    chapter = models.CharField("Chapters", max_length=50)
     easy_question = models.IntegerField()
     medium_question = models.IntegerField()
     hard_question = models.IntegerField()
-    time_per_subject = models.DateTimeField()
+    time_per_subject = models.FloatField("Time-Per-Subject",null=True,blank=True)
     marks_per_subject = models.IntegerField()
     objects = models.DjongoManager()
 
+    def __str__(self):
+        return str(self.id)
+    
     
 class CompetitiveExams(models.Model):
     MARKS_CHOICES = (('None','None'),('0.25','0.25'), ('0.33', '0.33'))

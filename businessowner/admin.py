@@ -12,6 +12,10 @@ from import_export.widgets import ForeignKeyWidget
 
 admin.site.unregister(Group)
 
+class UserAdmin(admin.ModelAdmin):
+    admin.site.site_header = 'MindscapeQ'
+    admin.site.index_title = "Admin"
+
 class CityResource(resources.ModelResource):
     state_name = fields.Field(
         column_name='state_name',
@@ -99,12 +103,12 @@ class CompetitiveExamResource(resources.ModelResource):
     )
     
     class Meta:
-        model = Students
+        model = CompetitiveExams
         fields = ('business_owner', 'exam_title', 'batch', 'total_questions', 'time_duration', 'passing_marks', 'total_marks', 'exam_data', 'start_date')
 
 
 class CompetitiveExamAdmin(ExportActionMixin, admin.ModelAdmin):
-    list_display = ('exam_title', 'start_date', 'total_marks', 'total_questions', 'batch' )
+    list_display = ('exam_title', 'start_date', 'total_marks', 'total_questions', )
     resource_class = CompetitiveExamResource
     formats = (base_formats.CSV, base_formats.XLSX, )
 
@@ -138,7 +142,7 @@ class AcademicExamResource(resources.ModelResource):
     )
     
     class Meta:
-        model = Students
+        model = AcademicExams
         fields = ('business_owner', 'exam_title', 'board', 'medium', 'standard', 'total_questions', 'time_duration', 'passing_marks', 'total_marks', 'exam_data', 'start_date')
 
 
@@ -155,20 +159,9 @@ admin.site.register(States, StateAdmin)
 admin.site.register(Cities, CityAdmin)
 admin.site.register(BusinessOwners, BusinessOwnerAdmin)
 admin.site.register(Plans)
-# admin.site.register(AcademicMediums)
-# admin.site.register(AcademicStandards)
-# admin.site.register(AcademicChapters)
-# admin.site.register(AcademicSubjects)
-admin.site.register(AcademicQuestions)
-# admin.site.register(AcademicExams)
 admin.site.register(Notifications, NotificationAdmin)
 admin.site.register(Students, StudentAdmin)
 admin.site.register(CompetitiveExams, CompetitiveExamAdmin)
 admin.site.register(AcademicExams, AcademicExamAdmin)
-# admin.site.register(AcademicQuestions)
-# admin.site.register(AcademicBoards)
-# admin.site.register(AcademicMediums)
-# admin.site.register(AcademicStandards)
-# admin.site.register(AcademicSubjects)
-# admin.site.register(AcademicChapters)
-# admin.site.register(Options)
+
+
