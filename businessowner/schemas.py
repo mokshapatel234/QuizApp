@@ -471,8 +471,14 @@ class AcademicBoardListOut(Schema):
     message: str  
 
 class AcademicFilter(Schema):
+    
+    standard : Optional[str]
+    search : Optional[str]
     status : Optional[str] 
     board_id : Optional[str]
+    medium_id : Optional[str]
+    subject_id : Optional[str]
+    chapter_id : Optional[str]
 
 class AcademicBoardOut(Schema):
     result: bool
@@ -483,9 +489,6 @@ class BoardUpdateSchemaOut(Schema):
     result: bool
     data: AcademicBoardSchema
     message: str 
-
-
-
 
 class AcademicMedium(Schema):
     id: str = None
@@ -571,7 +574,6 @@ class AcademicSubjectList(Schema):
     data : List[AcademicSubject]
     message : str
 
-
 class AcademicSubjectOut(Schema):
     result : bool
     data : AcademicSubject
@@ -586,6 +588,7 @@ class updateSubjectIn(Schema):
     subject_name: Optional[str]
     standard: Optional[str]
     status: Optional[str] 
+
 
 
 
@@ -621,21 +624,23 @@ class updateChaptertIn(Schema):
 
 
 
-# class AcademicQuestion(Schema):
-#     id: Optional[str]
-#     chapter_id : Optional[str]
-#     question: Optional[str]
-#     options: Optional[str]
-#     answer : Optional[str]
-#     question_category: Optional[str]
-#     marks : Optional[int]
-#     time_duration: Optional[datetime]
-#     owner_id : Optional[str]
-#     status: Optional[str]
-#     created_at : Optional[datetime]
-#     updated_at : Optional[datetime]
 
 
+class Question(Schema):
+    id : str
+    question: str
+    options: Optionschema
+    answer: str 
+    chapter_id: str
+    chapter_name: str
+    subject_id: str
+    subject_name: str
+    question_category: str
+    marks: int
+    time: str
+    status: str
+    created_at: datetime  
+    updated_at: datetime 
 
 class Optionschema(Schema):
     option1: str
@@ -651,3 +656,23 @@ class QuestionIn(Schema):
    question_category: str
    marks: int
    time: str
+
+class QuestionOut(Schema):
+    result: bool
+    data: Question
+    message: str
+
+class QuestionListOut(Schema):
+    result: bool
+    data: List[Question]
+    message: str
+
+
+class UpdateQuestionIn(Schema):
+   question: Optional[str]
+   options: Optional[Optionschema]
+   answer: Optional[str] 
+   chapter: Optional[UUID]
+   question_category: Optional[str]
+   marks: Optional[int]
+   time: Optional[str]

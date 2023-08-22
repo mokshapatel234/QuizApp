@@ -571,3 +571,5 @@ class Results(models.Model):
         else:
             self.deleted_at = now()
             self.save()
+
+
