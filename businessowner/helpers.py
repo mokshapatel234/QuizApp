@@ -3645,3 +3645,112 @@ def update_question_data(data, question_id):
 
     except Exception as e:
         raise HttpError(500, str(e))
+    
+
+
+from django.db import transaction
+def create_academic_exam(user, data):
+    try:
+        standard_instance = AcademicStandards.objects.get(id=data.standard)
+      
+        total_weightage = data.total_questions
+        
+        exam_data_calculated = []
+
+        for subject_data in data.exam_data:
+            subject_weightage = sum(
+                qtype for qtype in [subject_data.easy_question, subject_data.medium_question, subject_data.hard_question]
+            )
+            subject_percentage = subject_weightage / total_weightage
+            subject_time = float(data.time_duration * subject_percentage)
+            subject_marks = int(data.total_marks * subject_percentage)
+            
+            subject_instance = AcademicSubjects.objects.get(id=subject_data.subject)
+           
+            chapter_instance = AcademicChapters.objects.filter(id__in=subject_data.chapter)
+            
+            chapters = list(chapter_instance)
+            
+            chapter_ids = [f"{item.id}," for item in chapters]
+            chapters = " ".join(chapter_ids)
+            print(chapters)
+            question_data = AcademicQuestions.objects.filter(Academic_chapter__subject_name=subject_instance)
+
+            selected_questions = []
+            selected_time = 0
+            selected_marks = 0
+            remaining_easy_questions = subject_data.easy_question
+            remaining_medium_questions = subject_data.medium_question
+            remaining_hard_questions = subject_data.hard_question
+            selected_academic_questions = []
+        
+            for question in question_data:
+                if remaining_easy_questions > 0:
+                    if question.question_category == "easy":
+                        if selected_time + question.time_duration <= subject_time and selected_marks + question.marks <= subject_marks:
+                            selected_questions.append(question)
+                            selected_time += question.time_duration
+                            selected_marks += question.marks
+                            remaining_easy_questions -= 1
+                elif remaining_medium_questions > 0:
+                    if question.question_category == "medium":
+                        if selected_time + question.time_duration <= subject_time and selected_marks + question.marks <= subject_marks:
+                            selected_questions.append(question)
+                            selected_time += question.time_duration
+                            selected_marks += question.marks
+                            remaining_medium_questions -= 1
+                elif remaining_hard_questions > 0:
+                    if question.question_category == "hard":
+                        if selected_time + question.time_duration <= subject_time and selected_marks + question.marks <= subject_marks:
+                            selected_questions.append(question)
+                            selected_time += question.time_duration
+                            selected_marks += question.marks
+                            remaining_hard_questions -= 1
+                else:
+                    break  
+            
+            
+            
+            for question in selected_questions:
+                academic_exam_instance = AcademicExam(
+                    question=question.question,    
+                )
+                selected_academic_questions.append(academic_exam_instance)
+            # print(selected_comp_questions)
+            
+            exam_data_instance = AcademicExamData(
+                subject=subject_instance,
+                easy_question=subject_data.easy_question,
+                chapter=chapters,
+                medium_question=subject_data.medium_question,
+                hard_question=subject_data.hard_question,
+                time_per_subject=subject_time,
+                marks_per_subject=subject_marks,
+            )
+            exam_data_instance.save() 
+    
+            exam_data_calculated.append(exam_data_instance) 
+            
+        
+        exam_instance = AcademicExams(
+            exam_title=data.exam_title,
+            standard=standard_instance,
+            total_questions=data.total_questions,
+            time_duration=data.time_duration,
+            passing_marks=data.passing_marks,
+            total_marks=data.total_marks,
+            negative_marks=data.negative_marks,
+            option_e=data.option_e
+        )
+        exam_instance.save()
+        for exam in exam_data_calculated:
+            exam_instance.exam_data.add(exam) 
+       
+        return selected_academic_questions
+
+    except Exception as e:
+        response_data = {
+            "result": False,
+            "message": str(e)
+        }
+        return response_data

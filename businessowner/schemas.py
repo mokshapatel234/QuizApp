@@ -900,3 +900,37 @@ class UpdateQuestionIn(Schema):
    question_category: Optional[str]
    marks: Optional[int]
    time: Optional[str]
+
+
+
+
+class AcademicExamChapter(Schema):
+    id: UUID
+    chapter_name: str
+
+class AcademicExamData(Schema):
+    subject: UUID
+    chapter: List[UUID]
+    easy_question: int
+    medium_question: int
+    hard_question: int
+
+class AcademicExamIn(Schema):
+    exam_title: str
+    standard: UUID
+    total_questions: int
+    time_duration: float
+    negative_marks: str
+    passing_marks: int
+    total_marks: int
+    option_e: bool
+    exam_data: List[AcademicExamData]
+
+class AcademicExam(Schema):
+    question:str
+  
+
+class AcademicExamOut(Schema):
+    result:bool
+    data: List[AcademicExam]
+    message: str
