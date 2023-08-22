@@ -272,7 +272,7 @@ class QuestionIn(Schema):
    chapter: UUID
    question_category: str
    marks: int
-   time: str
+   time: float
 
 class CompQuestionFilter(Schema):
     status: Optional[str]
@@ -345,12 +345,21 @@ class CompExamIn(Schema):
     exam_title: str
     batch: UUID
     total_questions: int
-    time_duration: int
+    time_duration: float
     negative_marks: str
     passing_marks: int
     total_marks: int
     option_e: bool
     exam_data: List[CompExamData]
+
+class CompExam(Schema):
+    question:str
+  
+
+class CompExamOut(Schema):
+    result:bool
+    data: List[CompExam]
+    message: str
 
 #-----------------------------------------------------------------------------------------------------------#
 #------------------------------------------------STUDENT----------------------------------------------------#

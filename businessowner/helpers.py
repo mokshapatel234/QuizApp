@@ -1014,9 +1014,7 @@ def add_comp_question(user,data):
             option4=options_data.option4
         )
 
-        hours, minutes = map(int, data.time.split(":"))
-
-        time_duration = timedelta(hours=hours, minutes=minutes)
+        
 
         competitive_chapter = CompetitiveChapters.objects.get(id= data.chapter)
         question = CompetitiveQuestions.objects.create(
@@ -1026,7 +1024,7 @@ def add_comp_question(user,data):
             answer=data.answer,
             question_category=data.question_category,
             marks=data.marks,
-            time_duration=str(time_duration),
+            time_duration=data.time,
             business_owner=user
         )
 
@@ -1043,7 +1041,7 @@ def add_comp_question(user,data):
             "subject_name": question.competitve_chapter.subject_name.subject_name,
             "question_category": question.question_category,
             "marks": question.marks,
-            "time": question.time_duration,
+            "time": str(question.time_duration),
             "status": question.status,
             "created_at":question.created_at,
             "updated_at":question.updated_at
@@ -1065,7 +1063,7 @@ def add_comp_question(user,data):
     except Exception as e:
         response_data = {
                     "result": False,
-                    "message": "Something went wrong"
+                    "message": str(e)
                 }
         return JsonResponse(response_data, status=400)
  
@@ -1333,6 +1331,7 @@ def delete_comp_question(question_id):
 #--------------------------------------------COMPETITIVE EXAM-----------------------------------------------#
 #-----------------------------------------------------------------------------------------------------------#
 
+
 def create_comp_exam(user, data):
     try:
         batch_instance = CompetitiveBatches.objects.get(id=data.batch)
@@ -1355,6 +1354,51 @@ def create_comp_exam(user, data):
             chapters = list(chapter_instance)
             chapter_ids = [f"{item.id}," for item in chapters]
             chapters = " ".join(chapter_ids)
+            print(chapters, "AJDJDIEWQIWQ")
+            question_data = CompetitiveQuestions.objects.filter(competitve_chapter__subject_name=subject_instance)
+            question_data = question_data.filter(competitve_chapter__id__in=subject_data.chapter)
+            selected_questions = []
+            selected_time = 0
+            selected_marks = 0
+            remaining_easy_questions = subject_data.easy_question
+            remaining_medium_questions = subject_data.medium_question
+            remaining_hard_questions = subject_data.hard_question
+            selected_comp_questions = []
+        
+            for question in question_data:
+                if remaining_easy_questions > 0:
+                    if question.question_category == "easy":
+                        if selected_time + question.time_duration <= subject_time and selected_marks + question.marks <= subject_marks:
+                            selected_questions.append(question)
+                            selected_time += question.time_duration
+                            selected_marks += question.marks
+                            remaining_easy_questions -= 1
+                elif remaining_medium_questions > 0:
+                    if question.question_category == "medium":
+                        if selected_time + question.time_duration <= subject_time and selected_marks + question.marks <= subject_marks:
+                            selected_questions.append(question)
+                            selected_time += question.time_duration
+                            selected_marks += question.marks
+                            remaining_medium_questions -= 1
+                elif remaining_hard_questions > 0:
+                    if question.question_category == "hard":
+                        if selected_time + question.time_duration <= subject_time and selected_marks + question.marks <= subject_marks:
+                            selected_questions.append(question)
+                            selected_time += question.time_duration
+                            selected_marks += question.marks
+                            remaining_hard_questions -= 1
+                else:
+                    break  
+            
+            
+            
+            for question in selected_questions:
+                comp_exam_instance = CompExam(
+                    question=question.question,    
+                )
+                selected_comp_questions.append(comp_exam_instance)
+            print(selected_comp_questions)
+            
             exam_data_instance = CompetitiveExamData(
                 subject=subject_instance,
                 easy_question=subject_data.easy_question,
@@ -1367,7 +1411,8 @@ def create_comp_exam(user, data):
             exam_data_instance.save() 
     
             exam_data_calculated.append(exam_data_instance) 
-
+            
+        
         exam_instance = CompetitiveExams(
             exam_title=data.exam_title,
             batch=batch_instance,
@@ -1381,15 +1426,8 @@ def create_comp_exam(user, data):
         exam_instance.save()
         for exam in exam_data_calculated:
             exam_instance.exam_data.add(exam) 
-         
-
-        response_data = {
-            "result": True,
-            "message": "Exam created successfully",
-            "exam_data": exam_instance.exam_title,
-        }
-        print(response_data)
-        return JsonResponse(response_data)
+       
+        return selected_comp_questions
 
     except Exception as e:
         response_data = {
@@ -1397,6 +1435,7 @@ def create_comp_exam(user, data):
             "message": str(e)
         }
         return response_data
+
 
 
 #-----------------------------------------------------------------------------------------------------------#

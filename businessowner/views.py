@@ -223,7 +223,7 @@ def delete_competitive_question(request, question_id):
 #--------------------------------------------COMPETITIVE EXAM-----------------------------------------------#
 #-----------------------------------------------------------------------------------------------------------#
 
-@router.post("/competitive/exam", response={200: dict, 400: dict, 401: dict})
+@router.post("/competitive/exam", response={200: List[CompExam], 400: dict, 401: dict})
 @verify_token
 def create_competitive_exam(request, data: CompExamIn):
     return create_comp_exam(request.user, data)
