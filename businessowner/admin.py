@@ -163,5 +163,3 @@ admin.site.register(Notifications, NotificationAdmin)
 admin.site.register(Students, StudentAdmin)
 admin.site.register(CompetitiveExams, CompetitiveExamAdmin)
 admin.site.register(AcademicExams, AcademicExamAdmin)
-
-

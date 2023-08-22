@@ -41,6 +41,7 @@ def delete_board(request, board_id):
 
 
 
+
 @router.get("/academic/medium", response={200:AcademicMediumListOut, 401:dict})
 @verify_token
 def get_academic_medium_list(request,filter_prompt: AcademicFilter = Query(...)):
@@ -109,10 +110,11 @@ def delete_standard(request, standard_id):
 
 
 
+
 @router.get("/academic/subject", response={200:AcademicSubjectList, 401:dict, 400:dict})
 @verify_token
-def get_academic_subjects(request):
-    result = get_academic_subject_list()
+def get_academic_subjects(request,filter_prompt: AcademicFilter = Query(...)):
+    result = get_academic_subject_list(filter_prompt)
     return result
 
 
@@ -144,10 +146,13 @@ def update_subject(request, subject_id: UUID, data: updateSubjectIn):
     return result
 
 
+
+
+
 @router.get("/academic/chapter", response={200:AcademicChapterList, 401:dict, 400:dict})
 @verify_token
-def get_academic_chapter(request):
-    result = get_academic_chapter_list()
+def get_academic_chapter(request,filter_prompt: AcademicFilter = Query(...)):
+    result = get_academic_chapter_list(filter_prompt)
     return result
 
 @router.post("/academic/chapter", response={200: AcademicChapterOut, 401: dict,400:dict})
@@ -176,8 +181,41 @@ def update_chapter(request, chapter_id: UUID, data: updateChaptertIn):
     return result
 
 
-@router.post("/academic/question", response={200: QuestionIn, 401: dict,400:dict})
+
+
+
+
+@router.post("/academic/question", response={200: QuestionOut, 401: dict,400:dict})
 @verify_token
 def add_question(request,data: QuestionIn):
     result = add_question_data(request.user, data)  
     return result
+
+
+@router.get("/academic/question", response={200:QuestionListOut, 401:dict, 400:dict})
+@verify_token
+def get_academic_question(request):
+    result = get_academic_question_list(request.user)
+    return result
+
+
+@router.get("/academic/question/{question_id}", response={200:QuestionOut, 401:dict,400:dict})
+@verify_token
+def get_academic_chapter(request,question_id):
+    result = get_academic_question_data(question_id)
+    return result
+
+
+@router.delete("/academic/question/{question_id}",response={200: DeleteOut, 401: dict, 400:dict})
+@verify_token
+def delete_question(request, question_id):    
+    result = delete_question_data(request.user,question_id)
+    return result
+
+
+@router.patch("/academic/question/{question_id}", response={200: QuestionOut, 401: dict})
+@verify_token
+def update_question(request, question_id: UUID, data: UpdateQuestionIn):
+    result = update_question_data(data,question_id)
+    return result
+
