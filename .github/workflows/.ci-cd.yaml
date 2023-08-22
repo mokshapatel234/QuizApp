@@ -1,0 +1,44 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - staging
+  
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: '3.x'
+
+      - name: Deploy to EC2
+        uses: appleboy/scp-action@master
+        with:
+          host: ${{ secrets.HOSTNAME }}
+          username: ${{ secrets.USERNAME }}
+          key: ${{ secrets.PRIVATEKEY }}
+          source: ./
+          target: quick_app_backend/
+
+      - name: SSH to EC2 and restart app
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.HOSTNAME }}
+          username: ${{ secrets.USERNAME }}
+          key: ${{ secrets.PRIVATEKEY }}
+          script: |
+            # Replace this with the commands to restart your Django app on EC2
+            chmod +x quick_app_backend/setup_env.sh
+            chmod +x quick_app_backend/backend_start.sh
+            sudo cp quick_app_backend/quiz_app_nginx.conf /etc/nginx/sites-available/ && sudo ln -s /etc/nginx/sites-available/quiz_app_nginx.conf /etc/nginx/sites-enabled/quiz_app_nginx.conf
+            sudo cp quick_app_backend/quiz_app_supervisor.conf /etc/supervisor/conf.d/quiz_app_supervisor.conf
+            sudo sudo service nginx restart
+            sudo sudo service supervisor restart
