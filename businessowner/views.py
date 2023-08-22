@@ -1,17 +1,11 @@
-from django.shortcuts import get_object_or_404, render
-from django.http import JsonResponse
 from businessowner.schemas import *
-from .utils import generate_token
 from .helpers import *
 from .models import *
-from .authentication import JWTAuthentication
 from ninja import Router, Query
-from ninja.errors import HttpError
 from .authentication import verify_token
 from typing import List
 from ninja.files import UploadedFile
-from rest_framework.parsers import MultiPartParser
-import pandas as pd
+
 
 router = Router()
 
@@ -34,6 +28,21 @@ def change_password(request, data: ChangePasswordIn):
 def forgot_password(request):
     pass
 
+
+#-----------------------------------------------------------------------------------------------------------#
+#----------------------------------------------CITY & STATE-------------------------------------------------#
+#-----------------------------------------------------------------------------------------------------------#
+
+@router.get("/city", response={200: CityOut, 400: dict, 401: dict})
+@verify_token
+def get_city(request):
+    return get_citylist() 
+
+
+@router.get("/state", response={200: StateOut, 400: dict, 401: dict})
+@verify_token
+def get_state(request):
+    return get_statelist() 
 
 #-----------------------------------------------------------------------------------------------------------#
 #---------------------------------------------PLAN PURCHASE-------------------------------------------------#
@@ -96,7 +105,7 @@ def get_competitive_batch(request, batch_id):
 @router.patch("/competitive/batch/{batch_id}",  response={200: BatchOut, 400: dict, 401: dict})
 @verify_token
 def update_competitive_batch(request, batch_id, data: BatchUpdate):
-    return update_batch(batch_id, data)
+    return update_batch(batch_id, data, request.user)
 
 
 @router.delete("/competitive/batch/{batch_id}",  response={200: DeleteOut, 400: dict, 401: dict})
@@ -131,7 +140,7 @@ def get_competitive_subject(request, subject_id):
 @router.patch("/competitive/subject/{subject_id}",  response={200: CompSubjectOut, 400: dict, 401: dict})
 @verify_token
 def update_competitive_subject(request, subject_id, data: CompSubjectUpdate):
-    return update_comp_subject(subject_id, data)
+    return update_comp_subject(subject_id, data, request.user)
 
 
 @router.delete("/competitive/subject/{subject_id}",  response={200: DeleteOut, 400: dict, 401: dict})
@@ -148,7 +157,7 @@ def delete_competitive_subject(request, subject_id):
 @router.post("/competitive/chapter", response={200: CompChapterOut, 400: dict, 401: dict})
 @verify_token
 def add_competitive_chapter(request, data: CompChapterIn):
-    return add_comp_chapter(data)
+    return add_comp_chapter(data, request.user)
     
 
 @router.get("/competitive/chapter", response={200: CompChapterListOut, 400: dict, 401: dict})
@@ -166,7 +175,7 @@ def get_competitive_chapter(request, chapter_id):
 @router.patch("/competitive/chapter/{chapter_id}",  response={200: CompChapterOut, 400: dict, 401: dict})
 @verify_token
 def update_competitive_chapter(request, chapter_id, data: CompChapterUpdate):
-    return update_comp_chapter(chapter_id, data)
+    return update_comp_chapter(chapter_id, data, request.user)
 
 
 @router.delete("/competitive/chapter/{chapter_id}",  response={200: DeleteOut, 400: dict, 401: dict})
@@ -180,34 +189,45 @@ def delete_competitive_chapter(request, chapter_id):
 #-----------------------------------------------------------------------------------------------------------#
 
 
-@router.post("/competitive/question", response={200: dict, 400: dict, 401: dict})
+@router.post("/competitive/question", response={200: QuestionOut, 400: dict, 401: dict})
 @verify_token
 def add_competitive_question(request, data: QuestionIn):
     return add_comp_question(request.user,data)
     
 
-# @router.get("/competitive/chapter", response={200: CompChapterListOut, 400: dict, 401: dict})
-# @verify_token
-# def get_competitive_chapterlist(request, query:CompChapterFilter = Query(...)):
-#     return get_comp_chapterlist(request.user, query)
+@router.get("/competitive/question", response={200: QuestionListOut, 400: dict, 401: dict})
+@verify_token
+def get_competitive_questionlist(request, query:CompQuestionFilter = Query(...)):
+    return get_comp_questionlist(request.user, query)
 
 
-# @router.get("/competitive/chapter/{chapter_id}", response={200: CompChapterOut, 400: dict, 401: dict})
-# @verify_token
-# def get_competitive_chapter(request, chapter_id):
-#     return get_comp_chapter(request.user, chapter_id)
+@router.get("/competitive/question/{question_id}", response={200: QuestionOut, 400: dict, 401: dict})
+@verify_token
+def get_competitive_question(request, question_id):
+    return get_comp_question(request.user, question_id)
 
 
-# @router.patch("/competitive/chapter/{chapter_id}",  response={200: CompChapterOut, 400: dict, 401: dict})
-# @verify_token
-# def update_competitive_chapter(request, chapter_id, data: CompChapterUpdate):
-#     return update_comp_chapter(chapter_id, data)
+@router.patch("/competitive/question/{question_id}",  response={200: QuestionOut, 400: dict, 401: dict})
+@verify_token
+def update_competitive_question(request, question_id, data: QuestionUpdate):
+    return update_comp_question(question_id, data)
 
 
-# @router.delete("/competitive/chapter/{chapter_id}",  response={200: DeleteOut, 400: dict, 401: dict})
-# @verify_token
-# def delete_competitive_chapter(request, chapter_id):
-#     return delete_comp_chapter(chapter_id)
+@router.delete("/competitive/question/{question_id}",  response={200: DeleteOut, 400: dict, 401: dict})
+@verify_token
+def delete_competitive_question(request, question_id):
+    return delete_comp_question(question_id)
+
+
+#-----------------------------------------------------------------------------------------------------------#
+#--------------------------------------------COMPETITIVE EXAM-----------------------------------------------#
+#-----------------------------------------------------------------------------------------------------------#
+
+@router.post("/competitive/exam", response={200: dict, 400: dict, 401: dict})
+@verify_token
+def create_competitive_exam(request, data: CompExamIn):
+    return create_comp_exam(request.user, data)
+
 
 #-----------------------------------------------------------------------------------------------------------#
 #------------------------------------------------STUDENT----------------------------------------------------#
@@ -245,9 +265,15 @@ def update_student(request, student_id, data:StudentUpdate):
 @router.patch("/student/uploads", response={200: DeleteOut, 400: dict, 401: dict})
 @verify_token
 def update_studentfile(request, xl_file: UploadedFile = File(...)):
-    return student_file_updation(xl_file,request.user)
+    return student_file_updation(xl_file, request.user)
 
 @router.delete("/student/{student_id}", response={200: DeleteOut, 400: dict, 401: dict})
 @verify_token
 def delete_student(request, student_id):
     return remove_student(student_id)
+    
+
+#-----------------------------------------------------------------------------------------------------------#
+#-------------------------------------------------REPORT----------------------------------------------------#
+#-----------------------------------------------------------------------------------------------------------#
+

@@ -89,6 +89,46 @@ def perform_change_password(data, user):
 
 
 #-----------------------------------------------------------------------------------------------------------#
+#----------------------------------------------CITY & STATE-------------------------------------------------#
+#-----------------------------------------------------------------------------------------------------------#
+
+
+def get_citylist():
+    city_list = [] 
+    cities = Cities.objects.all()
+    for city in cities:
+        city_dict = {
+            "city_id": str(city.id),
+            "city_name": city.name,
+            "state_id": str(city.state.id),
+            "state_name": city.state.name
+        }
+        city_list.append(city_dict)  
+        response_data = {
+            "result":True,
+            "data":city_list,
+            "message":"List of cities retrived successfully"
+        }
+    return response_data
+
+def get_statelist():
+    state_list =[]
+    states = States.objects.all()
+    for state in states:
+        state_dict = {
+            "state_id": str(state.id),
+            "state_name": state.name
+        }
+        state_list.append(state_dict)
+        response_data = {
+            "result":True,
+            "data":state_list,
+            "message":"List of states retrived successfully"
+        }
+    return response_data
+
+
+#-----------------------------------------------------------------------------------------------------------#
 #---------------------------------------------PLAN PURCHASE-------------------------------------------------#
 #-----------------------------------------------------------------------------------------------------------#
 
@@ -195,10 +235,10 @@ def create_owner_response(user, is_valid, message):
         else:
             response_data = {
                 "result": False,
-                "message": message
+                "message": "Owner not found"
             }
         
-        return JsonResponse(response_data, status=200)
+        return response_data
     
 
     except BusinessOwners.DoesNotExist:
@@ -214,21 +254,45 @@ def update_owner_data(data, user):
         owner = BusinessOwners.objects.get(id=user.id)
         if owner:
             update_data = {field: value for field, value in data.dict().items() if value is not None}
-            city_id = update_data.pop('city', None)
-            if city_id:
-                city = Cities.objects.get(id=city_id)
-                owner.city = city
             
-            # Handle the logo update
-            logo = update_data.pop('logo', None)
-            if logo:
-                owner.logo = logo
             if update_data:
                 for field, value in update_data.items():
-                    setattr(owner, field, value)
+                    if field == "city":
+                        city = Cities.objects.get(id=value)
+                        owner.city = city
+                    elif field == "logo":
+                        owner.logo = value
+                    else:    
+                        setattr(owner, field, value)
                 owner.save()
-                updated_owner_data = create_owner_response(owner, True, message="Owner updated successfully")
-                return updated_owner_data
+                owner_data = {
+                    "id": str(owner.id),
+                    "business_name": owner.business_name,
+                    "business_type": owner.business_type,
+                    "first_name": owner.first_name,
+                    "last_name": owner.last_name,
+                    "email": owner.email,
+                    "contact_no": owner.contact_no,
+                    "address": owner.address,
+                    "logo": owner.logo.url if owner.logo else None,
+                    "tuition_tagline": owner.tuition_tagline if owner.tuition_tagline else None,
+                    "status": owner.status,
+                    "created_at": owner.created_at,
+                    "city": {
+                        "city_id": str(owner.city.id),
+                        "city_name": owner.city.name,
+                        "state_id": str(owner.city.state_id),
+                        "state_name": owner.city.state.name,
+                    },
+                }
+
+                response_data = {
+                    "result": True,
+                    "data": owner_data,
+                    "message": "Profile updated successfully"
+                }
+            
+                return response_data
             else:
                 response_data = {
                         "result": False,
@@ -258,7 +322,7 @@ def update_owner_data(data, user):
     except Exception as e:
         response_data = {
                     "result": False,
-                    "message": "Something went wrong"
+                    "message": str(e)
                 }
         return JsonResponse(response_data, status=500)
 
@@ -270,12 +334,16 @@ def update_owner_data(data, user):
 
 def add_batch(data, user):
     try:
-        batch_name = data.batch_name
-
-        batch = CompetitiveBatches(batch_name=batch_name, business_owner=user)
-        print(batch,"dsadsa")
+        existing_batch = CompetitiveBatches.objects.filter(business_owner=user, batch_name=data.batch_name).first()
+        if existing_batch:
+            response_data = {
+                        "result": False,
+                        "message": "A batch with the same name already exists for this owner."
+                    }
+            return JsonResponse(response_data, status=400)
+        
+        batch = CompetitiveBatches(batch_name=data.batch_name, business_owner=user)
         batch.save()
-       
         business_owner = BusinessOwners.objects.get(id=batch.business_owner_id)
         batch_data = {
             "id": str(batch.id),
@@ -308,6 +376,13 @@ def get_batchlist(user, query):
         batches = CompetitiveBatches.objects.filter(business_owner=user)
         if query.status:
             batches = batches.filter(status=query.status)
+        if query.search:
+            search_terms = query.search.strip().split()  
+            search_query = Q()  
+            for term in search_terms:
+                search_query |= Q(batch_name__icontains=term)  
+
+            batches = batches.filter(search_query)
         business_owner = BusinessOwners.objects.get(id=user.id)
         batches_list = [
             {
@@ -367,10 +442,17 @@ def get_batch(batch_id, user):
         return JsonResponse(response_data, status=400)
 
 
-def update_batch(batch_id, data):
+def update_batch(batch_id, data, user):
     try:
         batch = CompetitiveBatches.objects.get(id=batch_id)
         if batch:
+            existing_batch = CompetitiveBatches.objects.filter(business_owner=user, batch_name=data.batch_name).first()
+            if existing_batch:
+                response_data = {
+                            "result": False,
+                            "message": "A batch with the same name already exists for this owner."
+                        }
+                return JsonResponse(response_data, status=400)
             update_data = {field: value for field, value in data.dict().items() if value is not None}
             if update_data:
                 for field, value in update_data.items():
@@ -443,9 +525,15 @@ def delete_batch(batch_id):
 
 def add_comp_subect(data, user):
     try:
-        subject_name = data.subject_name
+        existing_subject = CompetitiveSubjects.objects.filter(business_owner=user, subject_name=data.subject_name).first()
+        if existing_subject:
+            response_data = {
+                        "result": False,
+                        "message": "A subject with the same name already exists for this owner."
+                    }
+            return JsonResponse(response_data, status=400)
         
-        subject = CompetitiveSubjects.objects.create(subject_name=subject_name, business_owner=user)
+        subject = CompetitiveSubjects.objects.create(subject_name=data.subject_name, business_owner=user)
         business_owner = BusinessOwners.objects.get(id=subject.business_owner_id)
         subject_data = {
             "id": str(subject.id),
@@ -462,7 +550,7 @@ def add_comp_subect(data, user):
             "message": "Subject created successfully",
         }
         return response_data
-    
+
     except Exception as e:
         response_data = {
                     "result": False,
@@ -476,6 +564,13 @@ def get_comp_subjectlist(user, query):
         subjects = CompetitiveSubjects.objects.filter(business_owner=user)
         if query.status:
             subjects = subjects.filter(status=query.status)
+        if query.search:
+            search_terms = query.search.strip().split()  
+            search_query = Q()  
+            for term in search_terms:
+                search_query |= Q(subject_name__icontains=term)  
+
+            subjects = subjects.filter(search_query)
         business_owner = BusinessOwners.objects.get(id=user.id)
         subject_list = [
             {
@@ -498,6 +593,12 @@ def get_comp_subjectlist(user, query):
 
         return response_data
     
+    except CompetitiveSubjects.DoesNotExist:
+        response_data = {
+            "result": False,
+            "message": "Subject not found"
+        }
+        return JsonResponse(response_data, status=400)
     except Exception as e:
         response_data = {
                     "result": False,
@@ -527,6 +628,12 @@ def get_comp_subject(subject_id, user):
 
         return response_data
     
+    except CompetitiveSubjects.DoesNotExist:
+        response_data = {
+            "result": False,
+            "message": "Subject not found"
+        }
+        return JsonResponse(response_data, status=400)
     except Exception as e:
         response_data = {
                     "result": False,
@@ -534,11 +641,17 @@ def get_comp_subject(subject_id, user):
                 }
         return JsonResponse(response_data, status=400)
 
-
-def update_comp_subject(subject_id, data):
+def update_comp_subject(subject_id, data, user):
     try:
         subject = CompetitiveSubjects.objects.get(id=subject_id)
         if subject:
+            existing_subject = CompetitiveSubjects.objects.filter(business_owner=user, subject_name=data.subject_name).first()
+            if existing_subject:
+                response_data = {
+                            "result": False,
+                            "message": "A subject with the same name already exists for this owner."
+                        }
+                return JsonResponse(response_data, status=400)
             update_data = {field: value for field, value in data.dict().items() if value is not None}
             if update_data:
                 for field, value in update_data.items():
@@ -571,6 +684,13 @@ def update_comp_subject(subject_id, data):
                     "message": "Subject not found"
                 }
             return JsonResponse(response_data, status=400)
+        
+    except CompetitiveSubjects.DoesNotExist:
+        response_data = {
+            "result": False,
+            "message": "Subject not found"
+        }
+        return JsonResponse(response_data, status=400)
     except Exception as e:
         response_data = {
                     "result": False,
@@ -608,8 +728,16 @@ def delete_comp_subject(subject_id):
 #-----------------------------------------------------------------------------------------------------------#
 
 
-def add_comp_chapter(data):
+def add_comp_chapter(data, user):
     try:
+        existing_chapter = CompetitiveChapters.objects.filter(subject_name__business_owner=user, chapter_name=data.chapter_name).first()
+        if existing_chapter:
+            response_data = {
+                        "result": False,
+                        "message": "A chapter with the same name already exists for this owner."
+                    }
+            return JsonResponse(response_data, status=400)
+
         subject_instance = CompetitiveSubjects.objects.get(id=data.subject_id)
         batches_instances = CompetitiveBatches.objects.filter(id__in=data.batches)
         batches = list(batches_instances)
@@ -669,7 +797,13 @@ def get_comp_chapterlist(user, query):
         if query.batch:
             batch_id = query.batch
             chapters = [chapter for chapter in chapters if str(batch_id) in [str(batch.id) for batch in chapter.batches.all()]]
+        if query.search:
+            search_terms = query.search.strip().split()  
+            search_query = Q()  
+            for term in search_terms:
+                search_query |= Q(chapter_name__icontains=term) | Q(subject_name__subject_name__icontains=term) | Q(batches__batch_name__icontains=term)
 
+            chapters = chapters.filter(search_query)
 
         chapters_list = []
         for chapter in chapters:
@@ -693,14 +827,24 @@ def get_comp_chapterlist(user, query):
         }
 
         return response_data
-    
+    except CompetitiveChapters.DoesNotExist:
+        response_data = {
+            "result": False,
+            "message": "Chapter not found"
+        }
+        return JsonResponse(response_data, status=400)
+    except CompetitiveSubjects.DoesNotExist:
+        response_data = {
+            "result": False,
+            "message": "Subject not found"
+        }
+        return JsonResponse(response_data, status=400)
     except Exception as e:
         response_data = {
                     "result": False,
-                    "message": str(e)
+                    "message": "Something went wrong"
                 }
         return JsonResponse(response_data, status=400)
-
 
 def get_comp_chapter(user, chapter_id):
     try:
@@ -725,6 +869,18 @@ def get_comp_chapter(user, chapter_id):
 
         return response_data
     
+    except CompetitiveChapters.DoesNotExist:
+        response_data = {
+            "result": False,
+            "message": "Chapter not found"
+        }
+        return JsonResponse(response_data, status=400)
+    except CompetitiveSubjects.DoesNotExist:
+        response_data = {
+            "result": False,
+            "message": "Subject not found"
+        }
+        return JsonResponse(response_data, status=400)
     except Exception as e:
         response_data = {
                     "result": False,
@@ -733,10 +889,17 @@ def get_comp_chapter(user, chapter_id):
         return JsonResponse(response_data, status=400)
 
 
-def update_comp_chapter(chapter_id, data):
+def update_comp_chapter(chapter_id, data, user):
     try:
         chapter = CompetitiveChapters.objects.get(id=chapter_id)
         if chapter:
+            existing_chapter = CompetitiveChapters.objects.filter(subject_name__business_owner=user, chapter_name=data.chapter_name).first()
+            if existing_chapter:
+                response_data = {
+                            "result": False,
+                            "message": "A chapter with the same name already exists for this owner."
+                        }
+                return JsonResponse(response_data, status=400)
             update_data = {field: value for field, value in data.dict().items() if value is not None}
             if update_data:
                 for field, value in update_data.items():
@@ -786,6 +949,24 @@ def update_comp_chapter(chapter_id, data):
                         "message": "Competitive chapter updated successfully"
                     }
                 return response_data
+    except CompetitiveChapters.DoesNotExist:
+        response_data = {
+            "result": False,
+            "message": "Chapter not found"
+        }
+        return JsonResponse(response_data, status=400)
+    except CompetitiveSubjects.DoesNotExist:
+        response_data = {
+            "result": False,
+            "message": "Subject not found"
+        }
+        return JsonResponse(response_data, status=400)
+    except CompetitiveBatches.DoesNotExist:
+        response_data = {
+            "result": False,
+            "message": "Batch not found"
+        }
+        return JsonResponse(response_data, status=400)
     except Exception as e:
         response_data = {
                     "result": False,
@@ -824,29 +1005,24 @@ def delete_comp_chapter(chapter_id):
 
 def add_comp_question(user,data):
     try:
-        options_data = data.options  # Extract options data dictionary from the main data
-        print("AREYRDWFJWJJKEOQ")
-        # Create an instance of Options using options_data dictionary
+        options_data = data.options  
+
         options_instance = Options.objects.create(
             option1=options_data.option1,
             option2=options_data.option2,
             option3=options_data.option3,
             option4=options_data.option4
         )
-        print(options_instance, "AFwewqt$")
-        # Split the time str    ing into hours and minutes
+
         hours, minutes = map(int, data.time.split(":"))
 
-        # Create a timedelta representing the provided time
         time_duration = timedelta(hours=hours, minutes=minutes)
-        print(time_duration)
+
         competitive_chapter = CompetitiveChapters.objects.get(id= data.chapter)
-        print(competitive_chapter)
-        # Create the question
         question = CompetitiveQuestions.objects.create(
             competitve_chapter=competitive_chapter,
             question=data.question,
-            options=options_instance,  # Pass the instance of Options
+            options=options_instance,  
             answer=data.answer,
             question_category=data.question_category,
             marks=data.marks,
@@ -854,23 +1030,373 @@ def add_comp_question(user,data):
             business_owner=user
         )
 
-        return {
+        chapter = CompetitiveChapters.objects.get(id=question.competitve_chapter_id)
+        subject = CompetitiveSubjects.objects.get(id=chapter.subject_name.id)
+        question_data = {
             "id": str(question.id),
             "question": question.question,
             "answer": question.answer,
-            "options": options_data,  # Return the options data as-is
-            "chapter": question.competitve_chapter_id,
+            "options": options_data,  
+            "chapter_id": str(question.competitve_chapter.id),
+            "chapter_name": question.competitve_chapter.chapter_name,
+            "subject_id": str(question.competitve_chapter.subject_name.id),
+            "subject_name": question.competitve_chapter.subject_name.subject_name,
             "question_category": question.question_category,
             "marks": question.marks,
-            "time": question.time_duration # Convert timedelta to minutes
+            "time": question.time_duration,
+            "status": question.status,
+            "created_at":question.created_at,
+            "updated_at":question.updated_at
         }
+
+        response_data = {
+            "result": True,
+            "data": question_data,
+            "message":"Question added successfully"
+        }
+        return response_data
+
+    except Options.DoesNotExist:
+        response_data = {
+            "result": False,
+            "message": "Options not found"
+        }
+        return JsonResponse(response_data, status=400)
+    except Exception as e:
+        response_data = {
+                    "result": False,
+                    "message": "Something went wrong"
+                }
+        return JsonResponse(response_data, status=400)
+ 
+
+def get_comp_questionlist(user, query):
+    try:
+        questions = CompetitiveQuestions.objects.filter(business_owner=user)
+        if query.status:
+            questions = questions.filter(status=query.status)
+        if query.chapter:
+            questions = questions.filter(competitve_chapter=query.chapter)
+        if query.subject:
+            questions = questions.filter(competitve_chapter__subject_name=query.subject)
+        if query.batch:
+            batch_id = query.batch
+            questions = [question for question in questions if str(batch_id) in [str(batch.id) for batch in question.competitve_chapter.batches.all()]]
+
+        if query.question_category:
+            questions = questions.filter(question_category=query.question_category)
+
+        if query.search:
+            search_terms = query.search.strip().split()
+            search_query = Q()
+
+            for term in search_terms:
+                search_query |= (
+                    Q(question__icontains=term)
+                    | Q(answer__icontains=term)
+                    | Q(competitve_chapter__chapter_name__icontains=term)
+                    | Q(competitve_chapter__subject_name__subject_name__icontains=term)
+                    | Q(competitve_chapter__batches__batch_name__icontains=term)
+                    | Q(question_category__icontains=term)
+                    | Q(marks__icontains=term)
+                    | Q(time_duration__icontains=term)
+                    | Q(status__icontains=term)
+                )
+
+            questions = questions.filter(search_query)
+
+        question_list = []
+        for question in questions:
+            try:
+                options_data = Options.objects.get(id=question.options_id)
+            except Options.DoesNotExist:
+                options_data = None  
+            
+            options_dict = {
+                "option1": options_data.option1 if options_data else None,
+                "option2": options_data.option2 if options_data else None,
+                "option3": options_data.option3 if options_data else None,
+                "option4": options_data.option4 if options_data else None,
+            }
+            question_data = {
+                    "id": str(question.id),
+                    "question": question.question,
+                    "answer": question.answer,
+                    "options": options_dict,  
+                    "chapter_id": str(question.competitve_chapter.id),
+                    "chapter_name": question.competitve_chapter.chapter_name,
+                    "subject_id": str(question.competitve_chapter.subject_name.id),
+                    "subject_name": question.competitve_chapter.subject_name.subject_name, 
+                    "question_category": question.question_category,
+                    "marks": question.marks,
+                    "time": str(question.time_duration),
+                    "status": question.status,
+                    "created_at":question.created_at,
+                    "updated_at":question.updated_at
+                }
+            question_list.append(question_data)
+            
+        response_data = {
+            "result": True,
+            "data": question_list,
+            "message":"Question retrieved successfully"
+        }
+        return response_data
+
     except Exception as e:
         response_data = {
                     "result": False,
                     "message": str(e)
                 }
         return JsonResponse(response_data, status=400)
- 
+
+
+def get_comp_question(user, question_id):
+    try:
+        question = CompetitiveQuestions.objects.get(id=question_id)
+        try:
+            options_data = Options.objects.get(id=question.options_id)
+        except Options.DoesNotExist:
+            options_data = None 
+        
+        options_dict = {
+            "option1": options_data.option1 if options_data else None,
+            "option2": options_data.option2 if options_data else None,
+            "option3": options_data.option3 if options_data else None,
+            "option4": options_data.option4 if options_data else None,
+        }
+        question_data = {
+                "id": str(question.id),
+                "question": question.question,
+                "answer": question.answer,
+                "options": options_dict, 
+                "chapter_id": str(question.competitve_chapter.id),
+                "chapter_name": question.competitve_chapter.chapter_name,
+                "subject_id": str(question.competitve_chapter.subject_name.id),
+                "subject_name": question.competitve_chapter.subject_name.subject_name, 
+                "question_category": question.question_category,
+                "marks": question.marks,
+                "time": str(question.time_duration),
+                "status": question.status,
+                "created_at":question.created_at,
+                "updated_at":question.updated_at
+            }
+        
+        response_data = {
+            "result": True,
+            "data": question_data,
+            "message":"Question retrieved successfully"
+        }
+        return response_data
+    except CompetitiveQuestions.DoesNotExist:
+        response_data = {
+            "result": False,
+            "message": "Question not found"
+        }
+        return JsonResponse(response_data, status=400)
+    except Options.DoesNotExist:
+        response_data = {
+            "result": False,
+            "message": "Options not found"
+        }
+        return JsonResponse(response_data, status=400)
+    except Exception as e:
+        response_data = {
+                    "result": False,
+                    "message": "Something went wrong"
+                }
+        return JsonResponse(response_data, status=400)
+    
+
+def update_comp_question(question_id, data):
+    try:
+        question = CompetitiveQuestions.objects.get(id=question_id)
+        try:
+            options_data = Options.objects.get(id=question.options_id)
+        except Options.DoesNotExist:
+            options_data = None  
+    
+        update_data = {field: value for field, value in data.dict().items() if value is not None}
+        
+        if update_data:
+            if "options" in update_data and options_data:
+                new_options = update_data.pop("options")
+                for field, value in new_options.items():
+                    if hasattr(options_data, field) and value is not None:
+                        setattr(options_data, field, value)
+                options_data.save()
+
+            for field, value in update_data.items():
+                if field == "chapter":
+                    chapter = CompetitiveChapters.objects.get(id=value)
+                    question.competitve_chapter = chapter
+                elif field == "time":
+                    hours, minutes = map(int, data.time.split(":"))
+                    time_duration = timedelta(hours=hours, minutes=minutes)
+                    question.time_duration = str(time_duration)
+
+                else:
+                    setattr(question, field, value)
+            question.save()
+            question_data = {
+                "id": str(question.id),
+                "question": question.question,
+                "answer": question.answer,
+                "chapter_id": str(question.competitve_chapter.id),
+                "chapter_name": question.competitve_chapter.chapter_name,
+                "subject_id": str(question.competitve_chapter.subject_name.id),
+                "subject_name": question.competitve_chapter.subject_name.subject_name, 
+                "question_category": question.question_category,
+                "marks": question.marks,
+                "time": str(question.time_duration),
+                "status": question.status,
+                "created_at":question.created_at,
+                "updated_at":question.updated_at
+            }
+            if options_data:
+                options_dict = {
+                    "option1": options_data.option1,
+                    "option2": options_data.option2,
+                    "option3": options_data.option3,
+                    "option4": options_data.option4,
+                }
+                question_data["options"] = options_dict
+            else:
+                options_dict = {
+                    "option1": question_data.options_data.option1,
+                    "option2": question_data.options_data.option2,
+                    "option3": question_data.options_data.option3,
+                    "option4": question_data.options_data.option4,
+                }
+                question_data["options"] = options_dict
+        
+            response_data = {
+                "result": True,
+                "data": question_data,
+                "message":"Question retrieved successfully"
+            }
+            return response_data
+
+    except CompetitiveQuestions.DoesNotExist:
+        response_data = {
+            "result": False,
+            "message": "Question not found"
+        }
+        return JsonResponse(response_data, status=400)
+    except Options.DoesNotExist:
+        response_data = {
+            "result": False,
+            "message": "Options not found"
+        }
+        return JsonResponse(response_data, status=400)
+    except Exception as e:
+        response_data = {
+                    "result": False,
+                    "message": str(e)
+                }
+        return JsonResponse(response_data, status=400)
+    
+
+def delete_comp_question(question_id):
+    try:
+        question = CompetitiveQuestions.objects.get(id=question_id)
+        options = Options.objects.get(id=question.options_id)
+        options.delete()
+        question.delete()
+        
+
+        response_data = {"result":True,
+                         "message":"Data Deleted Successfully"}
+        return response_data
+    
+    except CompetitiveQuestions.DoesNotExist:
+        response_data = {
+            "result": False,
+            "message": "Question not found"
+        }
+        return JsonResponse(response_data, status=400)
+    except Options.DoesNotExist:
+        response_data = {
+            "result": False,
+            "message": "Options not found"
+        }
+        return JsonResponse(response_data, status=400)
+    except Exception as e:
+        response_data = {
+                    "result": False,
+                    "message": "Something went wrong"
+                }
+        return JsonResponse(response_data, status=400)
+
+
+#-----------------------------------------------------------------------------------------------------------#
+#--------------------------------------------COMPETITIVE EXAM-----------------------------------------------#
+#-----------------------------------------------------------------------------------------------------------#
+
+def create_comp_exam(user, data):
+    try:
+        batch_instance = CompetitiveBatches.objects.get(id=data.batch)
+
+        total_weightage = data.total_questions
+
+        exam_data_calculated = []
+
+        for subject_data in data.exam_data:
+            subject_weightage = sum(
+                qtype for qtype in [subject_data.easy_question, subject_data.medium_question, subject_data.hard_question]
+            )
+            subject_percentage = subject_weightage / total_weightage
+            subject_time = float(data.time_duration * subject_percentage)
+            subject_marks = int(data.total_marks * subject_percentage)
+
+            subject_instance = CompetitiveSubjects.objects.get(id=subject_data.subject)
+            
+            chapter_instance = CompetitiveChapters.objects.filter(id__in=subject_data.chapter)
+            chapters = list(chapter_instance)
+            chapter_ids = [f"{item.id}," for item in chapters]
+            chapters = " ".join(chapter_ids)
+            exam_data_instance = CompetitiveExamData(
+                subject=subject_instance,
+                easy_question=subject_data.easy_question,
+                chapter=chapters,
+                medium_question=subject_data.medium_question,
+                hard_question=subject_data.hard_question,
+                time_per_subject=subject_time,
+                marks_per_subject=subject_marks,
+            )
+            exam_data_instance.save() 
+    
+            exam_data_calculated.append(exam_data_instance) 
+
+        exam_instance = CompetitiveExams(
+            exam_title=data.exam_title,
+            batch=batch_instance,
+            total_questions=data.total_questions,
+            time_duration=data.time_duration,
+            passing_marks=data.passing_marks,
+            total_marks=data.total_marks,
+            negative_marks=data.negative_marks,
+            option_e=data.option_e
+        )
+        exam_instance.save()
+        for exam in exam_data_calculated:
+            exam_instance.exam_data.add(exam) 
+         
+
+        response_data = {
+            "result": True,
+            "message": "Exam created successfully",
+            "exam_data": exam_instance.exam_title,
+        }
+        print(response_data)
+        return JsonResponse(response_data)
+
+    except Exception as e:
+        response_data = {
+            "result": False,
+            "message": str(e)
+        }
+        return response_data
 
 
 #-----------------------------------------------------------------------------------------------------------#
@@ -881,13 +1407,23 @@ def add_comp_question(user,data):
 def create_student(data, user):
     try:
         existing_student = Students.objects.filter(business_owner=user, contact_no=data.contact_no).first()
+
         if existing_student:
             response_data = {
-                        "result": False,
-                        "message": "Student with this contact number and eamil already exist."
-                    }
+                "result": False,
+                "message": "A student with this contact number already exists for this business owner."
+            }
             return JsonResponse(response_data, status=400)
-        
+
+        existing_email = Students.objects.filter(business_owner=user, email=data.email).first()
+
+        if existing_email:
+            response_data = {
+                "result": False,
+                "message": "A student with this email already exists for this business owner."
+            }
+            return JsonResponse(response_data, status=400)
+                
         if data.batch and data.standard:
             response_data = {
                 "result": False,
@@ -1008,7 +1544,7 @@ def upload_student(xl_file, user):
     except Exception as e:
         return JsonResponse({
             "result": False,
-            "message": str(e)
+            "message": "Something went wrong"
         }, status=400)
 
 
@@ -1027,6 +1563,25 @@ def student_list(user, query):
             students = students.filter(standard__medium_name=str(query.medium))
         if query.standard:
             students = students.filter(standard=str(query.standard))
+        if query.search:
+            search_terms = query.search.strip().split()
+            search_query = Q()
+
+            for term in search_terms:
+                search_query |= (
+                    Q(first_name__icontains=term)
+                    | Q(last_name__icontains=term)
+                    | Q(email__icontains=term)
+                    | Q(parent_name__icontains=term)
+                    | Q(address__icontains=term)
+                    | Q(batch__batch_name__icontains=term)
+                    | Q(standard__standard__icontains=term)
+                    | Q(standard__medium_name__medium_name__icontains=term)
+                    | Q(standard__medium_name__board_name__board_name__icontains=term)
+                    | Q(status__icontains=term)
+                )
+
+            students = students.filter(search_query)
         student_list = []
         for student in students:
             
@@ -1066,8 +1621,9 @@ def student_list(user, query):
     except Exception as e:
         response_data = {
                     "result": False,
-                    "message": str(e)
+                    "message": "Something went wrong"
                 }
+       
         return JsonResponse(response_data, status=400) 
 
 
@@ -1118,14 +1674,21 @@ def student_updation(student_id, data):
     try:
         student = Students.objects.get(id=student_id)
         if student:
-            existing_student = Students.objects.filter(
-                business_owner=student.business_owner,
-                contact_no=data.contact_no,
-            ).first()
+            existing_student = Students.objects.filter(business_owner=student.business_owner, contact_no=data.contact_no).first()
+
             if existing_student:
                 response_data = {
                     "result": False,
-                    "message": "Student with this contact number already exists for the same business owner."
+                    "message": "A student with this contact number already exists for this business owner."
+                }
+                return JsonResponse(response_data, status=400)
+
+            existing_email = Students.objects.filter(business_owner=student.business_owner, email=data.email).first()
+
+            if existing_email:
+                response_data = {
+                    "result": False,
+                    "message": "A student with this email already exists for this business owner."
                 }
                 return JsonResponse(response_data, status=400)
             
@@ -1213,7 +1776,7 @@ def student_updation(student_id, data):
     except Exception as e:
         response_data = {
             "result": False,
-            "message": str(e)
+            "message": "Something went wrong"
         }
         return JsonResponse(response_data, status=400)
 
@@ -1261,11 +1824,11 @@ def student_file_updation(xl_file, user):
             "message": "Students updated successfully."
         }
         return response_data
-
+  
     except Exception as e:
         return JsonResponse({
             "result": False,
-            "message": str(e)
+            "message": "Something went wrong"
         }, status=400)
 
 
@@ -1291,6 +1854,51 @@ def remove_student(student_id):
                     "message": "Something went wrong"
                 }
         return JsonResponse(response_data, status=400)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1926,7 +2534,7 @@ def delete_board_data(user,board_id):
     
     except Exception as e:
         response_data = {
-            "error": str(e)
+            "error": "Something went wrong"
         }
         return JsonResponse(response_data, status=500)
     
