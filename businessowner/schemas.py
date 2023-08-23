@@ -354,6 +354,9 @@ class CompExamIn(Schema):
 
 class CompExam(Schema):
     question:str
+    time: float
+    mark: int
+    question_category: str
   
 
 class CompExamOut(Schema):
@@ -917,7 +920,7 @@ class AcademicExamChapter(Schema):
     id: UUID
     chapter_name: str
 
-class AcademicExamData(Schema):
+class AcadeExamData(Schema):
     subject: UUID
     chapter: List[UUID]
     easy_question: int
@@ -933,7 +936,7 @@ class AcademicExamIn(Schema):
     passing_marks: int
     total_marks: int
     option_e: bool
-    exam_data: List[AcademicExamData]
+    exam_data: List[AcadeExamData]
 
 class AcademicExam(Schema):
     question:str

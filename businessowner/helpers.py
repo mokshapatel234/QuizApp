@@ -384,6 +384,9 @@ def get_batchlist(user, query):
 
             batches = batches.filter(search_query)
         business_owner = BusinessOwners.objects.get(id=user.id)
+        # else:
+            
+        #     batches = batches[0:]
         batches_list = [
             {
                 "id": str(batch.id),
@@ -1014,8 +1017,6 @@ def add_comp_question(user,data):
             option4=options_data.option4
         )
 
-        
-
         competitive_chapter = CompetitiveChapters.objects.get(id= data.chapter)
         question = CompetitiveQuestions.objects.create(
             competitve_chapter=competitive_chapter,
@@ -1339,22 +1340,23 @@ def create_comp_exam(user, data):
         total_weightage = data.total_questions
 
         exam_data_calculated = []
+        selected_comp_questions = []
 
         for subject_data in data.exam_data:
+           
             subject_weightage = sum(
                 qtype for qtype in [subject_data.easy_question, subject_data.medium_question, subject_data.hard_question]
             )
             subject_percentage = subject_weightage / total_weightage
             subject_time = float(data.time_duration * subject_percentage)
             subject_marks = int(data.total_marks * subject_percentage)
-
             subject_instance = CompetitiveSubjects.objects.get(id=subject_data.subject)
             
             chapter_instance = CompetitiveChapters.objects.filter(id__in=subject_data.chapter)
             chapters = list(chapter_instance)
             chapter_ids = [f"{item.id}," for item in chapters]
             chapters = " ".join(chapter_ids)
-            print(chapters, "AJDJDIEWQIWQ")
+            print(chapters)
             question_data = CompetitiveQuestions.objects.filter(competitve_chapter__subject_name=subject_instance)
             question_data = question_data.filter(competitve_chapter__id__in=subject_data.chapter)
             selected_questions = []
@@ -1363,41 +1365,42 @@ def create_comp_exam(user, data):
             remaining_easy_questions = subject_data.easy_question
             remaining_medium_questions = subject_data.medium_question
             remaining_hard_questions = subject_data.hard_question
-            selected_comp_questions = []
+           
         
             for question in question_data:
-                if remaining_easy_questions > 0:
-                    if question.question_category == "easy":
-                        if selected_time + question.time_duration <= subject_time and selected_marks + question.marks <= subject_marks:
-                            selected_questions.append(question)
-                            selected_time += question.time_duration
-                            selected_marks += question.marks
-                            remaining_easy_questions -= 1
-                elif remaining_medium_questions > 0:
-                    if question.question_category == "medium":
-                        if selected_time + question.time_duration <= subject_time and selected_marks + question.marks <= subject_marks:
-                            selected_questions.append(question)
-                            selected_time += question.time_duration
-                            selected_marks += question.marks
-                            remaining_medium_questions -= 1
-                elif remaining_hard_questions > 0:
-                    if question.question_category == "hard":
-                        if selected_time + question.time_duration <= subject_time and selected_marks + question.marks <= subject_marks:
-                            selected_questions.append(question)
-                            selected_time += question.time_duration
-                            selected_marks += question.marks
-                            remaining_hard_questions -= 1
-                else:
-                    break  
-            
-            
+                if remaining_easy_questions > 0 and question.question_category == "easy":
+                    if selected_time + question.time_duration <= subject_time and selected_marks + question.marks <= subject_marks:
+                        selected_questions.append(question)
+                        selected_time += question.time_duration
+                        selected_marks += question.marks
+                        remaining_easy_questions -= 1
+
+                elif remaining_medium_questions > 0 and question.question_category == "medium":
+                    if selected_time + question.time_duration <= subject_time and selected_marks + question.marks <= subject_marks:
+                        selected_questions.append(question)
+                        selected_time += question.time_duration
+                        selected_marks += question.marks
+                        remaining_medium_questions -= 1
+
+                elif remaining_hard_questions > 0 and question.question_category == "hard":
+                    if selected_time + question.time_duration <= subject_time and selected_marks + question.marks <= subject_marks:
+                        selected_questions.append(question)
+                        selected_time += question.time_duration
+                        selected_marks += question.marks
+                        remaining_hard_questions -= 1
+
+                if remaining_easy_questions == 0 and remaining_medium_questions == 0 and remaining_hard_questions == 0:
+                    break
             
             for question in selected_questions:
                 comp_exam_instance = CompExam(
-                    question=question.question,    
+                    question=question.question,
+                    time=float(question.time_duration),
+                    mark=question.marks,
+                    question_category=question.question_category    
                 )
                 selected_comp_questions.append(comp_exam_instance)
-            print(selected_comp_questions)
+           
             
             exam_data_instance = CompetitiveExamData(
                 subject=subject_instance,
@@ -1421,7 +1424,8 @@ def create_comp_exam(user, data):
             passing_marks=data.passing_marks,
             total_marks=data.total_marks,
             negative_marks=data.negative_marks,
-            option_e=data.option_e
+            option_e=data.option_e,
+            business_owner=user
         )
         exam_instance.save()
         for exam in exam_data_calculated:
@@ -1435,6 +1439,32 @@ def create_comp_exam(user, data):
             "message": str(e)
         }
         return response_data
+
+
+def get_comp_examlist(user):
+    try: 
+        exams = CompetitiveExams.objects.all()
+        exam_list = []
+        for exam in exams:
+            exam_data = {
+                "id":str(exam.id),
+                "exam_title": exam.exam_title,
+                "batch": str(exam.batch.id),
+                "total_question":exam.total_questions,
+                "time_duration":exam.time_duration,
+                "negative_marks":exam.negative_marks,
+                "total_marks":exam.total_marks,
+               
+            }
+            exam_list.append(exam_data)
+        return exam_list
+    except Exception as e:
+        response_data = {
+            "result": False,
+            "message": str(e)
+        }
+        return response_data
+
 
 
 
@@ -3695,6 +3725,7 @@ def create_academic_exam(user, data):
         total_weightage = data.total_questions
         
         exam_data_calculated = []
+        selected_academic_questions = []
 
         for subject_data in data.exam_data:
             subject_weightage = sum(
@@ -3713,7 +3744,7 @@ def create_academic_exam(user, data):
             chapter_ids = [f"{item.id}," for item in chapters]
             chapters = " ".join(chapter_ids)
             print(chapters)
-            question_data = AcademicQuestions.objects.filter(Academic_chapter__subject_name=subject_instance)
+            question_data = AcademicQuestions.objects.filter(academic_chapter__subject_name=subject_instance)
 
             selected_questions = []
             selected_time = 0
@@ -3721,7 +3752,7 @@ def create_academic_exam(user, data):
             remaining_easy_questions = subject_data.easy_question
             remaining_medium_questions = subject_data.medium_question
             remaining_hard_questions = subject_data.hard_question
-            selected_academic_questions = []
+            
         
             for question in question_data:
                 if remaining_easy_questions > 0:
@@ -3755,7 +3786,7 @@ def create_academic_exam(user, data):
                     question=question.question,    
                 )
                 selected_academic_questions.append(academic_exam_instance)
-            # print(selected_comp_questions)
+            print(selected_academic_questions)
             
             exam_data_instance = AcademicExamData(
                 subject=subject_instance,
@@ -3786,6 +3817,7 @@ def create_academic_exam(user, data):
             exam_instance.exam_data.add(exam) 
        
         return selected_academic_questions
+
 
     except Exception as e:
         response_data = {
