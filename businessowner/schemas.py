@@ -891,7 +891,7 @@ class QuestionIn(Schema):
    chapter: UUID
    question_category: str
    marks: int
-   time: str
+   time: float
 
 class QuestionOut(Schema):
     result: bool
@@ -940,6 +940,8 @@ class AcademicExamIn(Schema):
 
 class AcademicExam(Schema):
     question:str
+   
+
   
 
 class AcademicExamOut(Schema):

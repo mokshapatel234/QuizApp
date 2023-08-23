@@ -3428,13 +3428,7 @@ def add_question_data(user,data):
             option3=options_data.option3,
             option4=options_data.option4
         )
-        print(options_instance, "AFwewqt$")
-        # Split the time str    ing into hours and minutes
-        hours, minutes = map(int, data.time.split(":"))
 
-        # Create a timedelta representing the provided time
-        time_duration = timedelta(hours=hours, minutes=minutes)
-        print(time_duration)
         academic_chapter = AcademicChapters.objects.get(id=data.chapter)
         print(academic_chapter)
         # Create the question
@@ -3445,7 +3439,7 @@ def add_question_data(user,data):
             answer=data.answer,
             question_category=data.question_category,
             marks=data.marks,
-            time_duration=str(time_duration),
+            time_duration=data.time,
             business_owner=user
         )
 
@@ -3717,7 +3711,6 @@ def update_question_data(data, question_id):
     
 
 
-from django.db import transaction
 def create_academic_exam(user, data):
     try:
         standard_instance = AcademicStandards.objects.get(id=data.standard)
