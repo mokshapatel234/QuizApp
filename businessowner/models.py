@@ -519,6 +519,8 @@ class AcademicExamData(models.Model):
     marks_per_subject = models.IntegerField()
     objects = models.DjongoManager()
 
+    def __str__(self):
+        return str(self.id)
 
 class AcademicExams(models.Model):
     MARKS_CHOICES = (('None','None'),('0.25','0.25'), ('0.33', '0.33'))

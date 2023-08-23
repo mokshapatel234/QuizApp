@@ -3398,13 +3398,7 @@ def add_question_data(user,data):
             option3=options_data.option3,
             option4=options_data.option4
         )
-        print(options_instance, "AFwewqt$")
-        # Split the time str    ing into hours and minutes
-        hours, minutes = map(int, data.time.split(":"))
 
-        # Create a timedelta representing the provided time
-        time_duration = timedelta(hours=hours, minutes=minutes)
-        print(time_duration)
         academic_chapter = AcademicChapters.objects.get(id=data.chapter)
         print(academic_chapter)
         # Create the question
@@ -3415,7 +3409,7 @@ def add_question_data(user,data):
             answer=data.answer,
             question_category=data.question_category,
             marks=data.marks,
-            time_duration=str(time_duration),
+            time_duration=data.time,
             business_owner=user
         )
 
@@ -3687,16 +3681,17 @@ def update_question_data(data, question_id):
     
 
 
-from django.db import transaction
 def create_academic_exam(user, data):
     try:
         standard_instance = AcademicStandards.objects.get(id=data.standard)
-      
+
         total_weightage = data.total_questions
-        
+
         exam_data_calculated = []
+        selected_academic_questions = []
 
         for subject_data in data.exam_data:
+            print(subject_data)
             subject_weightage = sum(
                 qtype for qtype in [subject_data.easy_question, subject_data.medium_question, subject_data.hard_question]
             )
@@ -3705,57 +3700,59 @@ def create_academic_exam(user, data):
             subject_marks = int(data.total_marks * subject_percentage)
             
             subject_instance = AcademicSubjects.objects.get(id=subject_data.subject)
-           
             chapter_instance = AcademicChapters.objects.filter(id__in=subject_data.chapter)
-            
-            chapters = list(chapter_instance)
-            
-            chapter_ids = [f"{item.id}," for item in chapters]
+            chapters =list(chapter_instance)
+            chapter_ids = [str(item.id) for item in chapters]
             chapters = " ".join(chapter_ids)
-            print(chapters)
-            question_data = AcademicQuestions.objects.filter(Academic_chapter__subject_name=subject_instance)
 
-            selected_questions = []
-            selected_time = 0
-            selected_marks = 0
-            remaining_easy_questions = subject_data.easy_question
-            remaining_medium_questions = subject_data.medium_question
-            remaining_hard_questions = subject_data.hard_question
-            selected_academic_questions = []
+            # print(chapters)
+
+            # question_data = AcademicQuestions.objects.filter(academic_chapter__subject_name=subject_instance)
+            # question_data = question_data.filter(academic_chapter__id__in=subject_data.chapter)
+            # selected_questions = []
+            # selected_time = 0
+            # selected_marks = 0
+            # remaining_easy_questions = subject_data.easy_question
+            # remaining_medium_questions = subject_data.medium_question
+            # remaining_hard_questions = subject_data.hard_question
+           
         
-            for question in question_data:
-                if remaining_easy_questions > 0:
-                    if question.question_category == "easy":
-                        if selected_time + question.time_duration <= subject_time and selected_marks + question.marks <= subject_marks:
-                            selected_questions.append(question)
-                            selected_time += question.time_duration
-                            selected_marks += question.marks
-                            remaining_easy_questions -= 1
-                elif remaining_medium_questions > 0:
-                    if question.question_category == "medium":
-                        if selected_time + question.time_duration <= subject_time and selected_marks + question.marks <= subject_marks:
-                            selected_questions.append(question)
-                            selected_time += question.time_duration
-                            selected_marks += question.marks
-                            remaining_medium_questions -= 1
-                elif remaining_hard_questions > 0:
-                    if question.question_category == "hard":
-                        if selected_time + question.time_duration <= subject_time and selected_marks + question.marks <= subject_marks:
-                            selected_questions.append(question)
-                            selected_time += question.time_duration
-                            selected_marks += question.marks
-                            remaining_hard_questions -= 1
-                else:
-                    break  
+            # for question in question_data:
+            #     if remaining_easy_questions > 0:
+            #         if question.question_category == "easy":
+            #             if selected_time + question.time_duration <= subject_time and selected_marks + question.marks <= subject_marks:
+            #                 selected_questions.append(question)
+            #                 selected_time += question.time_duration
+            #                 selected_marks += question.marks
+            #                 remaining_easy_questions -= 1
+            #     elif remaining_medium_questions > 0:
+            #         if question.question_category == "medium":
+            #             if selected_time + question.time_duration <= subject_time and selected_marks + question.marks <= subject_marks:
+            #                 selected_questions.append(question)
+            #                 selected_time += question.time_duration
+            #                 selected_marks += question.marks
+            #                 remaining_medium_questions -= 1
+            #     elif remaining_hard_questions > 0:
+            #         if question.question_category == "hard":
+            #             if selected_time + question.time_duration <= subject_time and selected_marks + question.marks <= subject_marks:
+            #                 selected_questions.append(question)
+            #                 selected_time += question.time_duration
+            #                 selected_marks += question.marks
+            #                 remaining_hard_questions -= 1
+            #     else:
+            #         break  
             
             
             
-            for question in selected_questions:
-                academic_exam_instance = AcademicExam(
-                    question=question.question,    
-                )
-                selected_academic_questions.append(academic_exam_instance)
-            # print(selected_comp_questions)
+            # for question in selected_questions:
+            #     academic_exam_instance = AcademicExam(
+            #         question=question.question,
+            #         time=str(question.time_duration),
+            #         mark=question.marks,
+            #         question_category=question.question_category    
+            #     )
+            #     selected_academic_questions.append(academic_exam_instance)
+
             
             exam_data_instance = AcademicExamData(
                 subject=subject_instance,
@@ -3769,7 +3766,7 @@ def create_academic_exam(user, data):
             exam_data_instance.save() 
     
             exam_data_calculated.append(exam_data_instance) 
-            
+        print(exam_data_instance)  
         
         exam_instance = AcademicExams(
             exam_title=data.exam_title,
@@ -3785,7 +3782,11 @@ def create_academic_exam(user, data):
         for exam in exam_data_calculated:
             exam_instance.exam_data.add(exam) 
        
-        return selected_academic_questions
+        response_data = {
+            "result": True,
+            "exam_data": exam_instance.exam_title
+        }
+        return response_data
 
     except Exception as e:
         response_data = {
