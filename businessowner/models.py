@@ -511,11 +511,11 @@ class AcademicQuestions(models.Model):
 class AcademicExamData(models.Model):
     id = models.UUIDField(default=uuid.uuid4,primary_key=True)
     subject = models.ForeignKey(AcademicSubjects, on_delete=models.CASCADE)
-    chapter = models.CharField("Chapters", max_length=50)
+    chapter = models.CharField("AcademicChapters", max_length=50)
     easy_question = models.IntegerField()
     medium_question = models.IntegerField()
     hard_question = models.IntegerField()
-    time_per_subject = models.DateTimeField()
+    time_per_subject = models.FloatField("Time-Per-Subject-Academic",null=True,blank=True)
     marks_per_subject = models.IntegerField()
     objects = models.DjongoManager()
 

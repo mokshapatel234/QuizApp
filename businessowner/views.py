@@ -229,6 +229,12 @@ def create_competitive_exam(request, data: CompExamIn):
     return create_comp_exam(request.user, data)
 
 
+@router.get("/competitive/exam", response={200: List[dict], 400: dict, 401: dict})
+@verify_token
+def get_competitive_examlist(request):
+    return get_comp_examlist(request.user)
+
+
 #-----------------------------------------------------------------------------------------------------------#
 #------------------------------------------------STUDENT----------------------------------------------------#
 #-----------------------------------------------------------------------------------------------------------#

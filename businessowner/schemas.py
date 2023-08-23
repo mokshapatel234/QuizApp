@@ -354,6 +354,9 @@ class CompExamIn(Schema):
 
 class CompExam(Schema):
     question:str
+    time: float
+    mark: int
+    question_category: str
   
 
 class CompExamOut(Schema):
@@ -937,9 +940,7 @@ class AcademicExamIn(Schema):
 
 class AcademicExam(Schema):
     question:str
-    time: str
-    mark:int
-    question_category: str
+   
 
   
 

@@ -1,15 +1,16 @@
 from ninja import Schema
 from ninja.pagination import PaginationBase
 from typing import List, Any
+from .schemas import *
 
 
 class CustomPagination(PaginationBase):
     class Input(Schema):
         skip: int
-        per_page: int  # Add this field to allow users to define per_page value
+        per_page: int 
 
     class Output(Schema):
-        items: List[Any]
+        items: List[BatchOut]
         total: int
         per_page: int
 
