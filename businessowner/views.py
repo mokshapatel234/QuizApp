@@ -127,8 +127,9 @@ def add_competitive_subject(request, data: CompSubjectIn):
     return add_comp_subect(data, request.user)
 
 
-@router.get("/competitive/subject",  response={200: CompSubjectListOut, 400: dict, 401: dict})
+@router.get("/competitive/subject",  response={200: List[CompSubject], 400: dict, 401: dict})
 @verify_token
+@paginate(CustomPagination)
 def get_competitive_subjectlist(request, query:BatchFilter = Query(...)):
     return get_comp_subjectlist(request.user, query)
 
@@ -162,8 +163,9 @@ def add_competitive_chapter(request, data: CompChapterIn):
     return add_comp_chapter(data, request.user)
     
 
-@router.get("/competitive/chapter", response={200: CompChapterListOut, 400: dict, 401: dict})
+@router.get("/competitive/chapter", response={200: List[CompChapter], 400: dict, 401: dict})
 @verify_token
+@paginate(CustomPagination)
 def get_competitive_chapterlist(request, query:CompChapterFilter = Query(...)):
     return get_comp_chapterlist(request.user, query)
 
@@ -197,8 +199,9 @@ def add_competitive_question(request, data: QuestionIn):
     return add_comp_question(request.user,data)
     
 
-@router.get("/competitive/question", response={200: QuestionListOut, 400: dict, 401: dict})
+@router.get("/competitive/question", response={200: List[Question], 400: dict, 401: dict})
 @verify_token
+@paginate(CustomPagination)
 def get_competitive_questionlist(request, query:CompQuestionFilter = Query(...)):
     return get_comp_questionlist(request.user, query)
 

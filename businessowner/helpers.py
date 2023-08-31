@@ -399,12 +399,6 @@ def get_batchlist(user, query):
             for batch in batches
         ]
 
-        response_data = {
-            "result": True,
-            "data": batches_list,
-            "message": "Competitive batches retrieved successfully"
-        }
-
         return batches_list
     
     except Exception as e:
@@ -588,13 +582,7 @@ def get_comp_subjectlist(user, query):
             for subject in subjects
         ]
 
-        response_data = {
-            "result": True,
-            "data": subject_list,
-            "message": "Competitive subjects retrieved successfully"
-        }
-
-        return response_data
+        return subject_list
     
     except CompetitiveSubjects.DoesNotExist:
         response_data = {
@@ -823,13 +811,9 @@ def get_comp_chapterlist(user, query):
                 "updated_at": chapter.updated_at,
             }
             chapters_list.append(chapter_data)
-        response_data = {
-            "result": True,
-            "data": chapters_list,
-            "message": "Competitive chapters retrieved successfully"
-        }
 
-        return response_data
+        return chapters_list
+    
     except CompetitiveChapters.DoesNotExist:
         response_data = {
             "result": False,
@@ -1135,12 +1119,8 @@ def get_comp_questionlist(user, query):
                 }
             question_list.append(question_data)
             
-        response_data = {
-            "result": True,
-            "data": question_list,
-            "message":"Question retrieved successfully"
-        }
-        return response_data
+       
+        return question_list
 
     except Exception as e:
         response_data = {

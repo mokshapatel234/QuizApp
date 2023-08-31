@@ -364,6 +364,7 @@ class CompExam(Schema):
     time: float
     mark: int
     subject: str
+    
 class CompExamQuestion(Schema):
     question:List[UUID]
 
