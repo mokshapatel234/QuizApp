@@ -940,11 +940,23 @@ class AcademicExamIn(Schema):
 
 class AcademicExam(Schema):
     question:str
-   
+    time: float
+    mark:int
+    question_category: str
 
-  
+class ExamCreationResponse(Schema):
+    result: bool
+    message: str
+    academic_exams: list[AcademicExam]
 
 class AcademicExamOut(Schema):
     result:bool
     data: List[AcademicExam]
     message: str
+
+
+class AcadExam(Schema):
+    question:str
+    time: float
+    mark: int
+    question_category: str

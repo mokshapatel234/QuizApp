@@ -221,10 +221,18 @@ def update_question(request, question_id: UUID, data: UpdateQuestionIn):
 
 
 
-@router.post("/academic/exam", response={200: List[AcademicExam], 401: dict,400:dict})
+@router.post("/academic/exam", response={200: List[AcademicExam], 401: dict, 400: dict})
 @verify_token
-def add_exam(request,data: AcademicExamIn):
-    result = create_academic_exam(request.user, data)  
-    return result
+def add_exam(request, data: AcademicExamIn):
+    result = create_academic_exam(request.user, data)
+    
+    if isinstance(result, list):
+        if result:  # If the result list is not empty
+            return result
+        else:
+            return [{"message": "No exams created."}]  # Return a custom message
+    else:
+        return []  # Return an empty list if 'result' is not a list
+
 
 
