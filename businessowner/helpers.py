@@ -3848,91 +3848,470 @@ def update_question_data(data, question_id):
         raise HttpError(500, str(e))
     
 
+import random
+
+# def create_academic_exam(user, data):
+#     try:
+#         standard_instance = AcademicStandards.objects.get(id=data.standard)
+
+#         total_weightage = data.total_questions
+        
+#         exam_data_calculated = []
+#         selected_academic_questions = []
+
+#         for subject_data in data.exam_data:
+#             subject_weightage = sum(
+#                 qtype for qtype in [subject_data.easy_question, subject_data.medium_question, subject_data.hard_question]
+#             )
+#             subject_percentage = round(subject_weightage / total_weightage,2)
+#             print(subject_percentage)
+#             subject_time = round(float(data.time_duration * subject_percentage),2)
+#             subject_marks =  round(float(data.total_marks * subject_percentage))
+            
+#             subject_instance = AcademicSubjects.objects.get(id=subject_data.subject)
+           
+#             chapter_instance = AcademicChapters.objects.filter(id__in=subject_data.chapter)
+            
+#             chapters = list(chapter_instance)
+            
+#             chapter_ids = [f"{item.id}," for item in chapters]
+#             chapters = " ".join(chapter_ids)
+#             print(chapters)
+#             question_data = AcademicQuestions.objects.filter(academic_chapter__subject_name=subject_instance)
+#             question_data = question_data.filter(academic_chapter__id__in=subject_data.chapter)
+#             question_data_list = list(question_data)
+#             selected_questions = []
+#             selected_time = subject_time
+#             selected_marks = subject_marks
+#             remaining_easy_questions = subject_data.easy_question
+#             remaining_medium_questions = subject_data.medium_question
+#             remaining_hard_questions = subject_data.hard_question
+            
+
+#             while (remaining_easy_questions > 0 or
+#                    remaining_medium_questions > 0 or
+#                    remaining_hard_questions > 0) and (selected_time > 0 and selected_marks > 0):
+
+#                 if not question_data_list:
+#                     break
+                
+              
+#                 selected_question = random.choice(question_data_list)
+
+#                 if (selected_question.question_category == "easy" and
+#                     remaining_easy_questions > 0 and
+#                     selected_question.time_duration <= selected_time and
+#                     selected_question.marks <= selected_marks):
+
+#                     selected_questions.append(selected_question)
+#                     selected_time = round(selected_time - selected_question.time_duration,2)
+#                     selected_marks -= selected_question.marks
+#                     remaining_easy_questions -= 1
+#                     print(selected_time,"Select Time E")
+#                     print(selected_marks,"Markss")
+
+#                 elif (selected_question.question_category == "medium" and
+#                     remaining_medium_questions > 0 and
+#                     selected_question.time_duration <= selected_time and
+#                     selected_question.marks <= selected_marks):
+
+#                     selected_questions.append(selected_question)
+#                     selected_time = round(selected_time - selected_question.time_duration,2)
+#                     selected_marks -= selected_question.marks
+#                     remaining_medium_questions -= 1
+#                     print(selected_time,"Select Time M")
+#                     print(selected_marks,"Markss")
+
+#                 elif (selected_question.question_category == "hard" and
+#                     remaining_hard_questions > 0 and
+#                     selected_question.time_duration <= selected_time and
+#                     selected_question.marks <= selected_marks):
+
+#                     selected_questions.append(selected_question)
+#                     selected_time = round(selected_time - selected_question.time_duration,2)
+#                     selected_marks -= selected_question.marks
+#                     remaining_hard_questions -= 1
+#                     print(selected_time,"Select Time H")
+#                     print(selected_marks,"Markss")
+
+#                 if (remaining_easy_questions == 0 and
+#                         remaining_medium_questions == 0 and
+#                         remaining_hard_questions == 0 and
+#                         selected_time == 0 and
+#                         selected_marks == 0):
+#                     break 
+                    
+#                 if selected_question in question_data_list:
+#                     question_data_list.remove(selected_question)
+            
+            
+#             for question in selected_questions:
+#                 academic_exam_instance = AcademicExam(
+#                     question=question.question, 
+#                     time=float(question.time_duration),
+#                     mark=question.marks,
+#                     question_category=question.question_category,
+#                     subject = str(question.academic_chapter)   
+#                 )
+#                 selected_academic_questions.append(academic_exam_instance)
+#             print(selected_academic_questions)
+            
+#             exam_data_instance = AcademicExamData(
+#                 subject=subject_instance,
+#                 easy_question=subject_data.easy_question,
+#                 chapter=chapters,
+#                 medium_question=subject_data.medium_question,
+#                 hard_question=subject_data.hard_question,
+#                 time_per_subject=subject_time,
+#                 marks_per_subject=subject_marks,
+#             )
+#             exam_data_instance.save() 
+    
+#             exam_data_calculated.append(exam_data_instance) 
+            
+        
+#         exam_instance = AcademicExams(
+#             exam_title=data.exam_title,
+#             standard=standard_instance,
+#             total_questions=data.total_questions,
+#             time_duration=data.time_duration,
+#             passing_marks=data.passing_marks,
+#             total_marks=data.total_marks,
+#             negative_marks=data.negative_marks,
+#             option_e=data.option_e
+#         )
+#         exam_instance.save()
+#         for exam in exam_data_calculated:
+#             exam_instance.exam_data.add(exam) 
+       
+#         return selected_academic_questions
+
+
+#     except Exception as e:
+#         response_data = {
+#             "result": False,
+#             "message": str(e)
+#         }
+#         return response_data
+
+# def create_academic_exam(user, data):
+#     try:
+#         standard_instance = AcademicStandards.objects.get(id=data.standard)
+#         total_weightage = data.total_questions
+
+#         selected_academic_questions = []  # Initialize the list
+        
+#         for exam_data_item in data.exam_data:
+#             subject_instance = AcademicSubjects.objects.get(id=exam_data_item.subject)
+#             chapters = exam_data_item.chapter
+            
+#             chapter_instance = AcademicChapters.objects.filter(id__in=chapters)
+#             print(chapter_instance)
+#             chapters_list = list(chapter_instance)
+#             chapter_ids = [f"{item.id}," for item in chapters_list]
+#             chapters_str = " ".join(chapter_ids)
+            
+#             question_data = AcademicQuestions.objects.filter(academic_chapter__subject_name=subject_instance)
+#             question_data = question_data.filter(academic_chapter__id__in=chapters)
+#             question_data_list = list(question_data)
+#             selected_questions = []
+#             selected_time = data.time_duration
+#             selected_marks = data.total_marks
+#             remaining_easy_questions = exam_data_item.easy_question
+#             remaining_medium_questions = exam_data_item.medium_question
+#             remaining_hard_questions = exam_data_item.hard_question
+
+#             while (remaining_easy_questions > 0 or
+#                    remaining_medium_questions > 0 or
+#                    remaining_hard_questions > 0) and (selected_time > 0 and selected_marks > 0):
+
+            
+#                 if not question_data_list:
+#                     break
+                
+#                 selected_question = random.choice(question_data_list)
+#                 print(selected_question)
+#                 if (selected_question.question_category == "easy" and
+#                     remaining_easy_questions > 0 and
+#                     selected_question.time_duration <= selected_time and
+#                     selected_question.marks <= selected_marks):
+
+#                     selected_questions.append(selected_question)
+#                     selected_time = round(selected_time - selected_question.time_duration, 2)
+#                     selected_marks -= selected_question.marks
+#                     remaining_easy_questions -= 1
+
+#                 elif (selected_question.question_category == "medium" and
+#                     remaining_medium_questions > 0 and
+#                     selected_question.time_duration <= selected_time and
+#                     selected_question.marks <= selected_marks):
+
+#                     selected_questions.append(selected_question)
+#                     selected_time = round(selected_time - selected_question.time_duration,2)
+#                     selected_marks -= selected_question.marks
+#                     remaining_medium_questions -= 1
+
+#                 elif (selected_question.question_category == "hard" and
+#                     remaining_hard_questions > 0 and
+#                     selected_question.time_duration <= selected_time and
+#                     selected_question.marks <= selected_marks):
+
+#                     selected_questions.append(selected_question)
+#                     selected_time = round(selected_time - selected_question.time_duration,2)
+#                     selected_marks -= selected_question.marks
+#                     remaining_hard_questions -= 1
+
+#                 if (remaining_easy_questions == 0 and
+#                         remaining_medium_questions == 0 and
+#                         remaining_hard_questions == 0 and
+#                         selected_time == 0 and
+#                         selected_marks == 0):
+#                     break 
+
+#                 if selected_question in question_data_list:
+#                     question_data_list.remove(selected_question)
+
+#             for question in selected_questions:
+#                 academic_exam_instance = AcademicExam(
+#                     question=question.question, 
+#                     time=float(question.time_duration),
+#                     mark=question.marks,
+#                     question_category=question.question_category,
+#                     subject=str(question.academic_chapter)
+#                 )
+#                 selected_academic_questions.append(academic_exam_instance)
+
+#             exam_data_instance = AcademicExamData(
+#                 subject=subject_instance,
+#                 easy_question=exam_data_item.easy_question,
+#                 chapter=chapters_str,
+#                 medium_question=exam_data_item.medium_question,
+#                 hard_question=exam_data_item.hard_question,
+#                 time_per_subject=data.time_duration,
+#                 marks_per_subject=data.total_marks,
+#             )
+#             exam_data_instance.save()  
+
+    
+#         exam_instance = AcademicExams(
+#             exam_title=data.exam_title,
+#             standard=standard_instance,
+#             total_questions=data.total_questions,
+#             time_duration=data.time_duration,
+#             passing_marks=data.passing_marks,
+#             total_marks=data.total_marks,
+#             negative_marks=data.negative_marks,
+#             option_e=data.option_e
+#         )
+#         exam_instance.save()
+
+#         for exam_data_item in data.exam_data:
+#             exam_data_instance = AcademicExamData.objects.get(
+#                 subject=AcademicSubjects.objects.get(id=exam_data_item.subject),
+#                 easy_question=exam_data_item.easy_question,
+#                 medium_question=exam_data_item.medium_question,
+#                 hard_question=exam_data_item.hard_question,
+#                 time_per_subject=data.time_duration,
+#                 marks_per_subject=data.total_marks,
+#             )
+#             exam_instance.exam_data.add(exam_data_instance) 
+
+#         return selected_academic_questions
+
+#     except Exception as e:
+#         response_data = {
+#             "result": False,
+#             "message": str(e)
+#         }
+#         return response_data
+
 
 def create_academic_exam(user, data):
     try:
+     
         standard_instance = AcademicStandards.objects.get(id=data.standard)
-      
         total_weightage = data.total_questions
-        
-        exam_data_calculated = []
-        selected_academic_questions = []
+        selected_acad_questions_set1 = []
+        selected_acad_questions_set2 = []        
+        selected_acad_questions_set3 = [] 
 
+        exam_data_calculated = []
+        start_time = time.time()           
+        def backtrack(selected_questions, remaining_time, remaining_marks, remaining_easy_questions, remaining_medium_questions, remaining_hard_questions, question_data_list):
+            taken_time = time.time() - start_time
+            if taken_time > 60:  # minutes in seconds
+                raise TimeoutError("Backtracking took too long")
+            if remaining_time < 0 and remaining_marks < 0:
+                return False
+            if remaining_easy_questions == 0 and remaining_medium_questions == 0 and remaining_hard_questions == 0:
+                if remaining_time == 0 and remaining_marks == 0:
+                    return True
+
+            for _ in range(len(question_data_list)):
+                selected_question = random.choice(question_data_list)
+                if selected_question in question_data_list:
+                    question_data_list.remove(selected_question)
+                    
+                if selected_question.question_category == "easy" and remaining_easy_questions > 0 and selected_question.time_duration <= remaining_time and selected_question.marks <= remaining_marks:
+                    selected_questions.append(selected_question)
+                    updated_remaining_time = remaining_time - selected_question.time_duration
+                    updated_remaining_marks = remaining_marks - selected_question.marks
+                    updated_remaining_easy_questions = remaining_easy_questions - 1
+                    # print("new", updated_remaining_easy_questions)      
+                    print("ADSA", selected_questions)
+                    print("timeee", updated_remaining_time)
+                    print("markssss", updated_remaining_marks)
+                    if backtrack(selected_questions, updated_remaining_time, updated_remaining_marks, updated_remaining_easy_questions, remaining_medium_questions, remaining_hard_questions, question_data_list):
+                        return True
+                    else:
+                        selected_questions.pop()
+                        # print("SSSS")
+                        return False
+                    
+                elif selected_question.question_category == "medium" and remaining_medium_questions > 0 and selected_question.time_duration <= remaining_time and selected_question.marks <= remaining_marks:
+                    selected_questions.append(selected_question)
+                    updated_remaining_time = remaining_time - selected_question.time_duration
+                    updated_remaining_marks = remaining_marks - selected_question.marks
+                    updated_remaining_medium_questions = remaining_medium_questions - 1
+                    # print("new", updated_remaining_medium_questions)      
+                    print("ADSA", selected_questions)
+                    print("timeee", updated_remaining_time)
+                    print("markssss", updated_remaining_marks)
+                    if backtrack(selected_questions, updated_remaining_time, updated_remaining_marks, remaining_easy_questions, updated_remaining_medium_questions, remaining_hard_questions, question_data_list):
+                        return True
+                    else:
+                        selected_questions.pop()
+                        # print("SSSS")
+                        return False
+                    
+                elif selected_question.question_category == "hard" and remaining_hard_questions > 0 and selected_question.time_duration <= remaining_time and selected_question.marks <= remaining_marks:
+                    selected_questions.append(selected_question)
+                    updated_remaining_time = remaining_time - selected_question.time_duration
+                    updated_remaining_marks = remaining_marks - selected_question.marks
+                    updated_remaining_hard_questions = remaining_hard_questions - 1
+                    # print("new", updated_remaining_hard_questions)      
+                    print("ADSA", selected_questions)
+                    print("timeee", updated_remaining_time)
+                    print("markssss", updated_remaining_marks)
+                    if backtrack(selected_questions, updated_remaining_time, updated_remaining_marks, remaining_easy_questions, remaining_medium_questions, updated_remaining_hard_questions, question_data_list):
+                        return True
+                    else:
+                        selected_questions.pop()
+                        # print("SSSS")
+                        return False
+
+            return False
+
+        
         for subject_data in data.exam_data:
             subject_weightage = sum(
                 qtype for qtype in [subject_data.easy_question, subject_data.medium_question, subject_data.hard_question]
             )
-            subject_percentage = subject_weightage / total_weightage
-            subject_time = float(data.time_duration * subject_percentage)
-            subject_marks = int(data.total_marks * subject_percentage)
-            
+            subject_percentage = round(subject_weightage / total_weightage, 2)
+
+            subject_time = int(data.time_duration * subject_percentage + 0.5)
+            subject_marks = round(float(data.total_marks * subject_percentage))
+            print(subject_marks, "MMMMAAAARRRKKKKKK")
+        
             subject_instance = AcademicSubjects.objects.get(id=subject_data.subject)
-           
+            
             chapter_instance = AcademicChapters.objects.filter(id__in=subject_data.chapter)
-            
             chapters = list(chapter_instance)
-            
             chapter_ids = [f"{item.id}," for item in chapters]
             chapters = " ".join(chapter_ids)
-            print(chapters)
             question_data = AcademicQuestions.objects.filter(academic_chapter__subject_name=subject_instance)
+            question_data = question_data.filter(academic_chapter__id__in=subject_data.chapter)
+            question_data_list = list(question_data)
+            
+            selected_questions_set1 = []
+            backtrack_result_set1 = backtrack(selected_questions_set1, subject_time, subject_marks, subject_data.easy_question, subject_data.medium_question, subject_data.hard_question, question_data_list)
+            
+            selected_questions_set2 = []
+            backtrack_result_set2 = backtrack(selected_questions_set2, subject_time, subject_marks, subject_data.easy_question, subject_data.medium_question, subject_data.hard_question, question_data_list)
+            
+            selected_questions_set3 = []
+            backtrack_result_set3 = backtrack(selected_questions_set3, subject_time, subject_marks, subject_data.easy_question, subject_data.medium_question, subject_data.hard_question, question_data_list)
+        
 
-            selected_questions = []
-            selected_time = 0
-            selected_marks = 0
-            remaining_easy_questions = subject_data.easy_question
-            remaining_medium_questions = subject_data.medium_question
-            remaining_hard_questions = subject_data.hard_question
-            
-        
-            for question in question_data:
-                if remaining_easy_questions > 0:
-                    if question.question_category == "easy":
-                        if selected_time + question.time_duration <= subject_time and selected_marks + question.marks <= subject_marks:
-                            selected_questions.append(question)
-                            selected_time += question.time_duration
-                            selected_marks += question.marks
-                            remaining_easy_questions -= 1
-                elif remaining_medium_questions > 0:
-                    if question.question_category == "medium":
-                        if selected_time + question.time_duration <= subject_time and selected_marks + question.marks <= subject_marks:
-                            selected_questions.append(question)
-                            selected_time += question.time_duration
-                            selected_marks += question.marks
-                            remaining_medium_questions -= 1
-                elif remaining_hard_questions > 0:
-                    if question.question_category == "hard":
-                        if selected_time + question.time_duration <= subject_time and selected_marks + question.marks <= subject_marks:
-                            selected_questions.append(question)
-                            selected_time += question.time_duration
-                            selected_marks += question.marks
-                            remaining_hard_questions -= 1
-                else:
-                    break  
-            
-            
-            
-            for question in selected_questions:
-                academic_exam_instance = AcademicExam(
-                    question=question.question,    
+            while not backtrack_result_set1 and len(selected_questions_set1) != subject_weightage:
+                question_data_list = list(question_data)  
+                selected_questions_set1 = []  
+                remaining_marks = subject_marks 
+                
+                remaining_time = subject_time 
+                backtrack_result_set1 = backtrack(selected_questions_set1, remaining_time, remaining_marks, subject_data.easy_question, subject_data.medium_question, subject_data.hard_question, question_data_list)
+
+            while not backtrack_result_set2 and len(selected_questions_set2) != subject_weightage:
+                question_data_list = list(question_data)  
+                selected_questions_set2 = []  
+                remaining_marks = subject_marks 
+                
+                remaining_time = subject_time 
+                backtrack_result_set2 = backtrack(selected_questions_set2, remaining_time, remaining_marks, subject_data.easy_question, subject_data.medium_question, subject_data.hard_question, question_data_list)
+
+            while not backtrack_result_set3 and len(selected_questions_set3) != subject_weightage:
+                question_data_list = list(question_data)  
+                selected_questions_set3 = []  
+                remaining_marks = subject_marks 
+                
+                remaining_time = subject_time
+                backtrack_result_set3 = backtrack(selected_questions_set3, remaining_time, remaining_marks, subject_data.easy_question, subject_data.medium_question, subject_data.hard_question, question_data_list)
+
+
+            if backtrack_result_set1:
+                exam_data_instance = AcademicExamData(
+                    subject=subject_instance,
+                    easy_question=subject_data.easy_question,
+                    chapter=chapters,
+                    medium_question=subject_data.medium_question,
+                    hard_question=subject_data.hard_question,
+                    time_per_subject=subject_time,
+                    marks_per_subject=subject_marks,
                 )
-                selected_academic_questions.append(academic_exam_instance)
-            print(selected_academic_questions)
-            
-            exam_data_instance = AcademicExamData(
-                subject=subject_instance,
-                easy_question=subject_data.easy_question,
-                chapter=chapters,
-                medium_question=subject_data.medium_question,
-                hard_question=subject_data.hard_question,
-                time_per_subject=subject_time,
-                marks_per_subject=subject_marks,
-            )
-            exam_data_instance.save() 
-    
-            exam_data_calculated.append(exam_data_instance) 
-            
-        
+                exam_data_instance.save() 
+
+                exam_data_calculated.append(exam_data_instance)
+
+                for question in selected_questions_set1:
+                    acad_exam_instance = AcadExam(
+                        
+                        id = str(question.id),
+                        question=question.question,
+                        time=float(question.time_duration),
+                        mark=question.marks,
+                        question_category=question.question_category,
+                        subject = str(question.academic_chapter)
+                    )
+                    selected_acad_questions_set1.append(acad_exam_instance)
+
+            if backtrack_result_set2:
+               
+                for question in selected_questions_set2:
+                    acad_exam_instance = AcadExam(
+                        id = str(question.id),
+                        question=question.question,
+                        time=float(question.time_duration),
+                        mark=question.marks,
+                        question_category=question.question_category,
+                        subject = str(question.competitve_chapter)
+                    )
+                    selected_acad_questions_set2.append(acad_exam_instance)
+
+            if backtrack_result_set3:
+                for question in selected_questions_set3:
+                    acad_exam_instance = AcadExam(
+                        id = str(question.id),
+                        question=question.question,
+                        time=float(question.time_duration),
+                        mark=question.marks,
+                        question_category=question.question_category,
+                        subject = str(question.competitve_chapter)
+                    )
+                    selected_acad_questions_set3.append(acad_exam_instance)
+
+            print("------------------------------------------------------")
+       
+
         exam_instance = AcademicExams(
             exam_title=data.exam_title,
             standard=standard_instance,
@@ -3941,15 +4320,28 @@ def create_academic_exam(user, data):
             passing_marks=data.passing_marks,
             total_marks=data.total_marks,
             negative_marks=data.negative_marks,
-            option_e=data.option_e
+            option_e=data.option_e,
+            business_owner=user
         )
         exam_instance.save()
         for exam in exam_data_calculated:
             exam_instance.exam_data.add(exam) 
-       
-        return selected_academic_questions
+        
+        result = {
+            "set1": selected_acad_questions_set1,
+            "set2": selected_acad_questions_set2 if selected_acad_questions_set2 else None,
+            "set3": selected_acad_questions_set3 if selected_acad_questions_set3 else None,
+        }
+      
+        return result
 
-
+    except TimeoutError as timeout_error:
+        response_data = {
+            "result": False,
+            "message": "Backtracking took too long to complete"
+        }
+        return response_data
+    
     except Exception as e:
         response_data = {
             "result": False,
