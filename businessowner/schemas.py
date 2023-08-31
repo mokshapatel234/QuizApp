@@ -1,6 +1,5 @@
-from ninja import Schema, UploadedFile
+from ninja import Schema
 from datetime import datetime
-from pydantic import BaseModel
 from typing import Optional,List
 from uuid import UUID
 from typing import Optional, List
@@ -352,17 +351,27 @@ class CompExamIn(Schema):
     option_e: bool
     exam_data: List[CompExamData]
 
+class CompExamFilter(Schema):
+    batch: Optional[str]
+    subject: Optional[str]
+    chapter: Optional[str]
+    search: Optional[str]
+
 class CompExam(Schema):
+    id: str
     question:str
+    question_category: str
     time: float
     mark: int
-    question_category: str
-  
+    subject: str
+class CompExamQuestion(Schema):
+    question:List[UUID]
 
 class CompExamOut(Schema):
     result:bool
     data: List[CompExam]
     message: str
+
 
 #-----------------------------------------------------------------------------------------------------------#
 #------------------------------------------------STUDENT----------------------------------------------------#

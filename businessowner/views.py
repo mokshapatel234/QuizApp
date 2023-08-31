@@ -5,17 +5,16 @@ from ninja import Router, Query
 from .authentication import verify_token
 from typing import List
 from ninja.files import UploadedFile
+from ninja.pagination import paginate, PaginationBase
+from .paginator import CustomPagination
 
 
 router = Router()
-
-
 
 @router.post("/login", response={200: LoginOut, 401: dict})
 def login(request, data: LoginIn):
     return perform_login(data)
    
-
 
 @router.post("/changePassword", response={200: ChangePasswordOut, 400: dict, 401: dict})
 @verify_token
@@ -33,6 +32,7 @@ def forgot_password(request):
 #----------------------------------------------CITY & STATE-------------------------------------------------#
 #-----------------------------------------------------------------------------------------------------------#
 
+
 @router.get("/city", response={200: CityOut, 400: dict, 401: dict})
 @verify_token
 def get_city(request):
@@ -43,6 +43,7 @@ def get_city(request):
 @verify_token
 def get_state(request):
     return get_statelist() 
+
 
 #-----------------------------------------------------------------------------------------------------------#
 #---------------------------------------------PLAN PURCHASE-------------------------------------------------#
@@ -90,8 +91,9 @@ def add_competitive_batch(request, data: BatchIn):
     return add_batch(data, request.user)
 
 
-@router.get("/competitive/batch",  response={200: BatchListout, 400: dict, 401: dict})
+@router.get("/competitive/batch",  response={200: List[Batch], 400: dict, 401: dict})
 @verify_token
+@paginate(CustomPagination)
 def get_competitive_batchlist(request, query:BatchFilter = Query(...)):
     return get_batchlist(request.user, query)
 
@@ -223,16 +225,21 @@ def delete_competitive_question(request, question_id):
 #--------------------------------------------COMPETITIVE EXAM-----------------------------------------------#
 #-----------------------------------------------------------------------------------------------------------#
 
-@router.post("/competitive/exam", response={200: List[CompExam], 400: dict, 401: dict})
+@router.post("/competitive/exam", response={200: dict, 400: dict, 401: dict})
 @verify_token
 def create_competitive_exam(request, data: CompExamIn):
     return create_comp_exam(request.user, data)
 
+@router.post("/competitive/startExam/{exam_id}", response={200: dict, 400: dict, 401: dict})
+@verify_token
+def start_competitive_exam(request, exam_id, data:CompExamQuestion):
+    return start_comp_exam(exam_id, data)
+
 
 @router.get("/competitive/exam", response={200: List[dict], 400: dict, 401: dict})
 @verify_token
-def get_competitive_examlist(request):
-    return get_comp_examlist(request.user)
+def get_competitive_examlist(request, query:CompExamFilter = Query(...)):
+    return get_comp_examlist(request.user, query)
 
 
 #-----------------------------------------------------------------------------------------------------------#

@@ -7,3 +7,5 @@ class BusinessownerConfig(AppConfig):
 
     def ready(self):
         import businessowner.signals
+
+
