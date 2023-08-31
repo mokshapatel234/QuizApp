@@ -1,17 +1,16 @@
 from .models import *
 from .schemas import *
 from django.http import JsonResponse
-from .authentication import JWTAuthentication 
-from asgiref.sync import sync_to_async
-from ninja import UploadedFile, File
-from django.core.serializers.json import DjangoJSONEncoder
+from ninja import File
 from django.db.models import Q
-from rest_framework.response import Response
-from rest_framework import status
 from ninja.errors import HttpError
 from .utils import generate_token
 import pandas as pd
 from datetime import timedelta
+import random
+import time
+from datetime import datetime
+
 
 def perform_login(data):
     try:
@@ -406,7 +405,7 @@ def get_batchlist(user, query):
             "message": "Competitive batches retrieved successfully"
         }
 
-        return response_data
+        return batches_list
     
     except Exception as e:
         response_data = {
@@ -520,6 +519,7 @@ def delete_batch(batch_id):
                     "message": "Something went wrong"
                 }
         return JsonResponse(response_data, status=400)  
+
 
 #-----------------------------------------------------------------------------------------------------------#
 #------------------------------------------COMPETITIVE SUBJECT----------------------------------------------#
@@ -1335,60 +1335,189 @@ def delete_comp_question(question_id):
 
 def create_comp_exam(user, data):
     try:
+     
         batch_instance = CompetitiveBatches.objects.get(id=data.batch)
+        total_weightage = data.total_questions
+        selected_comp_questions_set1 = []
+        selected_comp_questions_set2 = []        
+        selected_comp_questions_set3 = [] 
 
-        selected_comp_questions = []
+        exam_data_calculated = []
+        start_time = time.time()           
+        def backtrack(selected_questions, remaining_time, remaining_marks, remaining_easy_questions, remaining_medium_questions, remaining_hard_questions, question_data_list):
+            taken_time = time.time() - start_time
+            if taken_time > 120:  # minutes in seconds
+                raise TimeoutError("Backtracking took too long")
+            if remaining_time < 0 and remaining_marks < 0:
+                return False
+            if remaining_easy_questions == 0 and remaining_medium_questions == 0 and remaining_hard_questions == 0:
+                if remaining_time == 0 and remaining_marks == 0:
+                    return True
 
-        def backtrack(selected_questions, remaining_time, remaining_marks):
-            if remaining_time < 0 or remaining_marks < 0:
-                return
-
-            if remaining_time == 0 and remaining_marks == 0:
-                selected_comp_questions.extend(selected_questions)
-                return
-
-            for subject_data in data.exam_data:
-                for question_category in ["hard", "medium", "easy"]:
-                    if question_category == "hard" and subject_data.hard_question > 0:
-                        question_data = CompetitiveQuestions.objects.filter(
-                            competitve_chapter__subject_name=subject_data.subject,
-                            competitve_chapter__id__in=subject_data.chapter,
-                            question_category=question_category,
-                            time_duration__lte=remaining_time,
-                            marks__lte=remaining_marks,
-                        )
-                    elif question_category == "medium" and subject_data.medium_question > 0:
-                        question_data = CompetitiveQuestions.objects.filter(
-                            competitve_chapter__subject_name=subject_data.subject,
-                            competitve_chapter__id__in=subject_data.chapter,
-                            question_category=question_category,
-                            time_duration__lte=remaining_time,
-                            marks__lte=remaining_marks,
-                        )
-                    elif question_category == "easy" and subject_data.easy_question > 0:
-                        question_data = CompetitiveQuestions.objects.filter(
-                            competitve_chapter__subject_name=subject_data.subject,
-                            competitve_chapter__id__in=subject_data.chapter,
-                            question_category=question_category,
-                            time_duration__lte=remaining_time,
-                            marks__lte=remaining_marks,
-                        )
-                    else:
-                        continue
+            for _ in range(len(question_data_list)):
+                selected_question = random.choice(question_data_list)
+                if selected_question in question_data_list:
+                    question_data_list.remove(selected_question)
                     
-                    print(question_data, "QUESSSSS")
-                    for selected_question in question_data:
+                if selected_question.question_category == "easy" and remaining_easy_questions > 0 and selected_question.time_duration <= remaining_time and selected_question.marks <= remaining_marks:
+                    selected_questions.append(selected_question)
+                    updated_remaining_time = remaining_time - selected_question.time_duration
+                    updated_remaining_marks = remaining_marks - selected_question.marks
+                    updated_remaining_easy_questions = remaining_easy_questions - 1
+                    # print("new", updated_remaining_easy_questions)      
+                    print("ADSA", selected_questions)
+                    print("timeee", updated_remaining_time)
+                    print("markssss", updated_remaining_marks)
+                    if backtrack(selected_questions, updated_remaining_time, updated_remaining_marks, updated_remaining_easy_questions, remaining_medium_questions, remaining_hard_questions, question_data_list):
+                        return True
+                    else:
+                        selected_questions.pop()
+                        # print("SSSS")
+                        return False
+                    
+                elif selected_question.question_category == "medium" and remaining_medium_questions > 0 and selected_question.time_duration <= remaining_time and selected_question.marks <= remaining_marks:
+                    selected_questions.append(selected_question)
+                    updated_remaining_time = remaining_time - selected_question.time_duration
+                    updated_remaining_marks = remaining_marks - selected_question.marks
+                    updated_remaining_medium_questions = remaining_medium_questions - 1
+                    # print("new", updated_remaining_medium_questions)      
+                    print("ADSA", selected_questions)
+                    print("timeee", updated_remaining_time)
+                    print("markssss", updated_remaining_marks)
+                    if backtrack(selected_questions, updated_remaining_time, updated_remaining_marks, remaining_easy_questions, updated_remaining_medium_questions, remaining_hard_questions, question_data_list):
+                        return True
+                    else:
+                        selected_questions.pop()
+                        # print("SSSS")
+                        return False
+                    
+                elif selected_question.question_category == "hard" and remaining_hard_questions > 0 and selected_question.time_duration <= remaining_time and selected_question.marks <= remaining_marks:
+                    selected_questions.append(selected_question)
+                    updated_remaining_time = remaining_time - selected_question.time_duration
+                    updated_remaining_marks = remaining_marks - selected_question.marks
+                    updated_remaining_hard_questions = remaining_hard_questions - 1
+                    # print("new", updated_remaining_hard_questions)      
+                    print("ADSA", selected_questions)
+                    print("timeee", updated_remaining_time)
+                    print("markssss", updated_remaining_marks)
+                    if backtrack(selected_questions, updated_remaining_time, updated_remaining_marks, remaining_easy_questions, remaining_medium_questions, updated_remaining_hard_questions, question_data_list):
+                        return True
+                    else:
+                        selected_questions.pop()
+                        # print("SSSS")
+                        return False
 
-                        new_selected_questions = selected_questions + [selected_question]
-                        new_remaining_time = remaining_time - selected_question.time_duration
-                        new_remaining_marks = remaining_marks - selected_question.marks
-                        print(new_remaining_marks,new_selected_questions,new_remaining_time,"REMAIIIDSSAD")
-                        new_subject_data = subject_data
-                        setattr(new_subject_data, f"{question_category}_question", getattr(subject_data, f"{question_category}_question") - 1)
+            return False
 
-                        backtrack(new_selected_questions, new_remaining_time, new_remaining_marks)
         
-        backtrack([], data.time_duration, data.total_marks)
+        for subject_data in data.exam_data:
+            subject_weightage = sum(
+                qtype for qtype in [subject_data.easy_question, subject_data.medium_question, subject_data.hard_question]
+            )
+            subject_percentage = round(subject_weightage / total_weightage, 2)
+
+            subject_time = int(data.time_duration * subject_percentage + 0.5)
+            subject_marks = round(float(data.total_marks * subject_percentage))
+            print(subject_marks, "MMMMAAAARRRKKKKKK")
+        
+            subject_instance = CompetitiveSubjects.objects.get(id=subject_data.subject)
+            
+            chapter_instance = CompetitiveChapters.objects.filter(id__in=subject_data.chapter)
+            chapters = list(chapter_instance)
+            chapter_ids = [f"{item.id}," for item in chapters]
+            chapters = " ".join(chapter_ids)
+            question_data = CompetitiveQuestions.objects.filter(competitve_chapter__subject_name=subject_instance)
+            question_data = question_data.filter(competitve_chapter__id__in=subject_data.chapter)
+            question_data_list = list(question_data)
+            
+            selected_questions_set1 = []
+            backtrack_result_set1 = backtrack(selected_questions_set1, subject_time, subject_marks, subject_data.easy_question, subject_data.medium_question, subject_data.hard_question, question_data_list)
+            
+            selected_questions_set2 = []
+            backtrack_result_set2 = backtrack(selected_questions_set2, subject_time, subject_marks, subject_data.easy_question, subject_data.medium_question, subject_data.hard_question, question_data_list)
+            
+            selected_questions_set3 = []
+            backtrack_result_set3 = backtrack(selected_questions_set3, subject_time, subject_marks, subject_data.easy_question, subject_data.medium_question, subject_data.hard_question, question_data_list)
+        
+
+            while not backtrack_result_set1 and len(selected_questions_set1) != subject_weightage:
+                question_data_list = list(question_data)  
+                selected_questions_set1 = []  
+                remaining_marks = subject_marks 
+                
+                remaining_time = subject_time 
+                backtrack_result_set1 = backtrack(selected_questions_set1, remaining_time, remaining_marks, subject_data.easy_question, subject_data.medium_question, subject_data.hard_question, question_data_list)
+
+            while not backtrack_result_set2 and len(selected_questions_set2) != subject_weightage:
+                question_data_list = list(question_data)  
+                selected_questions_set2 = []  
+                remaining_marks = subject_marks 
+                
+                remaining_time = subject_time 
+                backtrack_result_set2 = backtrack(selected_questions_set2, remaining_time, remaining_marks, subject_data.easy_question, subject_data.medium_question, subject_data.hard_question, question_data_list)
+
+            while not backtrack_result_set3 and len(selected_questions_set3) != subject_weightage:
+                question_data_list = list(question_data)  
+                selected_questions_set3 = []  
+                remaining_marks = subject_marks 
+                
+                remaining_time = subject_time
+                backtrack_result_set3 = backtrack(selected_questions_set3, remaining_time, remaining_marks, subject_data.easy_question, subject_data.medium_question, subject_data.hard_question, question_data_list)
+
+
+            if backtrack_result_set1:
+                exam_data_instance = CompetitiveExamData(
+                    subject=subject_instance,
+                    easy_question=subject_data.easy_question,
+                    chapter=chapters,
+                    medium_question=subject_data.medium_question,
+                    hard_question=subject_data.hard_question,
+                    time_per_subject=subject_time,
+                    marks_per_subject=subject_marks,
+                )
+                exam_data_instance.save() 
+
+                exam_data_calculated.append(exam_data_instance)
+
+                for question in selected_questions_set1:
+                    comp_exam_instance = CompExam(
+                        
+                        id = str(question.id),
+                        question=question.question,
+                        time=float(question.time_duration),
+                        mark=question.marks,
+                        question_category=question.question_category,
+                        subject = str(question.competitve_chapter)
+                    )
+                    selected_comp_questions_set1.append(comp_exam_instance)
+
+            if backtrack_result_set2:
+               
+                for question in selected_questions_set2:
+                    comp_exam_instance = CompExam(
+                        id = str(question.id),
+                        question=question.question,
+                        time=float(question.time_duration),
+                        mark=question.marks,
+                        question_category=question.question_category,
+                        subject = str(question.competitve_chapter)
+                    )
+                    selected_comp_questions_set2.append(comp_exam_instance)
+
+            if backtrack_result_set3:
+                for question in selected_questions_set3:
+                    comp_exam_instance = CompExam(
+                        id = str(question.id),
+                        question=question.question,
+                        time=float(question.time_duration),
+                        mark=question.marks,
+                        question_category=question.question_category,
+                        subject = str(question.competitve_chapter)
+                    )
+                    selected_comp_questions_set3.append(comp_exam_instance)
+
+            print("------------------------------------------------------")
+       
 
         exam_instance = CompetitiveExams(
             exam_title=data.exam_title,
@@ -1402,23 +1531,24 @@ def create_comp_exam(user, data):
             business_owner=user
         )
         exam_instance.save()
-        # print(selected_comp_questions)
-        # You might need to adapt this part to your data model
-        for selected_question in selected_comp_questions:
-            comp_exam_instance = CompExam(
-                question=selected_question.question,
-                time=float(selected_question.time_duration),
-                mark=selected_question.marks,
-                question_category=selected_question.question_category,
-                subject=str(selected_question.competitve_chapter)
-            )
-            selected_comp_questions.append(comp_exam_instance)
-            # comp_exam_instance.save()
-            # exam_instance.comp_questions.add(comp_exam_instance)
-            print(selected_comp_questions,"comp")
+        for exam in exam_data_calculated:
+            exam_instance.exam_data.add(exam) 
+        
+        result = {
+            "set1": selected_comp_questions_set1,
+            "set2": selected_comp_questions_set2 if selected_comp_questions_set2 else None,
+            "set3": selected_comp_questions_set3 if selected_comp_questions_set3 else None,
+        }
+      
+        return result
 
-        return selected_comp_questions
-
+    except TimeoutError as timeout_error:
+        response_data = {
+            "result": False,
+            "message": "Backtracking took too long to complete"
+        }
+        return response_data
+    
     except Exception as e:
         response_data = {
             "result": False,
@@ -1427,9 +1557,53 @@ def create_comp_exam(user, data):
         return response_data
 
 
-def get_comp_examlist(user):
+def start_comp_exam(exam_id, data):
+    try:
+        exam = CompetitiveExams.objects.get(id=exam_id)
+        exam.start_date = datetime.now()
+        selected_question = CompetitiveQuestions.objects.filter(id__in=data.question)
+        questions = list(selected_question)
+        for question in questions:
+            exam.question_set.add(question)
+        exam.save()
+        result = {
+            "message": "Data Saved Succesfully"
+        }
+      
+        return result
+    except Exception as e:
+        response_data = {
+            "result": False,
+            "message": str(e)
+        }
+        return response_data
+
+
+def get_comp_examlist(user, query):
     try: 
-        exams = CompetitiveExams.objects.all()
+        
+        exams = CompetitiveExams.objects.filter(business_owner=user)
+        
+        if query.batch:
+            exams = exams.filter(batch=query.batch)
+        if query.subject:
+            exams = exams.filter(exam_data__subject=query.subject)
+        
+        if query.chapter:
+            print("Query Chapter:", query.chapter)
+            exams = exams.filter(exam_data__chapter__contains=query.chapter)
+        
+        if query.search:
+            search_terms = query.search.strip().split()
+            search_query = Q()
+
+            for term in search_terms:
+                search_query |= (
+                     Q(exam_title__icontains=term)
+                    | Q(status__icontains=term)
+                    
+                )
+       
         exam_list = []
         for exam in exams:
             exam_data = {
@@ -1450,8 +1624,6 @@ def get_comp_examlist(user):
             "message": str(e)
         }
         return response_data
-
-
 
 
 #-----------------------------------------------------------------------------------------------------------#
@@ -3976,16 +4148,19 @@ import random
 
 def create_academic_exam(user, data):
     try:
-
-        standard_instance = AcademicStandards.objects.get(id=data.batch)
+     
+        standard_instance = AcademicStandards.objects.get(id=data.standard)
         total_weightage = data.total_questions
-        selected_comp_questions_set1 = []
-        selected_comp_questions_set2 = []        
-        selected_comp_questions_set3 = [] 
+        selected_acad_questions_set1 = []
+        selected_acad_questions_set2 = []        
+        selected_acad_questions_set3 = [] 
 
         exam_data_calculated = []
-                    
+        start_time = time.time()           
         def backtrack(selected_questions, remaining_time, remaining_marks, remaining_easy_questions, remaining_medium_questions, remaining_hard_questions, question_data_list):
+            taken_time = time.time() - start_time
+            if taken_time > 60:  # minutes in seconds
+                raise TimeoutError("Backtracking took too long")
             if remaining_time < 0 and remaining_marks < 0:
                 return False
             if remaining_easy_questions == 0 and remaining_medium_questions == 0 and remaining_hard_questions == 0:
@@ -4068,7 +4243,6 @@ def create_academic_exam(user, data):
             question_data = question_data.filter(academic_chapter__id__in=subject_data.chapter)
             question_data_list = list(question_data)
             
-            # Generate questions for the current subject
             selected_questions_set1 = []
             backtrack_result_set1 = backtrack(selected_questions_set1, subject_time, subject_marks, subject_data.easy_question, subject_data.medium_question, subject_data.hard_question, question_data_list)
             
@@ -4100,7 +4274,7 @@ def create_academic_exam(user, data):
                 selected_questions_set3 = []  
                 remaining_marks = subject_marks 
                 
-                remaining_time = subject_time 
+                remaining_time = subject_time
                 backtrack_result_set3 = backtrack(selected_questions_set3, remaining_time, remaining_marks, subject_data.easy_question, subject_data.medium_question, subject_data.hard_question, question_data_list)
 
 
@@ -4120,36 +4294,40 @@ def create_academic_exam(user, data):
 
                 for question in selected_questions_set1:
                     acad_exam_instance = AcadExam(
+                        
+                        id = str(question.id),
                         question=question.question,
                         time=float(question.time_duration),
                         mark=question.marks,
                         question_category=question.question_category,
-                        subject = str(question.competitve_chapter)
+                        subject = str(question.academic_chapter)
                     )
-                    selected_comp_questions_set1.append(acad_exam_instance)
+                    selected_acad_questions_set1.append(acad_exam_instance)
 
             if backtrack_result_set2:
                
                 for question in selected_questions_set2:
                     acad_exam_instance = AcadExam(
+                        id = str(question.id),
                         question=question.question,
                         time=float(question.time_duration),
                         mark=question.marks,
                         question_category=question.question_category,
                         subject = str(question.competitve_chapter)
                     )
-                    selected_comp_questions_set2.append(acad_exam_instance)
+                    selected_acad_questions_set2.append(acad_exam_instance)
 
             if backtrack_result_set3:
                 for question in selected_questions_set3:
                     acad_exam_instance = AcadExam(
+                        id = str(question.id),
                         question=question.question,
                         time=float(question.time_duration),
                         mark=question.marks,
                         question_category=question.question_category,
                         subject = str(question.competitve_chapter)
                     )
-                    selected_comp_questions_set3.append(acad_exam_instance)
+                    selected_acad_questions_set3.append(acad_exam_instance)
 
             print("------------------------------------------------------")
        
@@ -4170,14 +4348,20 @@ def create_academic_exam(user, data):
             exam_instance.exam_data.add(exam) 
         
         result = {
-            "set1": selected_comp_questions_set1,
-            "set2": selected_comp_questions_set2,
-            "set3": selected_comp_questions_set3,
+            "set1": selected_acad_questions_set1,
+            "set2": selected_acad_questions_set2 if selected_acad_questions_set2 else None,
+            "set3": selected_acad_questions_set3 if selected_acad_questions_set3 else None,
         }
-
+      
         return result
 
-
+    except TimeoutError as timeout_error:
+        response_data = {
+            "result": False,
+            "message": "Backtracking took too long to complete"
+        }
+        return response_data
+    
     except Exception as e:
         response_data = {
             "result": False,
