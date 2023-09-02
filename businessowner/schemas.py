@@ -15,15 +15,6 @@ class StateSchema(Schema):
     state_id: str
     state_name: str
 
-class CityOut(Schema):
-    result: bool
-    data: List[CitySchema]
-    message: str
-
-class StateOut(Schema):
-    result: bool
-    data: List[StateSchema]
-    message: str
 
 class LoginIn(Schema):
     email: str
@@ -38,19 +29,18 @@ class Login(Schema):
     email: str
     contact_no: str 
     address: str
-    logo: str = None
-    tuition_tagline: str= None
+    logo: Optional[str] 
+    tuition_tagline: Optional[str]
     status: str
     city: CitySchema
     is_reset: bool
+    is_plan_purchased: bool
     token: str
 
 class LoginOut(Schema):
     result:bool
     data: Login
     message: str
-    
-
 
 class ChangePasswordIn(Schema):
     old_password: str
@@ -60,12 +50,16 @@ class ChangePasswordOut(Schema):
     result: bool
     message: str
 
-
 class ForgotPasswordIn(Schema):
     email: str
 
+class ResetPasswordIn(Schema):
+    token: str
+    new_password: str
+    confirm_password: str
 
-class PlanSchemaIn(Schema):
+class PlanSchema(Schema):
+    id: str
     plan_name: str
     description: str
     price: float
@@ -73,21 +67,15 @@ class PlanSchemaIn(Schema):
     image: str
     status: str
 
-class PlanSchemaOut(Schema):
-    result: bool
-    data: PlanSchemaIn
-    message: str
+class PurchasePlanIn(Schema):
+    id: str
 
-class PurchaseHistory(Schema):
+
+class PurchaseHistoryOut(Schema):
     plan_name: str
     order_id: str
     status: str
     purchase_date: datetime
-
-class PurchaseHistoryOut(Schema):
-    result: bool
-    data: PurchaseHistory
-    message: str
 
 class BusinessOwnerIn(Schema):
     business_name: Optional[str]
@@ -109,8 +97,8 @@ class BusinessOwner(Schema):
     email: str
     contact_no: str 
     address: str
-    logo: str = None
-    tuition_tagline: str= None
+    logo: Optional[str]
+    tuition_tagline: Optional[str]
     status: str
     created_at: datetime
     city: CitySchema
@@ -159,11 +147,6 @@ class BatchOut(Schema):
     data: Batch
     message: str 
 
-class BatchListout(Schema):
-    result: bool
-    data: List[Batch]
-    message: str 
-
 class BatchFilter(Schema):
     status: Optional[str]
     search: Optional[str]
@@ -195,12 +178,6 @@ class CompSubject(Schema):
 class CompSubjectOut(Schema):
     result: bool
     data: CompSubject
-    message: str 
-
-
-class CompSubjectListOut(Schema):
-    result: bool
-    data: List[CompSubject]
     message: str 
 
 
@@ -245,11 +222,6 @@ class CompChapter(Schema):
 class CompChapterOut(Schema):
     result: bool
     data: CompChapter
-    message: str 
-
-class CompChapterListOut(Schema):
-    result: bool
-    data: List[CompChapter]
     message: str 
 
 
@@ -319,19 +291,11 @@ class QuestionOut(Schema):
     data: Question
     message: str
 
-class QuestionListOut(Schema):
-    result: bool
-    data: List[Question]
-    message: str
-
 
 #-----------------------------------------------------------------------------------------------------------#
 #--------------------------------------------COMPETITIVE EXAM-----------------------------------------------#
 #-----------------------------------------------------------------------------------------------------------#
 
-class CompExamChapter(Schema):
-    id: UUID
-    chapter_name: str
 
 class CompExamData(Schema):
     subject: UUID
@@ -364,15 +328,30 @@ class CompExam(Schema):
     time: float
     mark: int
     subject: str
-    
+
 class CompExamQuestion(Schema):
     question:List[UUID]
 
-class CompExamOut(Schema):
-    result:bool
-    data: List[CompExam]
-    message: str
 
+class CompExamChapter(Schema):
+    # id: UUID
+    chapter_name: str
+class Exammm(Schema):
+    subject: str
+    chapters: str
+
+class CompExamOut(Schema):
+    id:str
+    exam_title: str
+    batch: str
+    batch_name: str
+    total_question:int
+    time_duration: float
+    negative_marks:float
+    total_marks:int
+    start_date: datetime
+    exam_datas: List[Exammm]
+    
 
 #-----------------------------------------------------------------------------------------------------------#
 #------------------------------------------------STUDENT----------------------------------------------------#
@@ -443,10 +422,7 @@ class StudentOut(Schema):
     data: Student
     message: str
 
-class StudentListOut(Schema):
-    result: bool
-    data: List[Student]
-    message: str
+
 
 
 

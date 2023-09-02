@@ -83,6 +83,7 @@ class BusinessOwners(models.Model):
     tuition_tagline = models.CharField(max_length=50, null=True, verbose_name='Tuition Tagline', blank=True) 
     is_reset = models.BooleanField(default=False, blank=True)  # # # # # have to add editable=False # # # # #
     status = models.CharField(("status"),choices=CHOICES, max_length=50,default='active')
+    is_plan_purchase = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     deleted_at = models.DateTimeField(blank=True,null=True ,default=None, editable=False)
@@ -134,12 +135,15 @@ class Plans(models.Model):
         verbose_name_plural = "4. Plans"
 
 
+
 class PurchaseHistory(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     plan = models.ForeignKey(Plans, on_delete=models.CASCADE, related_name="plan")
     business_owner = models.ForeignKey(BusinessOwners, on_delete=models.CASCADE, related_name="owner")
     order_id = models.CharField(max_length=20)
     status = models.BooleanField(default=False)
+    start_date = models.DateTimeField(null=True, blank=True)
+    expire_date = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     deleted_at = models.DateTimeField(blank=True,null=True ,default=None, editable=False)

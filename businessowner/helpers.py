@@ -1,3 +1,4 @@
+import calendar
 from .models import *
 from .schemas import *
 from django.http import JsonResponse
@@ -6,10 +7,15 @@ from django.db.models import Q
 from ninja.errors import HttpError
 from .utils import generate_token
 import pandas as pd
-from datetime import timedelta
+from datetime import timedelta, timezone
 import random
 import time
+import jwt
+import razorpay
 from datetime import datetime
+from django.core.mail import EmailMultiAlternatives
+from django.template.loader import render_to_string
+from django.utils import timezone
 
 
 def perform_login(data):
@@ -17,7 +23,10 @@ def perform_login(data):
         user = BusinessOwners.objects.get(email=data.email)
         if user.password == data.password:
             token = generate_token(str(user.id))
-       
+            plan_purchased = PurchaseHistory.objects.filter(business_owner=user, status__in=[True]).order_by('-start_date')[:1].first()
+            if timezone.now() > plan_purchased.expire_date:
+                user.is_plan_purchase = False
+                user.save()
             city = Cities.objects.get(id=user.city_id)
             state = States.objects.get(id=city.state_id)
             response_data = {
@@ -35,6 +44,7 @@ def perform_login(data):
                     "tuition_tagline": user.tuition_tagline if user.tuition_tagline else None,
                     "status": user.status,
                     "is_reset":user.is_reset,
+                    "is_plan_purchased":user.is_plan_purchase,
                     "city": {
                         "city_id": str(city.id),
                         "city_name": city.name,
@@ -87,6 +97,84 @@ def perform_change_password(data, user):
         return JsonResponse(response_data, status=400)
 
 
+def perform_forgot_password(data):
+    try:
+        email = data.email
+        user = BusinessOwners.objects.get(email=email)
+        subject = 'Acount Recovery'
+        token = generate_token(str(user.id))
+        link = "api/businessOwner/resetPasswordLink/"
+
+        html_message = render_to_string('forgot_password.html', {'token': token, 'link':link})
+
+        from_email = settings.DEFAULT_FROM_EMAIL
+        to_email = [email]
+        
+        email = EmailMultiAlternatives(subject, body=None, from_email=from_email, to=to_email)
+        email.attach_alternative(html_message, "text/html")
+        email.send()
+        response_data = {
+            "result": True,
+            "message":"Email sent successfully"
+        }
+        return response_data
+
+    except Exception as e:
+        response_data = {
+            "result": False,
+            "message": "Something went wrong" +str(e)
+        }
+        return JsonResponse(response_data, status=400)
+
+def verify_reset_password_link(token):
+    try:
+        payload = jwt.decode(token, 'secret', algorithms=['HS256'])
+
+        response_data = {
+            "result": True,
+            "data":{
+                "reset_link": f"http://127.0.0.1:8000/api/businessOwner/resetPassword",
+                "token":token
+            }
+        }
+        return response_data
+    except (jwt.DecodeError, jwt.ExpiredSignatureError):
+        response_data = {
+            "result": False,
+            "message": "Reset Link Expired" +str(e)
+        }
+        return JsonResponse(response_data, status=400)
+       
+    except Exception as e:
+        response_data = {
+            "result": False,
+            "message": "Something went wrong" +str(e)
+        }
+        return JsonResponse(response_data, status=400)
+
+
+def perform_reset_password(data):
+    try:
+        payload = jwt.decode(data.token, 'secret', algorithms=['HS256'])
+        user = BusinessOwners.objects.get(id=payload["user_id"])
+        if data.new_password == data.confirm_password:
+            user.password = data.new_password
+            user.save()
+        response_data = {
+            "result":True,
+            "message": "Password rest"
+        }
+        return response_data
+
+        
+    except Exception as e:
+        response_data = {
+            "result": False,
+            "message": "Something went wrong" +str(e)
+        }
+        return JsonResponse(response_data, status=400)
+
+
 #-----------------------------------------------------------------------------------------------------------#
 #----------------------------------------------CITY & STATE-------------------------------------------------#
 #-----------------------------------------------------------------------------------------------------------#
@@ -103,12 +191,8 @@ def get_citylist():
             "state_name": city.state.name
         }
         city_list.append(city_dict)  
-        response_data = {
-            "result":True,
-            "data":city_list,
-            "message":"List of cities retrived successfully"
-        }
-    return response_data
+        
+    return city_list
 
 def get_statelist():
     state_list =[]
@@ -119,12 +203,8 @@ def get_statelist():
             "state_name": state.name
         }
         state_list.append(state_dict)
-        response_data = {
-            "result":True,
-            "data":state_list,
-            "message":"List of states retrived successfully"
-        }
-    return response_data
+        
+    return state_list
 
 
 #-----------------------------------------------------------------------------------------------------------#
@@ -132,12 +212,13 @@ def get_statelist():
 #-----------------------------------------------------------------------------------------------------------#
 
 
-def get_plan_purchase_response():
+def get_plan_list():
     try:
         plans = Plans.objects.all()
 
         plan_schema_list = [
             {
+            "id":str(plan.id),
             "plan_name":plan.plan_name,
             "description":plan.description,
             "price":plan.price,
@@ -146,13 +227,7 @@ def get_plan_purchase_response():
             "status":plan.status
         } for plan in plans]
 
-        response_data = {
-            "result": True,
-            "data": plan_schema_list,
-            "message": "Data found successfully"
-        }
-
-        return JsonResponse(response_data, status=200)
+        return plan_schema_list
     
     except Exception as e:
         response_data = {
@@ -160,9 +235,98 @@ def get_plan_purchase_response():
             "message": "Something went wrong"
         }
         return JsonResponse(response_data, status=400)
+    
+
+def purchase_plan(data, user):
+    try:  
+        
+        plan = Plans.objects.get(id=data.id)
+        purchases = PurchaseHistory.objects.filter(plan=data.id, business_owner=user)
+        for purchase in purchases:
+            if purchase.expire_date > timezone.now():
+                response_data = {
+                "result": False,
+                "message": f"Plan has already purchased for {plan.validity} months."
+            }
+            return JsonResponse(response_data, status=400)
+
+                
+        client = razorpay.Client(auth=(settings.RAZORPAY_API_KEY, settings.RAZORPAY_API_SECRET))
+        order_data = {
+            "amount": plan.price*100,
+            "currency":'INR'
+        }
+
+        order = client.order.create(order_data)
+        order_id = order.get('id', '')
+        purchase_history = PurchaseHistory(
+            plan=plan,
+            business_owner=user,  
+            order_id=order_id
+        )
+        purchase_history.save()
+        purchase_data = {
+            "order_id": order_id,
+            "price": plan.price,
+            "validity":plan.validity,
+            "plan":purchase_history.plan.plan_name
+        }
+        response_data = {
+            "result": True,
+            "data":purchase_data,
+            "message": "Order-id generated"
+        }
+        return response_data
+
+       
+    except Exception as e:
+        response_data = {
+            "result": False,
+            "message": str(e)
+        }
+        return JsonResponse(response_data, status=400)
+    
+
+def verify_plan_payment(data, user):
+    try:
+        purchased_plan = PurchaseHistory.objects.get(order_id=data.id)
+        purchased_plan.status = True
+        purchased_plan.start_date = datetime.now()
+       
+        purchased_plan.save()
+        duration = purchased_plan.plan.validity
+        expire_date = purchased_plan.start_date + timedelta(days=calendar.monthrange(purchased_plan.start_date.year, purchased_plan.start_date.month)[1] * duration)
+
+        purchased_plan.expire_date = expire_date
+        purchased_plan.save()
+
+        client = BusinessOwners.objects.get(id=user.id)
+        client.is_plan_purchase = True
+        client.save()
+
+        plan_data = {
+            "order_id": purchased_plan.order_id,
+            "status": purchased_plan.status,
+            "purched_plan":purchased_plan.plan.plan_name,
+            "is_plan_purchased":client.is_plan_purchase
+        }
+
+        response_data = {
+            "result": True,
+            "data": plan_data,
+            "message": "Plan purchased successfully"
+        }
+        return response_data
+
+    except Exception as e:
+        response_data = {
+            "result": False,
+            "message": str(e)
+        }
+        return JsonResponse(response_data, status=400)
 
 
-def get_purchase_history_response(user):
+def get_purchase_history(user):
     try:
         purchase_history = PurchaseHistory.objects.filter(business_owner=user, status__in=[True])
 
@@ -171,19 +335,91 @@ def get_purchase_history_response(user):
                 "plan_name": purchase.plan.plan_name,
                 "order_id": purchase.order_id,
                 "status": purchase.status,
+                "purchase_date":purchase.start_date
          
             }
             for purchase in purchase_history
         ]
 
-        response_data = {
-            "result": True,
-            "data": purchase_history_list,
-            "message": "Purchase history retrieved successfully"
-        }
-
-        return JsonResponse(response_data, status=200)
+        return purchase_history_list
     
+    except Exception as e:
+        response_data = {
+            "result": False,
+            "message": str(e)
+        }
+        return JsonResponse(response_data, status=400)
+
+
+#-----------------------------------------------------------------------------------------------------------#
+#------------------------------------------------DASHBOARD--------------------------------------------------#
+#-----------------------------------------------------------------------------------------------------------#        
+    
+    
+def dashboard(user):
+    try:
+        b_type = user.business_type
+        
+        if b_type == "competitive":
+            no_of_exams = CompetitiveExams.objects.filter(business_owner=user, start_date__isnull=False).count()
+            no_of_students = Students.objects.filter(business_owner=user).count()
+            no_of_batches = CompetitiveBatches.objects.filter(business_owner=user).count()
+            no_of_subjects = CompetitiveSubjects.objects.filter(business_owner=user).count()
+            latest_exams = CompetitiveExams.objects.filter(business_owner=user, start_date__isnull=False).order_by('-start_date')[:5]
+            latest_exam_data = [
+            {
+                "id": exam.id,
+                "title": exam.exam_title,
+                "start_date": exam.start_date.strftime("%Y-%m-%d"),
+            }
+            for exam in latest_exams
+        ]
+            competitive_data = {
+                "no_of_exams": no_of_exams,
+                "no_of_students": no_of_students,
+                "no_of_batches": no_of_batches,
+                "no_of_subjects": no_of_subjects,
+                "latest_exams":latest_exam_data
+            }
+            response_data = {
+                "result":True,
+                "data": competitive_data,
+                "message": "Dashboard data retrived successfully"
+            }
+        if b_type == "academic":
+            no_of_exams = AcademicExams.objects.filter(business_owner=user, start_date__isnull=False).count()
+            no_of_students = Students.objects.filter(business_owner=user).count()
+            no_of_boards = AcademicBoards.objects.filter(business_owner=user).count()
+            no_of_medium = AcademicMediums.objects.filter(business_owner=user).count()
+            no_of_standards = AcademicStandards.objects.filter(business_owner=user).count()
+            no_of_subjects = CompetitiveSubjects.objects.filter(business_owner=user).count()
+            latest_exams = AcademicExams.objects.filter(business_owner=user, start_date__isnull=False).order_by('-start_date')[:5]
+            latest_exam_data = [
+            {
+                "id": exam.id,
+                "title": exam.exam_title,
+                "start_date": exam.start_date.strftime("%Y-%m-%d"),
+            }
+            for exam in latest_exams
+        ]
+            academic_data = {
+                "no_of_exams": no_of_exams,
+                "no_of_students": no_of_students,
+                "no_of_boards":no_of_boards,
+                "no_of_medium": no_of_medium,
+                "no_of_standards": no_of_standards,
+                "no_of_subjects": no_of_subjects,
+                "latest_exams":latest_exam_data
+            }
+            response_data = {
+                "result":True,
+                "data": academic_data,
+                "message": "Dashboard data retrived successfully"
+            }
+
+        return response_data
+
+        
     except Exception as e:
         response_data = {
             "result": False,
@@ -247,22 +483,33 @@ def create_owner_response(user, is_valid, message):
         }
         return JsonResponse(response_data, status=400)
 
-
+import base64
+from urllib.request import urlopen
+from django.core.files.base import ContentFile  # Import ContentFile
+import os
 def update_owner_data(data, user):
     try:
         owner = BusinessOwners.objects.get(id=user.id)
         if owner:
             update_data = {field: value for field, value in data.dict().items() if value is not None}
-            
             if update_data:
+                logo_path = update_data.get('logo')
                 for field, value in update_data.items():
+                    
                     if field == "city":
                         city = Cities.objects.get(id=value)
                         owner.city = city
                     elif field == "logo":
-                        owner.logo = value
-                    else:    
+                        continue
+                    else:
                         setattr(owner, field, value)
+                if logo_path:
+                    with open(logo_path, 'rb') as image_file:
+                        binary_data = image_file.read()
+                        logo_base64 = base64.b64encode(binary_data).decode('utf-8')
+                    image_name = os.path.basename(logo_path)
+                    owner.logo.save(image_name, ContentFile(base64.b64decode(logo_base64)))
+                    
                 owner.save()
                 owner_data = {
                     "id": str(owner.id),
@@ -1515,6 +1762,7 @@ def create_comp_exam(user, data):
             exam_instance.exam_data.add(exam) 
         
         result = {
+            "exam_id": exam_instance.id,
             "set1": selected_comp_questions_set1,
             "set2": selected_comp_questions_set2 if selected_comp_questions_set2 else None,
             "set3": selected_comp_questions_set3 if selected_comp_questions_set3 else None,
@@ -1559,11 +1807,13 @@ def start_comp_exam(exam_id, data):
         return response_data
 
 
+
+
 def get_comp_examlist(user, query):
     try: 
         
-        exams = CompetitiveExams.objects.filter(business_owner=user)
-        
+        exams = CompetitiveExams.objects.filter(business_owner=user, start_date__isnull=False)
+        exam_list = []
         if query.batch:
             exams = exams.filter(batch=query.batch)
         if query.subject:
@@ -1584,20 +1834,41 @@ def get_comp_examlist(user, query):
                     
                 )
        
-        exam_list = []
+        
         for exam in exams:
-            exam_data = {
+            exam_data_list = []
+            for exam_data in exam.exam_data.all():
+                subject_name = exam_data.subject.subject_name
+                chapter = exam_data.chapter
+                # chapters = exam_data.chapter.split(",")
+
+                # chapter_list = []
+                # for chapter_id in chapters:
+                #     if chapter_id:  
+                #         print(chapter_id)
+                #         chapter = CompetitiveChapters.objects.get(id=chapter_id)
+                #         chapter_list.append({
+                #             "chapter_name": chapter.chapter_name
+                #         })
+                exam_data_list.append({"subject": subject_name, "chapters": chapter})
+
+            exam_detail = {
                 "id":str(exam.id),
                 "exam_title": exam.exam_title,
                 "batch": str(exam.batch.id),
+                "batch_name": exam.batch.batch_name,
                 "total_question":exam.total_questions,
                 "time_duration":exam.time_duration,
                 "negative_marks":exam.negative_marks,
                 "total_marks":exam.total_marks,
+                "start_date":exam.start_date,
+                "exam_datas": exam_data_list, 
                
             }
-            exam_list.append(exam_data)
+            exam_list.append(exam_detail)
+
         return exam_list
+    
     except Exception as e:
         response_data = {
             "result": False,
@@ -1818,13 +2089,8 @@ def student_list(user, query):
             }
             student_list.append(student_data)
 
-        response_data = {
-            "result": True,
-            "data": student_list,
-            "message": "Students retrieved successfully"
-        }
-
-        return response_data
+        
+        return student_list
     except Exception as e:
         response_data = {
                     "result": False,
@@ -2601,13 +2867,9 @@ def get_boards_list(user,filter_prompt):
             }
             for board in academic_boards
         ]
-        response_data = {
-            "result": True,
-            "data": academic_list,
-            "message": "Academic boards retrieved successfully."
-        }
+        
 
-        return response_data
+        return academic_list
     
     except Exception as e:
         response_data = {
@@ -2794,13 +3056,9 @@ def get_academic_mediums_list(filter_prompt):
             for medium in academic_mediums
         ]
         
-        response_data = {
-            "result": True,
-            "data": academic_medium_list,
-            "message": "Academic mediums retrieved successfully."
-        }
+       
 
-        return response_data
+        return academic_medium_list
 
     except Exception as e:
         response_data = {
@@ -3009,13 +3267,8 @@ def get_academic_standard_list(filter_prompt):
             for standards in academic_standards
         ]
         
-        response_data = {
-            "result": True,
-            "data": academic_standard_list,
-            "message": "Academic standard retrieved successfully."
-        }
-
-        return response_data
+        
+        return academic_standard_list
 
     except Exception as e:
         response_data = {
@@ -3215,13 +3468,9 @@ def get_academic_subject_list(filter_prompt):
             for subject in academic_subjects
         ]
         
-        response_data = {
-            "result": True,
-            "data": academic_subject_list,
-            "message": "Academic subject retrieved successfully."
-        }
+       
 
-        return response_data
+        return academic_subject_list
 
     except Exception as e:
         response_data = {
@@ -3399,13 +3648,9 @@ def get_academic_chapter_list(filter_prompt):
             for chapter in academic_chapters
         ]
         
-        response_data = {
-            "result": True,
-            "data": academic_chapters_list,
-            "message": "Academic chapter retrieved successfully."
-        }
+       
 
-        return response_data
+        return academic_chapters_list
 
     except Exception as e:
         response_data = {
@@ -3648,12 +3893,8 @@ def get_academic_question_list(user):
                 }
             question_list.append(question_data)
             
-        response_data = {
-            "result": True,
-            "data": question_list,
-            "message":"Questions retrived successfully"
-        }
-        return response_data
+        
+        return question_list
 
     except Exception as e:
         response_data = {
