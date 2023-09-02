@@ -930,7 +930,36 @@ class AcademicExamChapter(Schema):
     id: UUID
     chapter_name: str
 
-class AcadeExamData(Schema):
+
+
+# class AcademicExam(Schema):
+#     question:str
+#     time: float
+#     mark:int
+#     question_category: str
+
+# class ExamCreationResponse(Schema):
+#     result: bool
+#     message: str
+#     academic_exams: list[AcademicExam]
+
+# class AcademicExamOut(Schema):
+#     result:bool
+#     data: List[AcademicExam]
+#     message: str
+
+
+
+class AcadExam(Schema):
+    id: str
+    question:str
+    question_category: str
+    time: float
+    mark: int
+    subject: str
+
+
+class AcadExamData(Schema):
     subject: UUID
     chapter: List[UUID]
     easy_question: int
@@ -946,30 +975,16 @@ class AcademicExamIn(Schema):
     passing_marks: int
     total_marks: int
     option_e: bool
-    exam_data: List[AcadeExamData]
-
-class AcademicExam(Schema):
-    question:str
-    time: float
-    mark:int
-    question_category: str
-
-class ExamCreationResponse(Schema):
-    result: bool
-    message: str
-    academic_exams: list[AcademicExam]
-
-class AcademicExamOut(Schema):
-    result:bool
-    data: List[AcademicExam]
-    message: str
+    exam_data: List[AcadExamData]
 
 
 
-class AcadExam(Schema):
-    id: str
-    question:str
-    question_category: str
-    time: float
-    mark: int
-    subject: str
+class AcadExamFilter(Schema):
+    standard: Optional[str]
+    subject: Optional[str]
+    chapter: Optional[str]
+    search: Optional[str]
+
+
+class AcadExamQuestion(Schema):
+    question:List[UUID]
