@@ -229,18 +229,33 @@ def update_question(request, question_id: UUID, data: UpdateQuestionIn):
 
 
 
-@router.post("/academic/exam", response={200: List[AcademicExam], 401: dict, 400: dict})
-@verify_token
-def add_exam(request, data: AcademicExamIn):
-    result = create_academic_exam(request.user, data)
+# @router.post("/academic/exam", response={200: List[AcademicExam], 401: dict, 400: dict})
+# @verify_token
+# def add_exam(request, data: AcademicExamIn):
+#     result = create_academic_exam(request.user, data)
     
-    if isinstance(result, list):
-        if result:  # If the result list is not empty
-            return result
-        else:
-            return [{"message": "No exams created."}]  # Return a custom message
-    else:
-        return []  # Return an empty list if 'result' is not a list
+#     if isinstance(result, list):
+#         if result:  # If the result list is not empty
+#             return result
+#         else:
+#             return [{"message": "No exams created."}]  # Return a custom message
+#     else:
+#         return []  # Return an empty list if 'result' is not a list
 
 
+@router.post("/academic/exam", response={200:dict, 401: dict, 400: dict})
+@verify_token
+def create_acad_exam(request, data: AcademicExamIn):
+    return create_academic_exam(request.user, data)
+
+@router.get("/academic/exam", response={200: List[dict], 400: dict, 401: dict})
+@verify_token
+def get_academic_examlist(request, query:AcadExamFilter = Query(...)):
+    return get_acad_examlist(request.user, query)
+
+
+@router.post("/academic/startExam/{exam_id}", response={200: dict, 400: dict, 401: dict})
+@verify_token
+def start_academic_exam(request, exam_id, data:AcadExamQuestion):
+    return start_acad_exam(exam_id, data)
 
