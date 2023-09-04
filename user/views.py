@@ -25,5 +25,22 @@ def get_institute_list(request):
 
 @router.post("/institues", response={200: InstituteOut, 400: dict, 401: dict})
 @verify_token
-def select_institute(request):
-    return select_class(request.user)
+def select_institute(request, data:ClassSelectIn):
+    return select_class(request.user, data)
+
+
+#-----------------------------------------------------------------------------------------------------------#
+#----------------------------------------------USER PROFILE-------------------------------------------------#
+#-----------------------------------------------------------------------------------------------------------#
+
+
+@router.get("/profile", response={200: ProfileOut, 400: dict, 401: dict})
+@verify_token
+def get_user_profile(request):
+    return get_profile(request.user)
+
+
+@router.patch("/profile", response={200: ProfileOut, 400: dict, 401: dict})
+@verify_token
+def update_user_profile(request, data:ProfileUpdate):
+    return update_profile(request.user, data)
