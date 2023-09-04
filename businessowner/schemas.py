@@ -2,7 +2,6 @@ from ninja import Schema
 from datetime import datetime
 from typing import Optional,List
 from uuid import UUID
-from typing import Optional, List
 
 
 class CitySchema(Schema):
@@ -110,9 +109,35 @@ class BusinessOwnerOut(Schema):
     message: str 
 
 
-####################################################################################################
-####---------------------------------------COMPETITIVE------------------------------------------####
-####################################################################################################
+#-----------------------------------------------------------------------------------------------------------#
+#---------------------------------------------------NEWS----------------------------------------------------#
+#-----------------------------------------------------------------------------------------------------------#
+
+
+class NewsIn(Schema):
+    text: Optional[str]
+    image: Optional[str] 
+
+class NewsUpdateIn(Schema):
+    text: Optional[str]
+    image: Optional[str] 
+    status: Optional[str]
+
+class News(Schema):
+    id: str
+    text: Optional[str]
+    image: Optional[str] 
+    status: str
+
+class NewsOut(Schema):
+    result: bool
+    data: News
+    message: str
+
+
+#############################################################################################################
+####--------------------------------------------COMPETITIVE----------------------------------------------####
+#############################################################################################################
 
 
 class DeleteOut(Schema):

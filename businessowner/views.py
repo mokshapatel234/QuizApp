@@ -114,6 +114,41 @@ def get_business_owner(request):
 @verify_token
 def update_business_owner(request, data: BusinessOwnerIn):
     return update_owner_data(data, request.user)
+
+
+#-----------------------------------------------------------------------------------------------------------#
+#---------------------------------------------------NEWS----------------------------------------------------#
+#-----------------------------------------------------------------------------------------------------------#
+
+@router.post("/news", response={200: NewsOut, 400: dict, 401: dict})
+@verify_token
+def add_business_news(request, data: NewsIn):
+    return add_news(data, request.user)
+
+
+@router.get("/news", response={200: List[News], 400: dict, 401: dict})
+@verify_token
+@paginate(CustomPagination)
+def get_business_news_list(request):
+    return get_news_list(request.user)
+
+
+@router.get("/news/{news_id}",  response={200: NewsOut, 400: dict, 401: dict})
+@verify_token
+def get_business_news(request, news_id):
+    return get_news(news_id, request.user)
+
+
+@router.patch("/news/{news_id}",  response={200: DeleteOut, 400: dict, 401: dict})
+@verify_token
+def update_business_news(request, news_id, data:NewsUpdateIn):
+    return update_news(news_id, data)
+
+
+@router.delete("/news/{news_id}",  response={200: dict, 400: dict, 401: dict})
+@verify_token
+def delete_business_news(request, news_id):
+    return delete_news(news_id)
     
     
 #-----------------------------------------------------------------------------------------------------------#
