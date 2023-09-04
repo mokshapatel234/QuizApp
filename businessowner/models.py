@@ -4,7 +4,7 @@ from django.core.validators import FileExtensionValidator, RegexValidator
 from django.conf import settings
 from django.utils.timezone import now
 import uuid
-from django.utils.html import mark_safe
+from ckeditor.fields import RichTextField
 
 
 class ParanoidModelManager(models.Manager):
@@ -102,9 +102,6 @@ class BusinessOwners(models.Model):
     class Meta:
         verbose_name_plural = "3. Business Owners"
 
-    def image_tag(self):
-            return mark_safe('<img src="/directory/%s" width="150" height="150" />' % (self.logo))
-
 
 class Plans(models.Model):
     PLAN_CHOICES = ((3, '3 months'), (6, '6 months'), (9, '9 months'), (12, '12 months'))
@@ -160,6 +157,7 @@ class PurchaseHistory(models.Model):
         return f"{self.plan.plan_name} ({self.business_owner.first_name} {self.business_owner.last_name})"
     
 
+    
 class Notifications(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     business_owner = models.ArrayReferenceField(BusinessOwners, verbose_name='Business Owner')
@@ -456,6 +454,8 @@ class Students(models.Model):
     CHOICES = (('inactive','inactive'),('active','active'))
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     business_owner = models.ForeignKey(BusinessOwners, on_delete=models.CASCADE, related_name="owner_student")
+    selected_institute = models.ForeignKey(BusinessOwners, on_delete=models.CASCADE, related_name="institute_select", null=True)
+    fcm_token = models.CharField(max_length=255, blank=True, null=True)
     first_name = models.CharField(max_length=50)
     last_name = models.CharField(max_length=50)
     email = models.EmailField()
@@ -484,6 +484,32 @@ class Students(models.Model):
     
     class Meta:
         verbose_name_plural = "8. Students"
+
+
+class BusinessNewses(models.Model):
+    CHOICES = (('inactive','inactive'),('active','active'))
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    image = models.ImageField(blank=True, null=True,  upload_to="news", validators=[FileExtensionValidator(['jpg','jpeg','png'])], height_field=None, width_field=None, max_length=None)
+    news = models.TextField(null=True, blank=True)
+    batch = models.ForeignKey(CompetitiveBatches, on_delete=models.CASCADE, related_name="news_batch", null=True, blank=True)
+    standard = models.ForeignKey(AcademicStandards, on_delete=models.CASCADE, related_name="news_standard", null=True, blank=True)
+    business_owner = models.ForeignKey(BusinessOwners, on_delete=models.CASCADE, related_name="owner_news")
+    status = models.CharField(("status"),choices=CHOICES, max_length=50,default='active')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    deleted_at = models.DateTimeField(blank=True,null=True ,default=None, editable=False)
+    objects = ParanoidModelManager()
+    
+    def delete(self, hard=False, **kwargs):
+        if hard:
+            super(Notifications, self).delete()
+        else:
+            self.deleted_at = now()
+            self.save()
+            
+    def __str__(self):
+        return self.title
+            
 
 class AcademicQuestions(models.Model):
     QUESTION_CHOICES = (('easy','easy'),('medium','medium'), ('hard', 'hard'))

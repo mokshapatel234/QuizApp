@@ -2,6 +2,7 @@ import calendar
 from .models import *
 from .schemas import *
 from django.http import JsonResponse
+from django.shortcuts import redirect
 from ninja import File
 from django.db.models import Q
 from ninja.errors import HttpError
@@ -16,6 +17,10 @@ from datetime import datetime
 from django.core.mail import EmailMultiAlternatives
 from django.template.loader import render_to_string
 from django.utils import timezone
+import base64
+from urllib.request import urlopen
+from django.core.files.base import ContentFile  # Import ContentFile
+import os
 
 
 def perform_login(data):
@@ -62,7 +67,6 @@ def perform_login(data):
             "result": False,
             "message": "Invalid Password"
         }
-        
     
         return JsonResponse(response_data, status=401)
     except BusinessOwners.DoesNotExist:
@@ -71,6 +75,13 @@ def perform_login(data):
             "message": "Invalid Email"
         }
     
+        return JsonResponse(response_data, status=401)
+    
+    except Exception as e:
+        response_data = {
+            "result": False,
+            "message": "Something went wrong" 
+        }
         return JsonResponse(response_data, status=401)
 
 
@@ -96,6 +107,13 @@ def perform_change_password(data, user):
         response_data = {"result": False, "message": "Business owner not found"}
         return JsonResponse(response_data, status=400)
 
+    except Exception as e:
+        response_data = {
+            "result": False,
+            "message": "Something went wrong" 
+        }
+        return JsonResponse(response_data, status=400)
+
 
 def perform_forgot_password(data):
     try:
@@ -118,37 +136,35 @@ def perform_forgot_password(data):
             "message":"Email sent successfully"
         }
         return response_data
+    
+    except BusinessOwners.DoesNotExist:
+        response_data = {"result": False, "message": "Business owner not found"}
+        return JsonResponse(response_data, status=400)
 
     except Exception as e:
         response_data = {
             "result": False,
-            "message": "Something went wrong" +str(e)
+            "message": "Something went wrong" 
         }
         return JsonResponse(response_data, status=400)
+
 
 def verify_reset_password_link(token):
     try:
         payload = jwt.decode(token, 'secret', algorithms=['HS256'])
-
-        response_data = {
-            "result": True,
-            "data":{
-                "reset_link": f"http://127.0.0.1:8000/api/businessOwner/resetPassword",
-                "token":token
-            }
-        }
-        return response_data
+        return redirect('http://localhost:3000/resetPassword/${token}')
+    
     except (jwt.DecodeError, jwt.ExpiredSignatureError):
         response_data = {
             "result": False,
-            "message": "Reset Link Expired" +str(e)
+            "message": "Reset Link Expired" 
         }
         return JsonResponse(response_data, status=400)
        
     except Exception as e:
         response_data = {
             "result": False,
-            "message": "Something went wrong" +str(e)
+            "message": "Something went wrong" 
         }
         return JsonResponse(response_data, status=400)
 
@@ -166,11 +182,14 @@ def perform_reset_password(data):
         }
         return response_data
 
-        
+    except BusinessOwners.DoesNotExist:
+        response_data = {"result": False, "message": "Business owner not found"}
+        return JsonResponse(response_data, status=400)
+    
     except Exception as e:
         response_data = {
             "result": False,
-            "message": "Something went wrong" +str(e)
+            "message": "Something went wrong" 
         }
         return JsonResponse(response_data, status=400)
 
@@ -181,30 +200,44 @@ def perform_reset_password(data):
 
 
 def get_citylist():
-    city_list = [] 
-    cities = Cities.objects.all()
-    for city in cities:
-        city_dict = {
-            "city_id": str(city.id),
-            "city_name": city.name,
-            "state_id": str(city.state.id),
-            "state_name": city.state.name
-        }
-        city_list.append(city_dict)  
-        
-    return city_list
+    try:
+        city_list = [] 
+        cities = Cities.objects.all()
+        for city in cities:
+            city_dict = {
+                "city_id": str(city.id),
+                "city_name": city.name,
+                "state_id": str(city.state.id),
+                "state_name": city.state.name
+            }
+            city_list.append(city_dict)  
+            
+        return city_list
+    except Exception as e:
+        response_data = {
+                    "result": False,
+                    "message": "Something went wrong"
+                }
+        return JsonResponse(response_data, status=400)
 
 def get_statelist():
-    state_list =[]
-    states = States.objects.all()
-    for state in states:
-        state_dict = {
-            "state_id": str(state.id),
-            "state_name": state.name
-        }
-        state_list.append(state_dict)
-        
-    return state_list
+    try:
+        state_list =[]
+        states = States.objects.all()
+        for state in states:
+            state_dict = {
+                "state_id": str(state.id),
+                "state_name": state.name
+            }
+            state_list.append(state_dict)
+            
+        return state_list
+    except Exception as e:
+        response_data = {
+                    "result": False,
+                    "message": "Something went wrong"
+                }
+        return JsonResponse(response_data, status=400)
 
 
 #-----------------------------------------------------------------------------------------------------------#
@@ -228,7 +261,9 @@ def get_plan_list():
         } for plan in plans]
 
         return plan_schema_list
-    
+    except Plans.DoesNotExist:
+        response_data = {"result": False, "message": "Plans not found"}
+        return JsonResponse(response_data, status=400)
     except Exception as e:
         response_data = {
             "result": False,
@@ -282,7 +317,7 @@ def purchase_plan(data, user):
     except Exception as e:
         response_data = {
             "result": False,
-            "message": str(e)
+            "message": "Something went wrong"
         }
         return JsonResponse(response_data, status=400)
     
@@ -321,7 +356,7 @@ def verify_plan_payment(data, user):
     except Exception as e:
         response_data = {
             "result": False,
-            "message": str(e)
+            "message": "Something went wrong"
         }
         return JsonResponse(response_data, status=400)
 
@@ -346,7 +381,7 @@ def get_purchase_history(user):
     except Exception as e:
         response_data = {
             "result": False,
-            "message": str(e)
+            "message": "Something went wrong"
         }
         return JsonResponse(response_data, status=400)
 
@@ -423,7 +458,7 @@ def dashboard(user):
     except Exception as e:
         response_data = {
             "result": False,
-            "message": str(e)
+            "message": "Something went wrong"
         }
         return JsonResponse(response_data, status=400)
     
@@ -483,10 +518,7 @@ def create_owner_response(user, is_valid, message):
         }
         return JsonResponse(response_data, status=400)
 
-import base64
-from urllib.request import urlopen
-from django.core.files.base import ContentFile  # Import ContentFile
-import os
+
 def update_owner_data(data, user):
     try:
         owner = BusinessOwners.objects.get(id=user.id)
@@ -568,9 +600,184 @@ def update_owner_data(data, user):
     except Exception as e:
         response_data = {
                     "result": False,
-                    "message": str(e)
+                    "message": "Something went wrong"
                 }
         return JsonResponse(response_data, status=500)
+    
+
+#-----------------------------------------------------------------------------------------------------------#
+#---------------------------------------------------NEWS----------------------------------------------------#
+#-----------------------------------------------------------------------------------------------------------#
+
+    
+def add_news(data, user):
+    try:
+        owner = BusinessOwners.objects.get(id=user.id)
+        if data.text and data.image:
+            response_data = {
+                "result": False,
+                "message": "You can only provide either text or an image, not both"
+            }
+            return JsonResponse(response_data, status=400)
+        if data.text:
+            business_news = BusinessNewses(news=data.text, business_owner=user)
+            business_news.save()
+        if data.image:
+            image_path = data.image
+            with open(image_path, 'rb') as image_file:
+                binary_data = image_file.read()
+                logo_base64 = base64.b64encode(binary_data).decode('utf-8')
+            image_name = os.path.basename(image_path)
+            business_news = BusinessNewses(image=image_name, business_owner=owner)
+            business_news.save()
+            business_news.image.save(image_name, ContentFile(base64.b64decode(logo_base64)))
+        
+        news_data = {
+            "id": str(business_news.id),
+            "image": business_news.image.url if business_news.image else None,
+            "text": business_news.news if business_news.news else None,
+            "status":business_news.status
+        }
+        response_data = {
+            "result": True,
+            "data": news_data,
+            "message": "News added successfully"
+        }
+        return response_data
+
+    except Exception as e:
+        response_data = {
+                    "result": False,
+                    "message": "Something went wrong"
+                }
+        return JsonResponse(response_data, status=500)
+
+
+def get_news_list(user):
+    try:
+        newses = BusinessNewses.objects.filter(business_owner=user, status="active")
+        newses_list = [
+            {
+                "id": str(news.id),
+                "image": news.image.url if news.image else None,
+                "text": news.news if news.news else None,
+                "status":news.status
+            }
+            for news in newses
+        ]
+        return newses_list
+
+    except Exception as e:
+        response_data = {
+                    "result": False,
+                    "message": "Something went wrong"
+                }
+        return JsonResponse(response_data, status=500)
+
+    
+def get_news(news_id, user):
+    try:
+        business_news = BusinessNewses.objects.get(id=news_id)
+
+        news_data = {
+                "id": str(business_news.id),
+                "image": business_news.image.url if business_news.image else None,
+                "text": business_news.news if business_news.news else None,
+                "status":business_news.status
+            }
+        response_data = {
+            "result":True,
+            "data": news_data,
+            "message": "news retrieved successfully "
+        }
+        return response_data
+    
+    except BusinessNewses.DoesNotExist:
+        response_data = {
+            "result": False,
+            "message": "News not found"
+        }
+        return JsonResponse(response_data, status=400)
+    
+    except Exception as e:
+        response_data = {
+                    "result": False,
+                    "message": "Something went wrong"
+                }
+        return JsonResponse(response_data, status=500)
+
+
+def update_news(news_id, data):
+    try: 
+        business_news = BusinessNewses.objects.get(id=news_id)
+        if business_news:
+            update_data = {field: value for field, value in data.dict().items() if value is not None}
+            if update_data:
+                image_path = update_data.get('image')
+                for field, value in update_data.items():
+                    if field == "text":
+                        business_news.image = None
+                        business_news.news = value
+                    setattr(business_news, field, value)
+                if image_path:
+                    business_news.news = None
+                    with open(image_path, 'rb') as image_file:
+                        binary_data = image_file.read()
+                        logo_base64 = base64.b64encode(binary_data).decode('utf-8')
+                    image_name = os.path.basename(image_path)
+                    business_news.image.save(image_name, ContentFile(base64.b64decode(logo_base64)))
+            business_news.save()
+            news_data = {
+                "id": str(business_news.id),
+                "image": business_news.image.url if business_news.image else None,
+                "text": business_news.news if business_news.news else None,
+                "status":business_news.status
+            }
+            response_data = {
+                "result": True,
+                "data": news_data,
+                "message": "News updated successfully"
+            }
+            return JsonResponse(response_data, status=200)
+        
+    except BusinessNewses.DoesNotExist:
+        response_data = {
+            "result": False,
+            "message": "News not found"
+        }
+        return JsonResponse(response_data, status=400)
+        
+    except Exception as e:
+        response_data = {
+                    "result": False,
+                    "message": "Something went wrong"
+                }
+        return JsonResponse(response_data, status=500)
+    
+
+def delete_news(news_id):
+    try:
+        business_news = BusinessNewses.objects.get(id=news_id)
+        business_news.delete()
+
+        response_data = {
+            "result":True,
+            "message":"Data Deleted Successfully"}
+        return response_data
+    
+    except BusinessNewses.DoesNotExist:
+        response_data = {
+                    "result": False,
+                    "message": "Nwes not found"
+                }
+        return JsonResponse(response_data, status=400)
+    except Exception as e:
+        response_data = {
+                    "result": False,
+                    "message": "Something went wrong"
+                }
+        return JsonResponse(response_data, status=400)  
+
 
 
 #-----------------------------------------------------------------------------------------------------------#
@@ -676,6 +883,13 @@ def get_batch(batch_id, user):
         }
 
         return response_data
+    
+    except CompetitiveBatches.DoesNotExist:
+        response_data = {
+                    "result": False,
+                    "message": "Batch not found"
+                }
+        return JsonResponse(response_data, status=400)
     
     except Exception as e:
         response_data = {
@@ -1295,7 +1509,7 @@ def add_comp_question(user,data):
     except Exception as e:
         response_data = {
                     "result": False,
-                    "message": str(e)
+                    "message": "Something went wrong"
                 }
         return JsonResponse(response_data, status=400)
  
@@ -1372,7 +1586,7 @@ def get_comp_questionlist(user, query):
     except Exception as e:
         response_data = {
                     "result": False,
-                    "message": str(e)
+                    "message": "Something went wrong"
                 }
         return JsonResponse(response_data, status=400)
 
@@ -1518,7 +1732,7 @@ def update_comp_question(question_id, data):
     except Exception as e:
         response_data = {
                     "result": False,
-                    "message": str(e)
+                    "message": "Something went wrong"
                 }
         return JsonResponse(response_data, status=400)
     
@@ -1779,10 +1993,10 @@ def create_comp_exam(user, data):
     
     except Exception as e:
         response_data = {
-            "result": False,
-            "message": str(e)
-        }
-        return response_data
+                    "result": False,
+                    "message": "Something went wrong"
+                }
+        return JsonResponse(response_data, status=400)
 
 
 def start_comp_exam(exam_id, data):
@@ -1801,10 +2015,10 @@ def start_comp_exam(exam_id, data):
         return result
     except Exception as e:
         response_data = {
-            "result": False,
-            "message": str(e)
-        }
-        return response_data
+                    "result": False,
+                    "message": "Something went wrong"
+                }
+        return JsonResponse(response_data, status=400)
 
 
 
@@ -1871,10 +2085,10 @@ def get_comp_examlist(user, query):
     
     except Exception as e:
         response_data = {
-            "result": False,
-            "message": str(e)
-        }
-        return response_data
+                    "result": False,
+                    "message": "Something went wrong"
+                }
+        return JsonResponse(response_data, status=400)
 
 
 #-----------------------------------------------------------------------------------------------------------#
@@ -2020,10 +2234,11 @@ def upload_student(xl_file, user):
         return response_data
 
     except Exception as e:
-        return JsonResponse({
-            "result": False,
-            "message": "Something went wrong"
-        }, status=400)
+        response_data = {
+                    "result": False,
+                    "message": "Something went wrong"
+                }
+        return JsonResponse(response_data, status=400)
 
 
 
@@ -2096,8 +2311,7 @@ def student_list(user, query):
                     "result": False,
                     "message": "Something went wrong"
                 }
-       
-        return JsonResponse(response_data, status=400) 
+        return JsonResponse(response_data, status=400)
 
 
 def student_detail(student_id):
@@ -2134,13 +2348,19 @@ def student_detail(student_id):
 
         return response_data
     
+    except Students.DoesNotExist:
+        response_data = {
+            "result": False,
+            "message": "Student not found"
+        }
+        return JsonResponse(response_data, status=400)
+    
     except Exception as e:
         response_data = {
                     "result": False,
                     "message": "Something went wrong"
                 }
         return JsonResponse(response_data, status=400)
-
 
 
 def student_updation(student_id, data):
@@ -2873,10 +3093,10 @@ def get_boards_list(user,filter_prompt):
     
     except Exception as e:
         response_data = {
-            "result": False,
-            "message": "Something went wrong."
-        }
-        return JsonResponse(response_data,status=200)
+                    "result": False,
+                    "message": "Something went wrong"
+                }
+        return JsonResponse(response_data, status=400)
     
 def get_academic_board_data(user,board_id):
     try:
@@ -2901,10 +3121,10 @@ def get_academic_board_data(user,board_id):
 
     except Exception as e:
         response_data = {
-            "result": False,
-            "message": "Something went wrong."
-        }
-        return JsonResponse(response_data, status=500)
+                    "result": False,
+                    "message": "Something went wrong"
+                }
+        return JsonResponse(response_data, status=400)
 
 def add_baord(user, data):
     try:
@@ -2933,11 +3153,10 @@ def add_baord(user, data):
 
     except Exception as e:
         response_data = {
-            "result": False,
-            "message": "somthing went wrong."
-        }
-
-        return JsonResponse(response_data,status=400)
+                    "result": False,
+                    "message": "Something went wrong"
+                }
+        return JsonResponse(response_data, status=400)
 
 
 def update_board_data(user,data,board_id):
@@ -2972,11 +3191,10 @@ def update_board_data(user,data,board_id):
 
     except Exception as e:
         response_data = {
-            "result": False,
-            "message": "somthing went wrong."
-        }
-
-        return JsonResponse(response_data,status=400)
+                    "result": False,
+                    "message": "Something went wrong"
+                }
+        return JsonResponse(response_data, status=400)
 
 
 def delete_board_data(user,board_id):
@@ -3003,9 +3221,10 @@ def delete_board_data(user,board_id):
     
     except Exception as e:
         response_data = {
-            "error": "Something went wrong"
-        }
-        return JsonResponse(response_data, status=500)
+                    "result": False,
+                    "message": "Something went wrong"
+                }
+        return JsonResponse(response_data, status=400)
     
 
 def get_academic_mediums_list(filter_prompt):
@@ -3062,10 +3281,10 @@ def get_academic_mediums_list(filter_prompt):
 
     except Exception as e:
         response_data = {
-            "result": False,
-            "message": "Something went wrong."
-        }
-        return JsonResponse(response_data, status=500)
+                    "result": False,
+                    "message": "Something went wrong"
+                }
+        return JsonResponse(response_data, status=400)
 
 def get_academic_medium_data(user,medium_id):
     try:
@@ -3090,10 +3309,10 @@ def get_academic_medium_data(user,medium_id):
 
     except Exception as e:
         response_data = {
-            "result": False,
-            "message": print(e)
-        }
-        return JsonResponse(response_data, status=500)
+                    "result": False,
+                    "message": "Something went wrong"
+                }
+        return JsonResponse(response_data, status=400)
 
 from django.http import JsonResponse
 import uuid
@@ -3129,11 +3348,11 @@ def add_medium_data(user, data):
         return response_data
 
     except Exception as e:
-        error_response = {
-            "result": False,
-            "message": "An error occurred while adding the medium."
-        }
-        return JsonResponse(error_response, status=500, safe=False)
+        response_data = {
+                    "result": False,
+                    "message": "Something went wrong"
+                }
+        return JsonResponse(response_data, status=400)
 
 
 
@@ -3178,7 +3397,11 @@ def update_medium_data(user,data,medium_id):
         return response_data
 
     except Exception as e:
-        return JsonResponse({"error": str(e)}, status=500)
+        response_data = {
+                    "result": False,
+                    "message": "Something went wrong"
+                }
+        return JsonResponse(response_data, status=400)
 
 
 def delete_medium_data(user,medium_id):
@@ -3198,10 +3421,10 @@ def delete_medium_data(user,medium_id):
 
     except Exception as e:
         response_data = {
-            "result": False,
-            "message": str(e)
-        }
-        return JsonResponse(response_data, status=404)
+                    "result": False,
+                    "message": "Something went wrong"
+                }
+        return JsonResponse(response_data, status=400)
 
 
 
@@ -3272,10 +3495,10 @@ def get_academic_standard_list(filter_prompt):
 
     except Exception as e:
         response_data = {
-            "result": False,
-            "message": str(e)
-        }
-        return JsonResponse(response_data, status=500)
+                    "result": False,
+                    "message": "Something went wrong"
+                }
+        return JsonResponse(response_data, status=400)
     
 
 def add_standard_data(user, data):
@@ -3313,11 +3536,11 @@ def add_standard_data(user, data):
         return response_data 
 
     except Exception as e:
-        error_response = {
-            "result": False,
-            "message": str(e),
-        }
-        return JsonResponse(error_response, status=500, safe=False)
+        response_data = {
+                    "result": False,
+                    "message": "Something went wrong"
+                }
+        return JsonResponse(response_data, status=400, safe=False)
     
 
 def delete_standard_data(user,standard_id):
@@ -3337,10 +3560,10 @@ def delete_standard_data(user,standard_id):
 
     except Exception as e:
         response_data = {
-            "result": False,
-            "message": str(e)
-        }
-        return JsonResponse(response_data, status=404)
+                    "result": False,
+                    "message": "Something went wrong"
+                }
+        return JsonResponse(response_data, status=400)
     
 
 def get_academic_standard_data(standard_id):
@@ -3367,10 +3590,10 @@ def get_academic_standard_data(standard_id):
 
     except Exception as e:
         response_data = {
-            "result": False,
-            "message": print(e)
-        }
-        return JsonResponse(response_data, status=500)
+                    "result": False,
+                    "message": "Something went wrong"
+                }
+        return JsonResponse(response_data, status=400)
     
 
 def update_standard_data(user,data,standard_id):
@@ -3414,7 +3637,11 @@ def update_standard_data(user,data,standard_id):
         return response_data
 
     except Exception as e:
-        return JsonResponse({"error": str(e)}, status=500)
+        response_data = {
+                    "result": False,
+                    "message": "Something went wrong"
+                }
+        return JsonResponse(response_data, status=400)
     
 
 
@@ -3474,10 +3701,10 @@ def get_academic_subject_list(filter_prompt):
 
     except Exception as e:
         response_data = {
-            "result": False,
-            "message": str(e)
-        }
-        return JsonResponse(response_data, status=500)
+                    "result": False,
+                    "message": "Something went wrong"
+                }
+        return JsonResponse(response_data, status=400)
     
 
 def add_subject_data(user, data):
@@ -3515,11 +3742,11 @@ def add_subject_data(user, data):
         return response_data 
 
     except Exception as e:
-        error_response = {
-            "result": False,
-            "message": str(e),
-        }
-        return JsonResponse(error_response, status=500, safe=False)
+        response_data = {
+                    "result": False,
+                    "message": "Something went wrong"
+                }
+        return JsonResponse(response_data, status=400)
 
 
 def get_academic_subject_data(subject_id):
@@ -3546,10 +3773,10 @@ def get_academic_subject_data(subject_id):
 
     except Exception as e:
         response_data = {
-            "result": False,
-            "message": print(e)
-        }
-        return JsonResponse(response_data, status=500)
+                    "result": False,
+                    "message": "Something went wrong"
+                }
+        return JsonResponse(response_data, status=400)
     
 
 def delete_subject_data(user,subject_id):
@@ -3569,10 +3796,10 @@ def delete_subject_data(user,subject_id):
 
     except Exception as e:
         response_data = {
-            "result": False,
-            "message": str(e)
-        }
-        return JsonResponse(response_data, status=404)
+                    "result": False,
+                    "message": "Something went wrong"
+                }
+        return JsonResponse(response_data, status=400)
     
 
 def update_subject_data(user,data,subject_id):
@@ -3615,7 +3842,11 @@ def update_subject_data(user,data,subject_id):
         return response_data
 
     except Exception as e:
-        return JsonResponse({"error": str(e)}, status=500)
+        response_data = {
+                    "result": False,
+                    "message": "Something went wrong"
+                }
+        return JsonResponse(response_data, status=400)
     
 
 
@@ -3654,10 +3885,10 @@ def get_academic_chapter_list(filter_prompt):
 
     except Exception as e:
         response_data = {
-            "result": False,
-            "message": str(e)
-        }
-        return JsonResponse(response_data, status=500)
+                    "result": False,
+                    "message": "Something went wrong"
+                }
+        return JsonResponse(response_data, status=400)
     
 
 def add_chapter_data(user, data):
@@ -3695,11 +3926,11 @@ def add_chapter_data(user, data):
         return response_data 
 
     except Exception as e:
-        error_response = {
-            "result": False,
-            "message": str(e),
-        }
-        return JsonResponse(error_response, status=500, safe=False)
+        response_data = {
+                    "result": False,
+                    "message": "Something went wrong"
+                }
+        return JsonResponse(response_data, status=400)
     
 
 def get_academic_chapter_data(chapter_id):
@@ -3728,10 +3959,10 @@ def get_academic_chapter_data(chapter_id):
 
     except Exception as e:
         response_data = {
-            "result": False,
-            "message": print(e)
-        }
-        return JsonResponse(response_data, status=500)
+                    "result": False,
+                    "message": "Something went wrong"
+                }
+        return JsonResponse(response_data, status=400)
     
 
 
@@ -3752,10 +3983,10 @@ def delete_chapter_data(user,chapter_id):
 
     except Exception as e:
         response_data = {
-            "result": False,
-            "message": str(e)
-        }
-        return JsonResponse(response_data, status=404)
+                    "result": False,
+                    "message": "Something went wrong"
+                }
+        return JsonResponse(response_data, status=400)
     
 
 
@@ -3796,10 +4027,13 @@ def update_chapter_data(user,data,chapter_id):
         return response_data
 
     except Exception as e:
-        return JsonResponse({"error": str(e)}, status=500)
+        response_data = {
+                    "result": False,
+                    "message": "Something went wrong"
+                }
+        return JsonResponse(response_data, status=400)
     
 
-from datetime import timedelta
 def add_question_data(user,data):
     try:
         options_data = data.options  # Extract options data dictionary from the main data
@@ -3853,7 +4087,7 @@ def add_question_data(user,data):
     except Exception as e:
         response_data = {
                     "result": False,
-                    "message": str(e)
+                    "message": "Something went wrong"
                 }
         return JsonResponse(response_data, status=400)
     
@@ -3899,7 +4133,7 @@ def get_academic_question_list(user):
     except Exception as e:
         response_data = {
                     "result": False,
-                    "message": str(e)
+                    "message": "Something went wrong"
                 }
         return JsonResponse(response_data, status=400)
     
@@ -3944,7 +4178,7 @@ def get_academic_question_data(question_id):
     except Exception as e:
         response_data = {
                     "result": False,
-                    "message": str(e)
+                    "message": "Something went wrong"
                 }
         return JsonResponse(response_data, status=400)
     
@@ -3988,10 +4222,10 @@ def delete_question_data(user, question_id):
     
     except Exception as e:
         response_data = {
-            "result": False,
-            "message": str(e)
-        }
-        return JsonResponse(response_data, status=500)
+                    "result": False,
+                    "message": "Something went wrong"
+                }
+        return JsonResponse(response_data, status=400)
     
 
 
@@ -4086,7 +4320,11 @@ def update_question_data(data, question_id):
         raise HttpError(404, "Options not found")
 
     except Exception as e:
-        raise HttpError(500, str(e))
+        response_data = {
+                    "result": False,
+                    "message": "Something went wrong"
+                }
+        return JsonResponse(response_data, status=400)
     
 
 import random
@@ -4309,10 +4547,10 @@ def create_academic_exam(user, data):
     
     except Exception as e:
         response_data = {
-            "result": False,
-            "message": str(e)
-        }
-        return response_data
+                    "result": False,
+                    "message": "Something went wrong"
+                }
+        return JsonResponse(response_data, status=400)
 
 
 def get_acad_examlist(user, query):
@@ -4356,10 +4594,10 @@ def get_acad_examlist(user, query):
         return exam_list
     except Exception as e:
         response_data = {
-            "result": False,
-            "message": str(e)
-        }
-        return response_data
+                    "result": False,
+                    "message": "Something went wrong"
+                }
+        return JsonResponse(response_data, status=400)
     
 
 
@@ -4379,10 +4617,10 @@ def start_acad_exam(exam_id, data):
         return result
     except Exception as e:
         response_data = {
-            "result": False,
-            "message": str(e)
-        }
-        return response_data
+                    "result": False,
+                    "message": "Something went wrong"
+                }
+        return JsonResponse(response_data, status=400)
 
 
 
@@ -4429,8 +4667,8 @@ def get_acad_examreport(user, query):
         return exam_list
     except Exception as e:
         response_data = {
-            "result": False,
-            "message": str(e)
-        }
-        return response_data
+                    "result": False,
+                    "message": "Something went wrong"
+                }
+        return JsonResponse(response_data, status=400)
     
