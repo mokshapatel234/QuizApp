@@ -115,6 +115,8 @@ class BusinessOwnerOut(Schema):
 
 
 class NewsIn(Schema):
+    standard: Optional[UUID]
+    batch: Optional[UUID]
     text: Optional[str]
     image: Optional[str] 
 

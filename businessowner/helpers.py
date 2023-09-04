@@ -619,6 +619,14 @@ def add_news(data, user):
                 "message": "You can only provide either text or an image, not both"
             }
             return JsonResponse(response_data, status=400)
+        
+        if data.batch and data.standard:
+            response_data = {
+                "result": False,
+                "message": "You can only specify either 'batch' or 'standard', not both."
+            }
+            return JsonResponse(response_data, status=400)
+        
         if data.text:
             business_news = BusinessNewses(news=data.text, business_owner=user)
             business_news.save()
