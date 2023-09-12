@@ -28,40 +28,79 @@ def perform_login(data):
         user = BusinessOwners.objects.get(email=data.email)
         if user.password == data.password:
             token = generate_token(str(user.id))
-            plan_purchased = PurchaseHistory.objects.filter(business_owner=user, status__in=[True]).order_by('-start_date')[:1].first()
-            if timezone.now() > plan_purchased.expire_date:
-                user.is_plan_purchase = False
-                user.save()
-            city = Cities.objects.get(id=user.city_id)
-            state = States.objects.get(id=city.state_id)
-            response_data = {
-                "result": True,
-                "data": {
-                    "id": str(user.id),
-                    "business_name": user.business_name,
-                    "business_type": user.business_type,
-                    "first_name": user.first_name,
-                    "last_name": user.last_name,
-                    "email": user.email,
-                    "contact_no": user.contact_no,
-                    "address": user.address,
-                    "logo": user.logo.url if user.logo else None,
-                    "tuition_tagline": user.tuition_tagline if user.tuition_tagline else None,
-                    "status": user.status,
-                    "is_reset":user.is_reset,
-                    "is_plan_purchased":user.is_plan_purchase,
-                    "city": {
-                        "city_id": str(city.id),
-                        "city_name": city.name,
-                        "state_id": str(city.state_id),
-                        "state_name": state.name,
-                    },
-                    "token": token
-                    },
-                "message": "Login successful",
-        
-            }
-            return response_data
+            # if timezone.now() > plan_purchased.expire_date:
+            #     user.is_plan_purchase = False
+            #     user.save()
+            if user.is_plan_purchase == False:
+                print(user)
+                city = Cities.objects.get(id=user.city_id)
+                state = States.objects.get(id=city.state_id)
+                response_data = {
+                    "result": True,
+                    "data": {
+                        "id": str(user.id),
+                        "business_name": user.business_name,
+                        "business_type": user.business_type,
+                        "first_name": user.first_name,
+                        "last_name": user.last_name,
+                        "email": user.email,
+                        "contact_no": user.contact_no,
+                        "address": user.address,
+                        "logo": user.logo.url if user.logo else None,
+                        "tuition_tagline": user.tuition_tagline if user.tuition_tagline else None,
+                        "status": user.status,
+                        "is_reset":user.is_reset,
+                        "is_plan_purchased":user.is_plan_purchase,
+                        "city": {
+                            "city_id": str(city.id),
+                            "city_name": city.name,
+                            "state_id": str(city.state_id),
+                            "state_name": state.name,
+                        },
+                        "token": token
+                        },
+                    "message": "Login successful",
+            
+                }
+                return response_data
+            else:
+                plan_purchased = PurchaseHistory.objects.filter(business_owner=user, status__in=[True]).order_by('-start_date')[:1].first()
+
+                if timezone.now() > plan_purchased.expire_date:
+                    user.is_plan_purchase = False
+                    user.save()
+
+                    city = Cities.objects.get(id=user.city_id)
+                    state = States.objects.get(id=city.state_id)
+                    response_data = {
+                        "result": True,
+                        "data": {
+                            "id": str(user.id),
+                            "business_name": user.business_name,
+                            "business_type": user.business_type,
+                            "first_name": user.first_name,
+                            "last_name": user.last_name,
+                            "email": user.email,
+                            "contact_no": user.contact_no,
+                            "address": user.address,
+                            "logo": user.logo.url if user.logo else None,
+                            "tuition_tagline": user.tuition_tagline if user.tuition_tagline else None,
+                            "status": user.status,
+                            "is_reset":user.is_reset,
+                            "is_plan_purchased":user.is_plan_purchase,
+                            "city": {
+                                "city_id": str(city.id),
+                                "city_name": city.name,
+                                "state_id": str(city.state_id),
+                                "state_name": state.name,
+                            },
+                            "token": token
+                            },
+                        "message": "Login successful",
+                
+                    }
+                return response_data
+
         else:
             response_data = {
             "result": False,
@@ -80,7 +119,7 @@ def perform_login(data):
     except Exception as e:
         response_data = {
             "result": False,
-            "message": "Something went wrong" 
+            "message": print(e) 
         }
         return JsonResponse(response_data, status=401)
 
@@ -613,6 +652,8 @@ def update_owner_data(data, user):
 def add_news(data, user):
     try:
         owner = BusinessOwners.objects.get(id=user.id)
+
+        # Check if both text and image are provided
         if data.text and data.image:
             response_data = {
                 "result": False,
@@ -626,50 +667,95 @@ def add_news(data, user):
                 "message": "You can only specify either 'batch' or 'standard', not both."
             }
             return JsonResponse(response_data, status=400)
-        
+
+            # Check if neither standard nor batch is provided
+        if not data.standard and not data.batch:
+            response_data = {
+                "result": False,
+                "message": "You must provide either 'standard' or 'batch' when adding an image with text"
+            }
+            return JsonResponse(response_data, status=400)
+
+        # Check if neither text nor image is provided
+        if not data.text and not data.image:
+            response_data = {
+                "result": False,
+                "message": "You must provide either text or an image"
+            }
+            return JsonResponse(response_data, status=400)
+
+        business_news = BusinessNewses(business_owner=user)
+
         if data.text:
-            business_news = BusinessNewses(news=data.text, business_owner=user)
-            business_news.save()
+            business_news.news = data.text
         if data.image:
             image_path = data.image
             with open(image_path, 'rb') as image_file:
                 binary_data = image_file.read()
                 logo_base64 = base64.b64encode(binary_data).decode('utf-8')
             image_name = os.path.basename(image_path)
-            business_news = BusinessNewses(image=image_name, business_owner=owner)
-            business_news.save()
+            business_news.image = image_name
             business_news.image.save(image_name, ContentFile(base64.b64decode(logo_base64)))
-        
+
+        if data.standard:
+            try:
+                academic_standard = AcademicStandards.objects.get(id=data.standard)
+                business_news.standard = academic_standard
+            except AcademicStandards.DoesNotExist:
+                response_data = {
+                    "result": False,
+                    "message": "The specified academic standard does not exist"
+                }
+                return JsonResponse(response_data, status=400)
+
+        if data.batch:
+            try:
+                competitive_batch = CompetitiveBatches.objects.get(id=data.batch)
+                business_news.batch = competitive_batch
+            except CompetitiveBatches.DoesNotExist:
+                response_data = {
+                    "result": False,
+                    "message": "The specified batch does not exist"
+                }
+                return JsonResponse(response_data, status=400)
+
+        business_news.save()
+
         news_data = {
             "id": str(business_news.id),
             "image": business_news.image.url if business_news.image else None,
             "text": business_news.news if business_news.news else None,
-            "status":business_news.status
+            "status": business_news.status,
+            "standard": business_news.standard.id if business_news.standard else None,
+            "batch": business_news.batch.id if business_news.batch else None
         }
         response_data = {
             "result": True,
             "data": news_data,
             "message": "News added successfully"
         }
-        return response_data
+        return JsonResponse(response_data)
 
     except Exception as e:
         response_data = {
-                    "result": False,
-                    "message": "Something went wrong"
-                }
+            "result": False,
+            "message": "Something went wrong"
+        }
         return JsonResponse(response_data, status=500)
-
+    
 
 def get_news_list(user):
     try:
+        print(user)
         newses = BusinessNewses.objects.filter(business_owner=user, status="active")
         newses_list = [
             {
                 "id": str(news.id),
                 "image": news.image.url if news.image else None,
                 "text": news.news if news.news else None,
-                "status":news.status
+                "status":news.status,
+                "standard":str(news.standard.id) if news.standard else None,
+                "batch":str(news.batch.id) if news.batch else None,
             }
             for news in newses
         ]
@@ -691,6 +777,8 @@ def get_news(news_id, user):
                 "id": str(business_news.id),
                 "image": business_news.image.url if business_news.image else None,
                 "text": business_news.news if business_news.news else None,
+                "standard":str(business_news.standard.id) if business_news.standard else None,
+                "batch":str(business_news.batch.id) if business_news.batch else None,
                 "status":business_news.status
             }
         response_data = {
@@ -716,17 +804,56 @@ def get_news(news_id, user):
 
 
 def update_news(news_id, data):
-    try: 
+    try:
         business_news = BusinessNewses.objects.get(id=news_id)
+        
         if business_news:
             update_data = {field: value for field, value in data.dict().items() if value is not None}
             if update_data:
+                if 'text' in update_data and 'image' in update_data:
+                    response_data = {
+                        "result": False,
+                        "message": "You can only provide either text or an image, not both"
+                    }
+                    return JsonResponse(response_data, status=400)
+                
+                if 'batch' in update_data and 'standard' in update_data:
+                    response_data = {
+                        "result": False,
+                        "message": "You can only specify either 'batch' or 'standard', not both."
+                    }
+                    return JsonResponse(response_data, status=400)
+
                 image_path = update_data.get('image')
                 for field, value in update_data.items():
                     if field == "text":
                         business_news.image = None
                         business_news.news = value
-                    setattr(business_news, field, value)
+                    elif field == "standard":
+                        try:
+                            academic_standard = AcademicStandards.objects.get(id=value)
+                            business_news.standard = academic_standard
+                        except AcademicStandards.DoesNotExist:
+                            response_data = {
+                                "result": False,
+                                "message": "The specified academic standard does not exist"
+                            }
+                            return JsonResponse(response_data, status=400)
+                        setattr(business_news, field, academic_standard)  # Assign the whole academic_standard instance
+                    elif field == "batch":
+                        try:
+                            competitive_batch = CompetitiveBatches.objects.get(id=value)
+                            business_news.batch = competitive_batch
+                        except CompetitiveBatches.DoesNotExist:
+                            response_data = {
+                                "result": False,
+                                "message": "The specified batch does not exist"
+                            }
+                            return JsonResponse(response_data, status=400)
+                        setattr(business_news, field, competitive_batch)  # Assign the whole competitive_batch instance
+                    else:
+                        setattr(business_news, field, value)
+                
                 if image_path:
                     business_news.news = None
                     with open(image_path, 'rb') as image_file:
@@ -734,34 +861,52 @@ def update_news(news_id, data):
                         logo_base64 = base64.b64encode(binary_data).decode('utf-8')
                     image_name = os.path.basename(image_path)
                     business_news.image.save(image_name, ContentFile(base64.b64decode(logo_base64)))
-            business_news.save()
-            news_data = {
-                "id": str(business_news.id),
-                "image": business_news.image.url if business_news.image else None,
-                "text": business_news.news if business_news.news else None,
-                "status":business_news.status
-            }
-            response_data = {
-                "result": True,
-                "data": news_data,
-                "message": "News updated successfully"
-            }
-            return JsonResponse(response_data, status=200)
-        
+
+                business_news.save()
+                
+                # Fetch the updated academic_standard and competitive_batch instances
+                updated_academic_standard = business_news.standard
+                updated_competitive_batch = business_news.batch
+                
+                news_data = {
+                    "id": str(business_news.id),
+                    "image": business_news.image.url if business_news.image else None,
+                    "text": business_news.news if business_news.news else None,
+                    "status": business_news.status,
+                    "standard": {
+                        "id": updated_academic_standard.id if updated_academic_standard else None,
+                        "name": updated_academic_standard.standard if updated_academic_standard else None,
+                        # Include other relevant fields here
+                    },
+                    "batch": {
+                        "id": updated_competitive_batch.id if updated_competitive_batch else None,
+                        "name": updated_competitive_batch.name if updated_competitive_batch else None,
+                        # Include other relevant fields here
+                    }
+                }
+                response_data = {
+                    "result": True,
+                    "data": news_data,
+                    "message": "News updated successfully"
+                }
+                return JsonResponse(response_data, status=200)
+
     except BusinessNewses.DoesNotExist:
         response_data = {
             "result": False,
             "message": "News not found"
         }
         return JsonResponse(response_data, status=400)
-        
+
     except Exception as e:
         response_data = {
-                    "result": False,
-                    "message": "Something went wrong"
-                }
+            "result": False,
+            "message": "Something went wrong"
+        }
         return JsonResponse(response_data, status=500)
-    
+
+
+
 
 def delete_news(news_id):
     try:
@@ -3169,9 +3314,9 @@ def add_baord(user, data):
 
 def update_board_data(user,data,board_id):
     try:
+        print(user)
         # Check if the academic board exists
         academic_board = AcademicBoards.objects.get(id=board_id, business_owner=user)
-
         update_data = {field: value for field, value in data.dict().items() if value is not None}
         
         # Update the board_name and status
@@ -3200,7 +3345,7 @@ def update_board_data(user,data,board_id):
     except Exception as e:
         response_data = {
                     "result": False,
-                    "message": "Something went wrong"
+                    "message": print(e)
                 }
         return JsonResponse(response_data, status=400)
 
@@ -3364,33 +3509,35 @@ def add_medium_data(user, data):
 
 
 
-def update_medium_data(user,data,medium_id):
+def update_medium_data(user, data, medium_id):
     try:
-        # Check if the academic board exists
-        print(data,"DATA")
+        # Check if the academic medium exists
         academic_medium = AcademicMediums.objects.get(id=medium_id)
-        print(academic_medium)
-        try:
-            data.board_name = AcademicBoards.objects.get(id=data.board_name)
-            print(data.board_name)
-        except:
-            data.board_name = academic_medium.board_name
-        update_data = {field: value for field, value in data.dict().items() if value!= None}
-        print(update_data,"fsdfsdf")
-        
-        # Update the board_name and status
+
+        # Check if a new board_id is provided
+        if data.board_id:
+            try:
+                academic_board = AcademicBoards.objects.get(id=data.board_id)
+                academic_medium.board_name = academic_board
+            except AcademicBoards.DoesNotExist:
+                response_data = {
+                    "result": False,
+                    "message": "The specified academic board does not exist"
+                }
+                return JsonResponse(response_data, status=400)
+
+        # Update the medium_name and status
+        update_data = {field: value for field, value in data.dict().items() if value is not None}
         for field, value in update_data.items():
             setattr(academic_medium, field, value)
 
-        # academic_medium.board_name = academic_board
-       
         academic_medium.save()
-        print(academic_medium,"hgjhj")
-        updated_board = {
+
+        updated_medium = {
             "id": str(academic_medium.id),
-            "medium_name":academic_medium.medium_name,
+            "medium_name": academic_medium.medium_name,
             "board_id": str(academic_medium.board_name.id),
-            "board_name": academic_medium.board_name.board_name,
+            "board_name": str(academic_medium.board_name.board_name),
             "status": academic_medium.status,
             "created_at": academic_medium.created_at,
             "updated_at": academic_medium.updated_at,
@@ -3398,18 +3545,25 @@ def update_medium_data(user,data,medium_id):
 
         response_data = {
             "result": True,
-            "data": updated_board,
-            "message": "Academic board updated successfully."
+            "data": updated_medium,
+            "message": "Academic medium updated successfully."
         }
 
-        return response_data
+        return JsonResponse(response_data)
+
+    except AcademicMediums.DoesNotExist:
+        response_data = {
+            "result": False,
+            "message": "The specified academic medium does not exist"
+        }
+        return JsonResponse(response_data, status=400)
 
     except Exception as e:
         response_data = {
-                    "result": False,
-                    "message": "Something went wrong"
-                }
-        return JsonResponse(response_data, status=400)
+            "result": False,
+            "message": print(e)
+        }
+        return JsonResponse(response_data, status=500)
 
 
 def delete_medium_data(user,medium_id):
@@ -3491,6 +3645,8 @@ def get_academic_standard_list(filter_prompt):
                 "standard": standards.standard,
                 "medium_id": str(standards.medium_name.id),
                 "medium_name": standards.medium_name.medium_name,
+                "board_id": str(standards.medium_name.board_name.id),
+                "board_name": str(standards.medium_name.board_name.board_name),
                 "status": standards.status,
                 "created_at": standards.created_at,
                 "updated_at": standards.updated_at,
@@ -3583,6 +3739,8 @@ def get_academic_standard_data(standard_id):
                 "standard":academic_standards.standard,
                 "medium_id":str(academic_standards.medium_name.id),
                 "medium_name": academic_standards.medium_name.medium_name,
+                "board_id": str(academic_standards.medium_name.board_name.id),
+                "board_name": str(academic_standards.medium_name.board_name.board_name),
                 "status": academic_standards.status,
                 "created_at": academic_standards.created_at,
                 "updated_at": academic_standards.updated_at,
@@ -3631,6 +3789,8 @@ def update_standard_data(user,data,standard_id):
             "standard":academic_standard.standard,
             "medium_id": str(academic_standard.medium_name.id),
             "medium_name": academic_standard.medium_name.medium_name,
+            "board_id": str(academic_standard.medium_name.board_name.id),
+            "board_name": str(academic_standard.medium_name.board_name.board_name),
             "status": academic_standard.status,
             "created_at": academic_standard.created_at,
             "updated_at": academic_standard.updated_at,

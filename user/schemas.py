@@ -50,8 +50,9 @@ class Profile(Schema):
     first_name: str
     last_name: str
     email: str
-    contact_no : str
+    contact_no: str
     profile_image: Optional[str]
+    months: List[str]
 
 class ProfileOut(Schema):
     result: bool
@@ -63,3 +64,17 @@ class ProfileUpdate(Schema):
     email: Optional[str]
     profile_image: Optional[str]
 
+
+#-----------------------------------------------------------------------------------------------------------#
+#----------------------------------------------T & C--------------------------------------------------------#
+#-----------------------------------------------------------------------------------------------------------#
+
+
+class Terms(Schema):
+    terms_and_condition: str
+    privacy_policy: str
+
+class TermsOut(Schema):
+    result: bool
+    data: Terms
+    message: str

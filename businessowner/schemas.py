@@ -112,7 +112,7 @@ class BusinessOwnerOut(Schema):
 #-----------------------------------------------------------------------------------------------------------#
 #---------------------------------------------------NEWS----------------------------------------------------#
 #-----------------------------------------------------------------------------------------------------------#
-
+import uuid
 
 class NewsIn(Schema):
     standard: Optional[UUID]
@@ -123,12 +123,16 @@ class NewsIn(Schema):
 class NewsUpdateIn(Schema):
     text: Optional[str]
     image: Optional[str] 
+    standard : Optional[uuid.UUID]
+    batch : Optional[uuid.UUID]
     status: Optional[str]
 
 class News(Schema):
     id: str
     text: Optional[str]
     image: Optional[str] 
+    standard : Optional[UUID]
+    batch : Optional[UUID]
     status: str
 
 class NewsOut(Schema):
@@ -764,7 +768,7 @@ class AddAcademicMediumOut(Schema):
 
 class updateMediumIn(Schema):
     medium_name: Optional[str]
-    board_name: Optional[str]
+    board_id: Optional[str]
     status: Optional[str] 
 
 class UpdateAcademicMediumOut(Schema):
@@ -783,6 +787,8 @@ class AcademicStandard(Schema):
     standard : Optional[str]
     medium_id: Optional[str]
     medium_name: Optional[str]
+    board_id : Optional[str]
+    board_name : Optional[str]
     status : Optional[str]
     created_at : Optional[datetime]
     updated_at : Optional[datetime]
@@ -803,7 +809,7 @@ class AcademicStandardIn(Schema):
 
 
 class updateStandardIn(Schema):
-    standard_name: Optional[str]
+    standard: Optional[str]
     medium_name: Optional[str]
     status: Optional[str] 
 

@@ -5,7 +5,7 @@ from django.conf import settings
 from django.utils.timezone import now
 import uuid
 from ckeditor.fields import RichTextField
-
+from django.contrib.auth.models import User
 
 class ParanoidModelManager(models.Manager):
     def get_queryset(self):
@@ -509,7 +509,11 @@ class BusinessNewses(models.Model):
             
     def __str__(self):
         return self.title
-            
+
+class TermsandPolicy(models.Model):
+    user = models.OneToOneField(User,on_delete=models.CASCADE )
+    terms_and_condition = RichTextField()
+    privacy_policy = RichTextField()
 
 class AcademicQuestions(models.Model):
     QUESTION_CHOICES = (('easy','easy'),('medium','medium'), ('hard', 'hard'))

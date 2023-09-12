@@ -43,6 +43,7 @@ INSTALLED_APPS = [
     'import_export',
     'businessowner',
     'user',
+    'ckeditor',
 ]
 
 MIDDLEWARE = [

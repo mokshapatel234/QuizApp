@@ -375,3 +375,8 @@ def delete_student(request, student_id):
 # @paginate(CustomPagination)
 # def get_competitive_examreport(request, query:CompExamFilter = Query(...)):
 #     return get_comp_examreport(request.user, query)
+
+
+#-----------------------------------------------------------------------------------------------------------#
+#-------------------------------------------------DashBoard-------------------------------------------------#
+#-----------------------------------------------------------------------------------------------------------#
