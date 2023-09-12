@@ -294,7 +294,7 @@ class QuestionUpdate(Schema):
    question: Optional[str]
    options: Optional[OptionUpdateSchema]
    answer: Optional[str] 
-   chapter: Optional[UUID]
+   chapter_id: Optional[UUID]
    question_category: Optional[str]
    marks: Optional[int]
    time: Optional[str]
@@ -810,7 +810,7 @@ class AcademicStandardIn(Schema):
 
 class updateStandardIn(Schema):
     standard: Optional[str]
-    medium_name: Optional[str]
+    medium_id: Optional[str]
     status: Optional[str] 
 
 
@@ -841,7 +841,7 @@ class AcademicSubjectIn(Schema):
 
 class updateSubjectIn(Schema):
     subject_name: Optional[str]
-    standard: Optional[str]
+    standard_id: Optional[str]
     status: Optional[str] 
 
 
@@ -874,7 +874,7 @@ class AcademicChapterOut(Schema):
 
 class updateChaptertIn(Schema):
     chapter_name:Optional[str]
-    subject_name: Optional[str]
+    subject_id: Optional[str]
     status: Optional[str] 
 
 
@@ -927,10 +927,10 @@ class UpdateQuestionIn(Schema):
    question: Optional[str]
    options: Optional[Optionschema]
    answer: Optional[str] 
-   chapter: Optional[UUID]
+   chapter_id: Optional[UUID]
    question_category: Optional[str]
    marks: Optional[int]
-   time: Optional[str]
+   time: Optional[int]
 
 
 

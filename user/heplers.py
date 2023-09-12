@@ -26,7 +26,6 @@ import os
 def perform_login(data):
     try:
         students = Students.objects.filter(contact_no=data.contact_no)
-        print(students)
         if students:
             first_student = students.first()
             token = generate_token(str(first_student.id))  

@@ -464,9 +464,9 @@ def dashboard(user):
             no_of_exams = AcademicExams.objects.filter(business_owner=user, start_date__isnull=False).count()
             no_of_students = Students.objects.filter(business_owner=user).count()
             no_of_boards = AcademicBoards.objects.filter(business_owner=user).count()
-            no_of_medium = AcademicMediums.objects.filter(business_owner=user).count()
-            no_of_standards = AcademicStandards.objects.filter(business_owner=user).count()
-            no_of_subjects = CompetitiveSubjects.objects.filter(business_owner=user).count()
+            no_of_medium = AcademicMediums.objects.filter(board_name__business_owner=user).count()
+            no_of_standards = AcademicStandards.objects.filter(medium_name__board_name__business_owner=user).count()
+            no_of_subjects = AcademicSubjects.objects.filter(standard__medium_name__board_name__business_owner=user).count()
             latest_exams = AcademicExams.objects.filter(business_owner=user, start_date__isnull=False).order_by('-start_date')[:5]
             latest_exam_data = [
             {
@@ -986,7 +986,7 @@ def get_batchlist(user, query):
             search_terms = query.search.strip().split()  
             search_query = Q()  
             for term in search_terms:
-                search_query |= Q(batch_name__icontains=term)  
+                search_query |= Q(batch_name__icontains=term) | Q(status__icontains=term) 
 
             batches = batches.filter(search_query)
         business_owner = BusinessOwners.objects.get(id=user.id)
@@ -1179,7 +1179,7 @@ def get_comp_subjectlist(user, query):
             search_terms = query.search.strip().split()  
             search_query = Q()  
             for term in search_terms:
-                search_query |= Q(subject_name__icontains=term)  
+                search_query |= Q(subject_name__icontains=term)  | Q(status__icontains=term)
 
             subjects = subjects.filter(search_query)
         business_owner = BusinessOwners.objects.get(id=user.id)
@@ -1406,7 +1406,7 @@ def get_comp_chapterlist(user, query):
             search_terms = query.search.strip().split()  
             search_query = Q()  
             for term in search_terms:
-                search_query |= Q(chapter_name__icontains=term) | Q(subject_name__subject_name__icontains=term) | Q(batches__batch_name__icontains=term)
+                search_query |= Q(chapter_name__icontains=term) | Q(subject_name__subject_name__icontains=term) | Q(batches__batch_name__icontains=term) | Q(status__icontains=term)
 
             chapters = chapters.filter(search_query)
 
@@ -1820,13 +1820,11 @@ def update_comp_question(question_id, data):
                 options_data.save()
 
             for field, value in update_data.items():
-                if field == "chapter":
+                if field == "chapter_id":
                     chapter = CompetitiveChapters.objects.get(id=value)
                     question.competitve_chapter = chapter
-                elif field == "time":
-                    hours, minutes = map(int, data.time.split(":"))
-                    time_duration = timedelta(hours=hours, minutes=minutes)
-                    question.time_duration = str(time_duration)
+                if field == "time":
+                    question.time_duration = value
 
                 else:
                     setattr(question, field, value)
@@ -1883,6 +1881,7 @@ def update_comp_question(question_id, data):
         }
         return JsonResponse(response_data, status=400)
     except Exception as e:
+        print(e)
         response_data = {
                     "result": False,
                     "message": "Something went wrong"
@@ -3214,18 +3213,15 @@ def remove_student(student_id):
 
 
 def get_boards_list(user,filter_prompt):
-    print(filter_prompt)
     try:
-        academic_boards = AcademicBoards.objects.all()
+        academic_boards = AcademicBoards.objects.filter(business_owner=user)
 
         if filter_prompt.search:
             q_objects = Q(board_name__icontains=filter_prompt.search) | Q(business_owner__business_name__icontains=filter_prompt.search)
             academic_boards = academic_boards.filter(q_objects)
             
         elif filter_prompt.status:
-            print(filter_prompt)
             academic_boards = academic_boards.filter(status=filter_prompt.status)
-        print(academic_boards)
         # else:
         #     academic_boards = AcademicBoards.objects.all()
 
@@ -3380,9 +3376,9 @@ def delete_board_data(user,board_id):
         return JsonResponse(response_data, status=400)
     
 
-def get_academic_mediums_list(filter_prompt):
+def get_academic_mediums_list(user, filter_prompt):
     try:
-        academic_mediums = AcademicMediums.objects.all()
+        academic_mediums = AcademicMediums.objects.filter(board_name__business_owner=user)
 
         if filter_prompt.search:
             q_objects = Q(medium_name__icontains=filter_prompt.search) | Q(board_name__board_name__icontains=filter_prompt.search)
@@ -3438,6 +3434,7 @@ def get_academic_mediums_list(filter_prompt):
                     "message": "Something went wrong"
                 }
         return JsonResponse(response_data, status=400)
+    
 
 def get_academic_medium_data(user,medium_id):
     try:
@@ -3467,8 +3464,7 @@ def get_academic_medium_data(user,medium_id):
                 }
         return JsonResponse(response_data, status=400)
 
-from django.http import JsonResponse
-import uuid
+
 
 def add_medium_data(user, data):
     try:
@@ -3561,7 +3557,7 @@ def update_medium_data(user, data, medium_id):
     except Exception as e:
         response_data = {
             "result": False,
-            "message": print(e)
+            "message": "Something went wrong"
         }
         return JsonResponse(response_data, status=500)
 
@@ -3592,9 +3588,9 @@ def delete_medium_data(user,medium_id):
 
     
 
-def get_academic_standard_list(filter_prompt):
+def get_academic_standard_list(user, filter_prompt):
     try:
-        academic_standards = AcademicStandards.objects.all()
+        academic_standards = AcademicStandards.objects.filter(medium_name__board_name__business_owner=user)
 
         if filter_prompt.search:
             q_objects = (
@@ -3768,17 +3764,16 @@ def update_standard_data(user,data,standard_id):
         print(data,"DATA")
         academic_standard = AcademicStandards.objects.get(id=standard_id)
         print(academic_standard)
-        try:
-            data.medium_name = AcademicMediums.objects.get(id=data.medium_name)
-            print(data.medium_name)
-        except:
-            data.medium_name = academic_standard.medium_name
-        update_data = {field: value for field, value in data.dict().items() if value!= None}
-        print(update_data,"fsdfsdf")
         
-        # Update the board_name and status
-        for field, value in update_data.items():
-            setattr(academic_standard, field, value)
+        update_data = {field: value for field, value in data.dict().items() if value!= None}
+        if update_data:
+            for field, value in update_data.items():
+                if field == "medium_id":
+                    medium = AcademicMediums.objects.get(id=value)
+                    print(medium, "mmmmm")
+                    academic_standard.medium_name = medium
+                else:
+                    setattr(academic_standard, field, value)
 
         # academic_medium.board_name = academic_board
        
@@ -3805,6 +3800,7 @@ def update_standard_data(user,data,standard_id):
         return response_data
 
     except Exception as e:
+        print(e)
         response_data = {
                     "result": False,
                     "message": "Something went wrong"
@@ -3813,20 +3809,26 @@ def update_standard_data(user,data,standard_id):
     
 
 
-def get_academic_subject_list(filter_prompt):
+def get_academic_subject_list(user, filter_prompt):
     try:
-        academic_subjects = AcademicSubjects.objects.all()
+        academic_subjects = AcademicSubjects.objects.filter(standard__medium_name__board_name__business_owner=user)
 
         # if filter_prompt:
         #     print(filter_prompt)
         #     academic_subjects = academic_subjects.filter(**filter_prompt)
 
         q_objects = Q()
-
-        if filter_prompt.status:
+        if filter_prompt.search:
+            q_objects = (
+                Q(subject_name__icontains=filter_prompt.search) |
+                Q(status__icontains=filter_prompt.search)
+            )
+            academic_subjects = academic_subjects.filter(q_objects)
+            
+        elif filter_prompt.status:
             q_objects &= Q(status=filter_prompt.status)
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      
-        if filter_prompt.medium_id and filter_prompt.board_id and filter_prompt.standard:
+        elif filter_prompt.medium_id and filter_prompt.board_id and filter_prompt.standard:
             q_objects &= (
                 Q(standard__medium_name__id=filter_prompt.medium_id) &
                 Q(standard__medium_name__board_name__id=filter_prompt.board_id) &
@@ -3973,28 +3975,25 @@ def delete_subject_data(user,subject_id):
 def update_subject_data(user,data,subject_id):
     try:
         # Check if the academic board exists
-        print(data,"DATA")
+   
         academic_subjects = AcademicSubjects.objects.get(id=subject_id)
-        print(academic_subjects)
-        try:
-            data.standard = AcademicStandards.objects.get(id=data.standard)
-        except:
-            data.standard = academic_subjects.standard
-        update_data = {field: value for field, value in data.dict().items() if value!= None}
-        print(update_data,"fsdfsdf")
-        
-        # Update the board_name and status
-        for field, value in update_data.items():
-            setattr(academic_subjects, field, value)
 
-        # academic_medium.board_name = academic_board
+        update_data = {field: value for field, value in data.dict().items() if value!= None}
+        if update_data:
+            for field, value in update_data.items():
+                if field == "standard_id":
+                    standard = AcademicStandards.objects.get(id=value)
+                    academic_subjects.standard = standard
+                else:
+                    setattr(academic_subjects, field, value)
+        
+        
        
         academic_subjects.save()
-        print(academic_subjects,"hgjhj")
         updated_subject = {
             "id": str(academic_subjects.id),
             "subject_name":academic_subjects.subject_name,
-            "standard_id": str(academic_subjects.standard.id),
+            "standard_id": str(academic_subjects.standard_id),
             "standard": academic_subjects.standard.standard,
             "status": academic_subjects.status,
             "created_at": academic_subjects.created_at,
@@ -4020,11 +4019,19 @@ def update_subject_data(user,data,subject_id):
 
 
 
-def get_academic_chapter_list(filter_prompt):
+def get_academic_chapter_list(user, filter_prompt):
     try:
-        academic_chapters = AcademicChapters.objects.all()
+        academic_chapters = AcademicChapters.objects.filter(subject_name__standard__medium_name__board_name__business_owner=user)
 
-        if filter_prompt.status:
+        if filter_prompt.search:
+            q_objects = (
+                Q(chapter_name__icontains=filter_prompt.search) |
+                Q(subject_name__subject_name__icontains=filter_prompt.search) |
+                Q(status__icontains=filter_prompt.search)
+            )
+            academic_chapters = academic_chapters.filter(q_objects)
+
+        elif filter_prompt.status:
             print(filter_prompt)
             academic_chapters = academic_chapters.filter(status=filter_prompt.status)
 
@@ -4067,12 +4074,10 @@ def add_chapter_data(user, data):
     
         subject_instance = AcademicSubjects.objects.get(id=subject_id) 
      # Convert to UUID and fetch the corresponding board instance
-        print(subject_instance)
         chapter = AcademicChapters.objects.create(
             chapter_name=data.chapter_name,
             subject_name=subject_instance,  # Use the fetched board instance
         )
-        print(chapter)
     
         
         saved_chapter = {
@@ -4162,15 +4167,15 @@ def update_chapter_data(user,data,chapter_id):
     try:
         # Check if the academic board exists
         academic_chapters = AcademicChapters.objects.get(id=chapter_id)
-        try:
-            data.subject_name = AcademicSubjects.objects.get(id=data.subject_name)
-        except:
-            data.standard = academic_chapters.subject_name
+        
         update_data = {field: value for field, value in data.dict().items() if value!= None}
-
-        # Update the board_name and status
-        for field, value in update_data.items():
-            setattr(academic_chapters, field, value)
+        if update_data:
+            for field, value in update_data.items():
+                if field == "subject_id":
+                    subject = AcademicSubjects.objects.get(id=value)
+                    academic_chapters.subject_name = subject
+                else:
+                    setattr(academic_chapters, field, value)
 
         # academic_medium.board_name = academic_board
        
@@ -4195,6 +4200,7 @@ def update_chapter_data(user,data,chapter_id):
         return response_data
 
     except Exception as e:
+        print(e)
         response_data = {
                     "result": False,
                     "message": "Something went wrong"
@@ -4261,9 +4267,54 @@ def add_question_data(user,data):
     
 
 
-def get_academic_question_list(user):
+def get_academic_question_list(user, filter_prompt):
     try:
+
         questions = AcademicQuestions.objects.filter(business_owner=user)
+        q_objects = Q()
+        if filter_prompt.search:
+            q_objects = (
+                    Q(question__icontains=filter_prompt.search)
+                    | Q(answer__icontains=filter_prompt.search)
+                    | Q(academic_chapter__chapter_name__icontains=filter_prompt.search)
+                    | Q(academic_chapter__subject_name__subject_name__icontains=filter_prompt.search)
+                    | Q(question_category__icontains=filter_prompt.search)
+                    | Q(marks__icontains=filter_prompt.search)
+                    | Q(time_duration__icontains=filter_prompt.search)
+                    | Q(status__icontains=filter_prompt.search)
+            )
+            questions = questions.filter(q_objects)
+            
+        elif filter_prompt.status:
+            q_objects &= Q(status=filter_prompt.status)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     
+        elif filter_prompt.medium_id and filter_prompt.board_id and filter_prompt.standard:
+            q_objects &= (
+                Q(academic_chapter__subject_name__standard__medium_name__id=filter_prompt.medium_id) &
+                Q(academic_chapter__subject_name__standard__medium_name__board_name__id=filter_prompt.board_id) &
+                Q(academic_chapter__subject_name__standard__id=filter_prompt.standard)
+            )
+        elif filter_prompt.medium_id and filter_prompt.board_id:
+            q_objects &= (
+                Q(academic_chapter__subject_name__standard__medium_name__id=filter_prompt.medium_id) &
+                Q(academic_chapter__subject_name__standard__medium_name__board_name__id=filter_prompt.board_id)
+            )
+        elif filter_prompt.medium_id:
+            q_objects &= Q(academic_chapter__subject_name__standard__medium_name__id=filter_prompt.medium_id)
+        elif filter_prompt.board_id:
+            q_objects &= Q(academic_chapter__subject_name__standard__medium_name__board_name__id=filter_prompt.board_id)
+        elif filter_prompt.standard:
+            q_objects &= Q(academic_chapter__subject_name__standard__id=filter_prompt.standard)
+
+        elif filter_prompt.subject_id:
+            print(filter_prompt.subject_id)
+            q_objects &= Q(academic_chapter__subject_name=filter_prompt.subject_id)
+
+        elif filter_prompt.chapter_id:
+            print(filter_prompt.chapter_id)
+            q_objects &= Q(academic_chapter__id=filter_prompt.chapter_id)
+
+        questions = questions.filter(q_objects)
         question_list = []
         for question in questions:
             try:
@@ -4412,80 +4463,86 @@ def parse_time_duration(time_str):
 def update_question_data(data, question_id):
     try:
         question = AcademicQuestions.objects.get(id=question_id)
-        options = None  # Initialize options variable
+        try:
+            options_data = Options.objects.get(id=question.options_id)
+        except Options.DoesNotExist:
+            options_data = None
 
-        # Update question fields if data is provided
-        if data.question is not None:
-            question.question = data.question
-        if data.answer is not None:
-            question.answer = data.answer
-        if data.question_category is not None:
-            question.question_category = data.question_category
-        if data.marks is not None:
-            question.marks = data.marks
-        if data.time is not None:
-            question.time_duration = str(parse_time_duration(data.time))
+        update_data = {field: value for field, value in data.dict().items() if value is not None}
         
-        question.save()
+        if update_data:
+            if "options" in update_data and options_data:
+                new_options = update_data.pop("options")
+                for field, value in new_options.items():
+                    if hasattr(options_data, field) and value is not None:
+                        setattr(options_data, field, value)
+                options_data.save()
 
-        # Update options if data is provided
-        if data.options is not None:
-            options = Options.objects.get(id=question.options_id)
-            if data.options.option1 is not None:
-                options.option1 = data.options.option1
-            if data.options.option2 is not None:
-                options.option2 = data.options.option2
-            if data.options.option3 is not None:
-                options.option3 = data.options.option3
-            if data.options.option4 is not None:
-                options.option4 = data.options.option4
-            options.save()
+            for field, value in update_data.items():
+                if field == "chapter_id":
+                    chapter = AcademicChapters.objects.get(id=value)
+                    question.academic_chapter = chapter
+                if field == "time":
+                    question.time_duration = value
 
-        # Construct response options_dict based on updated or existing options
-        if options:
-            options_dict = {
-                "option1": options.option1,
-                "option2": options.option2,
-                "option3": options.option3,
-                "option4": options.option4,
+                else:
+                    setattr(question, field, value)
+            question.save()
+            question_data = {
+                "id": str(question.id),
+                "question": question.question,
+                "answer": question.answer,
+                "chapter_id": str(question.academic_chapter.id),
+                "chapter_name": question.academic_chapter.chapter_name,
+                "subject_id": str(question.academic_chapter.subject_name.id),
+                "subject_name": question.academic_chapter.subject_name.subject_name,
+                "question_category": question.question_category,
+                "marks": question.marks,
+                "time": str(question.time_duration),
+                "status": question.status,
+                "created_at": question.created_at,
+                "updated_at": question.updated_at
             }
-        else:
-            options_dict = {
-                "option1": question.options.option1,
-                "option2": question.options.option2,
-                "option3": question.options.option3,
-                "option4": question.options.option4,
+            # Construct response options_dict based on updated or existing options
+            if options_data:
+                options_dict = {
+                    "option1": options_data.option1,
+                    "option2": options_data.option2,
+                    "option3": options_data.option3,
+                    "option4": options_data.option4,
+                }
+                question_data["options"] = options_dict
+            else:
+                options_dict = {
+                    "option1": question.options_data.option1,
+                    "option2": question.options_data.option2,
+                    "option3": question.options_data.option3,
+                    "option4": question.options_data.option4,
+                }
+                question_data["options"] = options_dict
+
+            
+
+            response_data = {
+                "result": True,
+                "data": question_data,
+                "message": "Question updated successfully"
             }
-
-        question_data = {
-            "id": str(question.id),
-            "question": question.question,
-            "answer": question.answer,
-            "options": options_dict,
-            "chapter_id": str(question.academic_chapter.id),
-            "chapter_name": question.academic_chapter.chapter_name,
-            "subject_id": str(question.academic_chapter.subject_name.id),
-            "subject_name": question.academic_chapter.subject_name.subject_name,
-            "question_category": question.question_category,
-            "marks": question.marks,
-            "time": str(question.time_duration),
-            "status": question.status,
-            "created_at": question.created_at,
-            "updated_at": question.updated_at
-        }
-
-        response_data = {
-            "result": True,
-            "data": question_data,
-            "message": "Question updated successfully"
-        }
-        return response_data
+            return response_data
 
     except AcademicQuestions.DoesNotExist:
-        raise HttpError(404, "Question not found")
+        response_data = {
+                    "result": False,
+                    "message": "Question not found"
+                }
+        return JsonResponse(response_data, status=400)
 
     except Options.DoesNotExist:
-        raise HttpError(404, "Options not found")
+        response_data = {
+                    "result": False,
+                    "message": "Option not found"
+                }
+        return JsonResponse(response_data, status=400)
 
     except Exception as e:
         response_data = {
