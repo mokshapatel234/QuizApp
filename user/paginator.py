@@ -12,10 +12,9 @@ class PaginatorSchema(Schema):
 class CustomPagination(PaginationBase):
     class Input(Schema):
         skip: Optional[int] = 0
-        per_page: Optional[int] = 5
-        page: Optional[int] = 1
+        per_page: Optional[int] 
+        page: Optional[int] =1
 
-    
     class Output(Schema):
         result: bool
         data: List[Any]
@@ -29,16 +28,30 @@ class CustomPagination(PaginationBase):
         per_page = pagination.per_page
         page = pagination.page
 
-        # Calculate the start and end indices for the requested page
+        # If per_page is not provided, return the full queryset without pagination
+        if per_page is None:
+            queryset_list = list(queryset)
+            total_docs = len(queryset_list)
+            return {
+                'result': True,
+                'data': queryset_list,
+                'pagination': {
+                    'page': 1, 
+                    'total_docs': total_docs,
+                    'total_pages': 1, 
+                    'per_page': total_docs, 
+                },
+                'message': 'Data retrieved successfully'
+            }
+
+        # Continue with pagination logic if per_page is provided
         start_index = (page - 1) * per_page
         end_index = start_index + per_page
 
-        queryset_list = list(queryset)  # Convert queryset to a list
-
+        queryset_list = list(queryset)
         total_docs = len(queryset_list)
-        total_pages = (total_docs + per_page - 1) // per_page  # Calculate total number of pages
+        total_pages = (total_docs + per_page - 1) // per_page
 
-        # Ensure that the page is within the valid range
         if page < 1:
             page = 1
         elif page > total_pages:
@@ -46,14 +59,14 @@ class CustomPagination(PaginationBase):
 
         return {
             'result': True,
-            'data': queryset_list[skip: skip + per_page],
+            'data': queryset_list[start_index:end_index],
             'pagination': {
-                'page':page,
+                'page': page,
                 'total_docs': total_docs,
                 'total_pages': total_pages,
                 'per_page': per_page, 
             },
             'message': 'Data retrieved successfully'
-            
         }
+
 

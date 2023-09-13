@@ -134,6 +134,7 @@ class News(Schema):
     standard : Optional[UUID]
     batch : Optional[UUID]
     status: str
+  
 
 class NewsOut(Schema):
     result: bool
@@ -231,8 +232,8 @@ class CompChapterUpdate(Schema):
 
 class CompChapterFilter(Schema):
     status: Optional[str]
-    batch: Optional[UUID]
-    subject: Optional[UUID]
+    batch_id: Optional[UUID]
+    subject_id: Optional[UUID]
     search: Optional[str]
 
 class ChapterBatch(Schema):
@@ -278,9 +279,9 @@ class QuestionIn(Schema):
 
 class CompQuestionFilter(Schema):
     status: Optional[str]
-    chapter: Optional[UUID]
-    subject: Optional[UUID]
-    batch: Optional[UUID]
+    chapter_id: Optional[UUID]
+    subject_id: Optional[UUID]
+    batch_id: Optional[UUID]
     question_category: Optional[str]
     search: Optional[str]
     
@@ -347,9 +348,9 @@ class CompExamIn(Schema):
     exam_data: List[CompExamData]
 
 class CompExamFilter(Schema):
-    batch: Optional[str]
-    subject: Optional[str]
-    chapter: Optional[str]
+    batch_id: Optional[UUID]
+    subject_id: Optional[UUID]
+    chapter_id: Optional[UUID]
     search: Optional[str]
 
 class CompExam(Schema):
@@ -398,8 +399,8 @@ class StudentIn(Schema):
     parent_contact_no: str
     profile_image: Optional[str]  
     address: Optional[str]  
-    batch: Optional[UUID]  
-    standard: Optional[UUID]  
+    batch_id: Optional[UUID]  
+    standard_id: Optional[UUID]  
 
 class StudentUpdate(Schema):
     first_name: Optional[str]  
@@ -410,16 +411,16 @@ class StudentUpdate(Schema):
     parent_contact_no: Optional[str]  
     profile_image: Optional[str]  
     address: Optional[str]  
-    batch: Optional[UUID]  
-    standard: Optional[UUID] 
+    batch_id: Optional[UUID]  
+    standard_id: Optional[UUID] 
     status: Optional[str] 
 
 class StudentFilter(Schema):
     status: Optional[str]
-    batch: Optional[UUID]
-    board: Optional[UUID]
-    medium: Optional[UUID]
-    standard: Optional[UUID]
+    batch_id: Optional[UUID]
+    board_id: Optional[UUID]
+    medium_id: Optional[UUID]
+    standard_id: Optional[UUID]
     search: Optional[str]
 
 class Competitive(Schema):
@@ -699,9 +700,17 @@ class StudentOut(Schema):
 ####################################################################################
 ####--------------------------------ACADEMIC------------------------------------####
 ####################################################################################
+
+
 class DeleteOut(Schema):
     result: bool
     message: str
+
+
+#-----------------------------------------------------------------------------------------------------------#
+#--------------------------------------------------BOARD----------------------------------------------------#
+#-----------------------------------------------------------------------------------------------------------#
+
 
 class AcademicBoardSchema(Schema):
     id: str
@@ -725,7 +734,7 @@ class AcademicBoardListOut(Schema):
 
 class AcademicFilter(Schema):
     
-    standard : Optional[str]
+    standard_id : Optional[str]
     search : Optional[str]
     status : Optional[str] 
     board_id : Optional[str]
@@ -743,6 +752,12 @@ class BoardUpdateSchemaOut(Schema):
     data: AcademicBoardSchema
     message: str 
 
+
+#-----------------------------------------------------------------------------------------------------------#
+#-------------------------------------------------MEDIUM----------------------------------------------------#
+#-----------------------------------------------------------------------------------------------------------#
+
+
 class AcademicMedium(Schema):
     id: str = None
     medium_name: str = None
@@ -751,11 +766,6 @@ class AcademicMedium(Schema):
     status: str = None
     created_at: datetime  = None
     updated_at: datetime = None
-
-class AcademicMediumListOut(Schema):
-    result: bool
-    data: List[AcademicMedium]
-    message: str  
 
 class AddAcademicMediumIn(Schema):
     medium_name: str
@@ -777,9 +787,9 @@ class UpdateAcademicMediumOut(Schema):
     message: str 
 
 
-
-
-
+#-----------------------------------------------------------------------------------------------------------#
+#-------------------------------------------------STANDARD--------------------------------------------------#
+#-----------------------------------------------------------------------------------------------------------#
 
 
 class AcademicStandard(Schema):
@@ -792,11 +802,6 @@ class AcademicStandard(Schema):
     status : Optional[str]
     created_at : Optional[datetime]
     updated_at : Optional[datetime]
-
-class AcademicStandardList(Schema):
-    result : bool
-    data : List[AcademicStandard]
-    message : str
 
 class AcademicStandardOut(Schema):
     result : bool
@@ -814,10 +819,18 @@ class updateStandardIn(Schema):
     status: Optional[str] 
 
 
+#-----------------------------------------------------------------------------------------------------------#
+#--------------------------------------------------SUBJECT--------------------------------------------------#
+#-----------------------------------------------------------------------------------------------------------#
+
 
 class AcademicSubject(Schema):
     id: Optional[str]
     subject_name : Optional[str]
+    board_id: Optional[str]
+    board_name: Optional[str]
+    medium_id: Optional[str]
+    medium_name: Optional[str]
     standard_id: Optional[str]
     standard: Optional[str]
     status : Optional[str]
@@ -845,11 +858,20 @@ class updateSubjectIn(Schema):
     status: Optional[str] 
 
 
+#-----------------------------------------------------------------------------------------------------------#
+#--------------------------------------------------CHAPTER--------------------------------------------------#
+#-----------------------------------------------------------------------------------------------------------#
 
 
 class AcademicChapter(Schema):
     id: Optional[str]
     chapter_name : Optional[str]
+    board_id: Optional[str]
+    board_name: Optional[str]
+    medium_id: Optional[str]
+    medium_name: Optional[str]
+    standard_id: Optional[str]
+    standard: Optional[str]
     subject_id: Optional[str]
     subject_name: Optional[str]
     status : Optional[str]
@@ -878,7 +900,9 @@ class updateChaptertIn(Schema):
     status: Optional[str] 
 
 
-
+#-----------------------------------------------------------------------------------------------------------#
+#-------------------------------------------------QUESTION--------------------------------------------------#
+#-----------------------------------------------------------------------------------------------------------#
 
 
 class Question(Schema):
@@ -891,7 +915,7 @@ class Question(Schema):
     subject_id: str
     subject_name: str
     question_category: str
-    marks: int
+    marks: str
     time: str
     status: str
     created_at: datetime  
@@ -907,7 +931,7 @@ class QuestionIn(Schema):
    question: str
    options: Optionschema
    answer: str 
-   chapter: UUID
+   chapter_id: UUID
    question_category: str
    marks: int
    time: float
@@ -933,31 +957,14 @@ class UpdateQuestionIn(Schema):
    time: Optional[int]
 
 
+#-----------------------------------------------------------------------------------------------------------#
+#---------------------------------------------------EXAM----------------------------------------------------#
+#-----------------------------------------------------------------------------------------------------------#
 
 
 class AcademicExamChapter(Schema):
     id: UUID
     chapter_name: str
-
-
-
-# class AcademicExam(Schema):
-#     question:str
-#     time: float
-#     mark:int
-#     question_category: str
-
-# class ExamCreationResponse(Schema):
-#     result: bool
-#     message: str
-#     academic_exams: list[AcademicExam]
-
-# class AcademicExamOut(Schema):
-#     result:bool
-#     data: List[AcademicExam]
-#     message: str
-
-
 
 class AcadExam(Schema):
     id: str
@@ -969,15 +976,15 @@ class AcadExam(Schema):
 
 
 class AcadExamData(Schema):
-    subject: UUID
-    chapter: List[UUID]
+    subject_id: UUID
+    chapters: List[UUID]
     easy_question: int
     medium_question: int
     hard_question: int
 
 class AcademicExamIn(Schema):
     exam_title: str
-    standard: UUID
+    standard_id: UUID
     total_questions: int
     time_duration: float
     negative_marks: str
@@ -985,7 +992,6 @@ class AcademicExamIn(Schema):
     total_marks: int
     option_e: bool
     exam_data: List[AcadExamData]
-
 
 
 class AcadExamFilter(Schema):
@@ -997,3 +1003,20 @@ class AcadExamFilter(Schema):
 
 class AcadExamQuestion(Schema):
     question:List[UUID]
+
+
+class AcadeExamOut(Schema):
+    id:str
+    exam_title: str
+    board_id: str
+    board_name: str
+    medium_id:str
+    medium_name: str
+    standard_id: str
+    standard_name: str
+    total_question:int
+    time_duration: float
+    negative_marks:float
+    total_marks:int
+    start_date: datetime
+    exam_datas: List[Exammm]

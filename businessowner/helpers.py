@@ -564,22 +564,20 @@ def update_owner_data(data, user):
         if owner:
             update_data = {field: value for field, value in data.dict().items() if value is not None}
             if update_data:
-                logo_path = update_data.get('logo')
                 for field, value in update_data.items():
-                    
                     if field == "city":
                         city = Cities.objects.get(id=value)
                         owner.city = city
                     elif field == "logo":
-                        continue
+                        # Handle the image data here
+                        image_data = base64.b64decode(value)
+                        timestamp = int(time.time())
+                        unique_filename = f"logo_{timestamp}.png"
+                        
+                        owner.logo.save(unique_filename, ContentFile(image_data))
+        
                     else:
                         setattr(owner, field, value)
-                if logo_path:
-                    with open(logo_path, 'rb') as image_file:
-                        binary_data = image_file.read()
-                        logo_base64 = base64.b64encode(binary_data).decode('utf-8')
-                    image_name = os.path.basename(logo_path)
-                    owner.logo.save(image_name, ContentFile(base64.b64decode(logo_base64)))
                     
                 owner.save()
                 owner_data = {
@@ -669,13 +667,7 @@ def add_news(data, user):
             return JsonResponse(response_data, status=400)
 
             # Check if neither standard nor batch is provided
-        if not data.standard and not data.batch:
-            response_data = {
-                "result": False,
-                "message": "You must provide either 'standard' or 'batch' when adding an image with text"
-            }
-            return JsonResponse(response_data, status=400)
-
+        
         # Check if neither text nor image is provided
         if not data.text and not data.image:
             response_data = {
@@ -1397,10 +1389,10 @@ def get_comp_chapterlist(user, query):
 
         if query.status:
             chapters = chapters.filter(status=query.status)
-        if query.subject:
-            chapters = chapters.filter(subject_name=query.subject)
-        if query.batch:
-            batch_id = query.batch
+        if query.subject_id:
+            chapters = chapters.filter(subject_name=query.subject_id)
+        if query.batch_id:
+            batch_id = query.batch_id
             chapters = [chapter for chapter in chapters if str(batch_id) in [str(batch.id) for batch in chapter.batches.all()]]
         if query.search:
             search_terms = query.search.strip().split()  
@@ -1615,7 +1607,7 @@ def add_comp_question(user,data):
             option4=options_data.option4
         )
 
-        competitive_chapter = CompetitiveChapters.objects.get(id= data.chapter)
+        competitive_chapter = CompetitiveChapters.objects.get(id= data.chapter_id)
         question = CompetitiveQuestions.objects.create(
             competitve_chapter=competitive_chapter,
             question=data.question,
@@ -1627,8 +1619,6 @@ def add_comp_question(user,data):
             business_owner=user
         )
 
-        chapter = CompetitiveChapters.objects.get(id=question.competitve_chapter_id)
-        subject = CompetitiveSubjects.objects.get(id=chapter.subject_name.id)
         question_data = {
             "id": str(question.id),
             "question": question.question,
@@ -1639,7 +1629,7 @@ def add_comp_question(user,data):
             "subject_id": str(question.competitve_chapter.subject_name.id),
             "subject_name": question.competitve_chapter.subject_name.subject_name,
             "question_category": question.question_category,
-            "marks": question.marks,
+            "marks": str(question.marks),
             "time": str(question.time_duration),
             "status": question.status,
             "created_at":question.created_at,
@@ -1659,6 +1649,14 @@ def add_comp_question(user,data):
             "message": "Options not found"
         }
         return JsonResponse(response_data, status=400)
+    
+    except CompetitiveChapters.DoesNotExist:
+        response_data = {
+            "result": False,
+            "message": "Chapter not found"
+        }
+        return JsonResponse(response_data, status=400)
+
     except Exception as e:
         response_data = {
                     "result": False,
@@ -1672,12 +1670,12 @@ def get_comp_questionlist(user, query):
         questions = CompetitiveQuestions.objects.filter(business_owner=user)
         if query.status:
             questions = questions.filter(status=query.status)
-        if query.chapter:
-            questions = questions.filter(competitve_chapter=query.chapter)
-        if query.subject:
-            questions = questions.filter(competitve_chapter__subject_name=query.subject)
-        if query.batch:
-            batch_id = query.batch
+        if query.chapter_id:
+            questions = questions.filter(competitve_chapter=query.chapter_id)
+        if query.subject_id:
+            questions = questions.filter(competitve_chapter__subject_name=query.subject_id)
+        if query.batch_id:
+            batch_id = query.batch_id
             questions = [question for question in questions if str(batch_id) in [str(batch.id) for batch in question.competitve_chapter.batches.all()]]
 
         if query.question_category:
@@ -1725,7 +1723,7 @@ def get_comp_questionlist(user, query):
                     "subject_id": str(question.competitve_chapter.subject_name.id),
                     "subject_name": question.competitve_chapter.subject_name.subject_name, 
                     "question_category": question.question_category,
-                    "marks": question.marks,
+                    "marks": str(question.marks),
                     "time": str(question.time_duration),
                     "status": question.status,
                     "created_at":question.created_at,
@@ -1768,7 +1766,7 @@ def get_comp_question(user, question_id):
                 "subject_id": str(question.competitve_chapter.subject_name.id),
                 "subject_name": question.competitve_chapter.subject_name.subject_name, 
                 "question_category": question.question_category,
-                "marks": question.marks,
+                "marks": str(question.marks),
                 "time": str(question.time_duration),
                 "status": question.status,
                 "created_at":question.created_at,
@@ -1838,7 +1836,7 @@ def update_comp_question(question_id, data):
                 "subject_id": str(question.competitve_chapter.subject_name.id),
                 "subject_name": question.competitve_chapter.subject_name.subject_name, 
                 "question_category": question.question_category,
-                "marks": question.marks,
+                "marks": str(question.marks),
                 "time": str(question.time_duration),
                 "status": question.status,
                 "created_at":question.created_at,
@@ -2161,7 +2159,8 @@ def start_comp_exam(exam_id, data):
             exam.question_set.add(question)
         exam.save()
         result = {
-            "message": "Data Saved Succesfully"
+            "result": True,
+            "message": "Exam will start soon"
         }
       
         return result
@@ -2180,14 +2179,14 @@ def get_comp_examlist(user, query):
         
         exams = CompetitiveExams.objects.filter(business_owner=user, start_date__isnull=False)
         exam_list = []
-        if query.batch:
-            exams = exams.filter(batch=query.batch)
-        if query.subject:
-            exams = exams.filter(exam_data__subject=query.subject)
+        if query.batch_id:
+            exams = exams.filter(batch=query.batch_id)
+        if query.subject_id:
+            exams = exams.filter(exam_data__subject=query.subject_id)
         
-        if query.chapter:
-            print("Query Chapter:", query.chapter)
-            exams = exams.filter(exam_data__chapter__contains=query.chapter)
+        if query.chapter_id:
+            print("Query Chapter:", query.chapter_id)
+            exams = exams.filter(exam_data__chapter__contains=query.chapter_id)
         
         if query.search:
             search_terms = query.search.strip().split()
@@ -2268,7 +2267,7 @@ def create_student(data, user):
             }
             return JsonResponse(response_data, status=400)
                 
-        if data.batch and data.standard:
+        if data.batch_id and data.standard_id:
             response_data = {
                 "result": False,
                 "message": "You can only specify either 'batch' or 'standard', not both."
@@ -2287,12 +2286,12 @@ def create_student(data, user):
             "address": data.address,
         }
         
-        if data.batch:
-            batch_instance = CompetitiveBatches.objects.get(id=data.batch)
+        if data.batch_id:
+            batch_instance = CompetitiveBatches.objects.get(id=data.batch_id)
             student_data["batch"] = batch_instance
         
-        if data.standard:
-            standard_instance = AcademicStandards.objects.get(id=data.standard)
+        if data.standard_id:
+            standard_instance = AcademicStandards.objects.get(id=data.standard_id)
             student_data["standard"] = standard_instance
 
         student = Students.objects.create(**student_data)
@@ -2399,14 +2398,14 @@ def student_list(user, query):
         students = Students.objects.filter(business_owner=user)
         if query.status:
             students = students.filter(status=query.status)
-        if query.batch:
+        if query.batch_id:
             students = students.filter(batch=str(query.batch))
-        if query.board:
+        if query.board_id:
             students = students.filter(standard__medium_name__board_name=str(query.board))
             print(query.board,"afh")
-        if query.medium:
+        if query.medium_id:
             students = students.filter(standard__medium_name=str(query.medium))
-        if query.standard:
+        if query.standard_id:
             students = students.filter(standard=str(query.standard))
         if query.search:
             search_terms = query.search.strip().split()
@@ -2537,14 +2536,14 @@ def student_updation(student_id, data):
                 }
                 return JsonResponse(response_data, status=400)
             
-            if data.batch and student.standard:
+            if data.batch_id and student.standard_id:
                 response_data = {
                     "result": False,
                     "message": "You cannot update 'batch' when 'standard' is already assigned."
                 }
                 return JsonResponse(response_data, status=400)
 
-            if data.standard and student.batch:
+            if data.standard_id and student.batch_id:
                 response_data = {
                     "result": False,
                     "message": "You cannot update 'standard' when 'batch' is already assigned."
@@ -2554,7 +2553,7 @@ def student_updation(student_id, data):
             update_data = {field: value for field, value in data.dict().items() if value is not None}
             if update_data:
                 for field, value in update_data.items():
-                    if field == "standard":
+                    if field == "standard_id":
                         try:
                             standard_instance = AcademicStandards.objects.get(id=value)
                             student.standard = standard_instance
@@ -2565,7 +2564,7 @@ def student_updation(student_id, data):
                             }
                             return JsonResponse(response_data, status=400)
 
-                    elif field == "batch":
+                    elif field == "batch_id":
                         try:
                             batch_instance = CompetitiveBatches.objects.get(id=value)
                             student.batch = batch_instance
@@ -3240,12 +3239,21 @@ def get_boards_list(user,filter_prompt):
 
         return academic_list
     
+
+    except AcademicBoards.DoesNotExist:
+        response_data = {
+            "result": False,
+            "message": "Board not found"
+        }
+        return JsonResponse(response_data, status=400)
+    
     except Exception as e:
         response_data = {
                     "result": False,
                     "message": "Something went wrong"
                 }
         return JsonResponse(response_data, status=400)
+    
     
 def get_academic_board_data(user,board_id):
     try:
@@ -3267,6 +3275,13 @@ def get_academic_board_data(user,board_id):
         }
 
         return response_data
+    
+    except AcademicBoards.DoesNotExist:
+        response_data = {
+            "result": False,
+            "message": "Board not found"
+        }
+        return JsonResponse(response_data, status=400)
 
     except Exception as e:
         response_data = {
@@ -3274,6 +3289,7 @@ def get_academic_board_data(user,board_id):
                     "message": "Something went wrong"
                 }
         return JsonResponse(response_data, status=400)
+
 
 def add_baord(user, data):
     try:
@@ -3337,6 +3353,13 @@ def update_board_data(user,data,board_id):
         }
 
         return response_data 
+    
+    except AcademicBoards.DoesNotExist:
+        response_data = {
+            "result": False,
+            "message": "Board not found"
+        }
+        return JsonResponse(response_data, status=400)
 
     except Exception as e:
         response_data = {
@@ -3364,7 +3387,7 @@ def delete_board_data(user,board_id):
     except AcademicBoards.DoesNotExist:
         response_data = {
             "result": False,
-            "message": "Academic board not found."
+            "message": "Board not found."
         }
         return JsonResponse(response_data, status=404)
     
@@ -3375,6 +3398,11 @@ def delete_board_data(user,board_id):
                 }
         return JsonResponse(response_data, status=400)
     
+
+#-----------------------------------------------------------------------------------------------------------#
+#-------------------------------------------------MEDIUM----------------------------------------------------#
+#-----------------------------------------------------------------------------------------------------------#
+   
 
 def get_academic_mediums_list(user, filter_prompt):
     try:
@@ -3423,10 +3451,15 @@ def get_academic_mediums_list(user, filter_prompt):
             }
             for medium in academic_mediums
         ]
-        
-       
 
         return academic_medium_list
+    
+    except AcademicMediums.DoesNotExist:
+        response_data = {
+            "result": False,
+            "message": "Medium not found"
+        }
+        return JsonResponse(response_data, status=400)
 
     except Exception as e:
         response_data = {
@@ -3456,6 +3489,13 @@ def get_academic_medium_data(user,medium_id):
             "message": "Academic mediums retrieved successfully."
         }
         return response_data
+    
+    except AcademicMediums.DoesNotExist:
+        response_data = {
+            "result": False,
+            "message": "Medium not found"
+        }
+        return JsonResponse(response_data, status=400)
 
     except Exception as e:
         response_data = {
@@ -3495,6 +3535,13 @@ def add_medium_data(user, data):
         }
 
         return response_data
+    
+    except AcademicBoards.DoesNotExist:
+        response_data = {
+            "result": False,
+            "message": "Board not found"
+        }
+        return JsonResponse(response_data, status=400)
 
     except Exception as e:
         response_data = {
@@ -3550,7 +3597,14 @@ def update_medium_data(user, data, medium_id):
     except AcademicMediums.DoesNotExist:
         response_data = {
             "result": False,
-            "message": "The specified academic medium does not exist"
+            "message": "Medium not found"
+        }
+        return JsonResponse(response_data, status=400)
+    
+    except AcademicBoards.DoesNotExist:
+        response_data = {
+            "result": False,
+            "message": "Board not found"
         }
         return JsonResponse(response_data, status=400)
 
@@ -3576,6 +3630,13 @@ def delete_medium_data(user,medium_id):
         }
 
         return response_data
+    
+    except AcademicMediums.DoesNotExist:
+        response_data = {
+            "result": False,
+            "message": "Medium not found"
+        }
+        return JsonResponse(response_data, status=400)
 
     except Exception as e:
         response_data = {
@@ -3585,7 +3646,9 @@ def delete_medium_data(user,medium_id):
         return JsonResponse(response_data, status=400)
 
 
-
+#-----------------------------------------------------------------------------------------------------------#
+#-------------------------------------------------STANDARD--------------------------------------------------#
+#-----------------------------------------------------------------------------------------------------------#
     
 
 def get_academic_standard_list(user, filter_prompt):
@@ -3652,6 +3715,13 @@ def get_academic_standard_list(user, filter_prompt):
         
         
         return academic_standard_list
+    
+    except AcademicStandards.DoesNotExist:
+        response_data = {
+            "result": False,
+            "message": "Standard not found"
+        }
+        return JsonResponse(response_data, status=400)
 
     except Exception as e:
         response_data = {
@@ -3694,6 +3764,13 @@ def add_standard_data(user, data):
         }
 
         return response_data 
+    
+    except AcademicMediums.DoesNotExist:
+        response_data = {
+            "result": False,
+            "message": "Medium not found"
+        }
+        return JsonResponse(response_data, status=400)
 
     except Exception as e:
         response_data = {
@@ -3717,6 +3794,13 @@ def delete_standard_data(user,standard_id):
         }
 
         return response_data
+    
+    except AcademicStandards.DoesNotExist:
+        response_data = {
+            "result": False,
+            "message": "Standard not found"
+        }
+        return JsonResponse(response_data, status=400)
 
     except Exception as e:
         response_data = {
@@ -3749,6 +3833,13 @@ def get_academic_standard_data(standard_id):
         }
 
         return response_data
+    
+    except AcademicStandards.DoesNotExist:
+        response_data = {
+            "result": False,
+            "message": "Standard not found"
+        }
+        return JsonResponse(response_data, status=400)
 
     except Exception as e:
         response_data = {
@@ -3761,24 +3852,18 @@ def get_academic_standard_data(standard_id):
 def update_standard_data(user,data,standard_id):
     try:
         # Check if the academic board exists
-        print(data,"DATA")
         academic_standard = AcademicStandards.objects.get(id=standard_id)
-        print(academic_standard)
         
         update_data = {field: value for field, value in data.dict().items() if value!= None}
         if update_data:
             for field, value in update_data.items():
                 if field == "medium_id":
                     medium = AcademicMediums.objects.get(id=value)
-                    print(medium, "mmmmm")
                     academic_standard.medium_name = medium
                 else:
                     setattr(academic_standard, field, value)
-
-        # academic_medium.board_name = academic_board
-       
+     
         academic_standard.save()
-        print(academic_standard,"hgjhj")
         updated_standard = {
             "id": str(academic_standard.id),
             "standard":academic_standard.standard,
@@ -3798,6 +3883,20 @@ def update_standard_data(user,data,standard_id):
         }
 
         return response_data
+    
+    except AcademicStandards.DoesNotExist:
+        response_data = {
+            "result": False,
+            "message": "Standard not found"
+        }
+        return JsonResponse(response_data, status=400)
+    
+    except AcademicMediums.DoesNotExist:
+        response_data = {
+            "result": False,
+            "message": "Medium not found"
+        }
+        return JsonResponse(response_data, status=400)
 
     except Exception as e:
         print(e)
@@ -3808,14 +3907,14 @@ def update_standard_data(user,data,standard_id):
         return JsonResponse(response_data, status=400)
     
 
+#-----------------------------------------------------------------------------------------------------------#
+#--------------------------------------------------SUBJECT--------------------------------------------------#
+#-----------------------------------------------------------------------------------------------------------#
+
 
 def get_academic_subject_list(user, filter_prompt):
     try:
         academic_subjects = AcademicSubjects.objects.filter(standard__medium_name__board_name__business_owner=user)
-
-        # if filter_prompt:
-        #     print(filter_prompt)
-        #     academic_subjects = academic_subjects.filter(**filter_prompt)
 
         q_objects = Q()
         if filter_prompt.search:
@@ -3828,11 +3927,11 @@ def get_academic_subject_list(user, filter_prompt):
         elif filter_prompt.status:
             q_objects &= Q(status=filter_prompt.status)
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      
-        elif filter_prompt.medium_id and filter_prompt.board_id and filter_prompt.standard:
+        elif filter_prompt.medium_id and filter_prompt.board_id and filter_prompt.standard_id:
             q_objects &= (
                 Q(standard__medium_name__id=filter_prompt.medium_id) &
                 Q(standard__medium_name__board_name__id=filter_prompt.board_id) &
-                Q(standard__id=filter_prompt.standard)
+                Q(standard__id=filter_prompt.standard_id)
             )
         elif filter_prompt.medium_id and filter_prompt.board_id:
             q_objects &= (
@@ -3843,8 +3942,8 @@ def get_academic_subject_list(user, filter_prompt):
             q_objects &= Q(standard__medium_name__id=filter_prompt.medium_id)
         elif filter_prompt.board_id:
             q_objects &= Q(standard__medium_name__board_name__id=filter_prompt.board_id)
-        elif filter_prompt.standard:
-            q_objects &= Q(standard__id=filter_prompt.standard)
+        elif filter_prompt.standard_id:
+            q_objects &= Q(standard__id=filter_prompt.standard_id)
 
         elif filter_prompt.subject_id:
             print(filter_prompt.subject_id)
@@ -3856,6 +3955,10 @@ def get_academic_subject_list(user, filter_prompt):
             {
                 "id": str(subject.id),
                 "subject_name": subject.subject_name,
+                "board_id": str(subject.standard.medium_name.board_name.id),
+                "board_name": subject.standard.medium_name.board_name.board_name,
+                "medium_id": str(subject.standard.medium_name.id),
+                "medium_name": subject.standard.medium_name.medium_name,
                 "standard_id": str(subject.standard.id),
                 "standard": subject.standard.standard,
                 "status": subject.status,
@@ -3864,10 +3967,15 @@ def get_academic_subject_list(user, filter_prompt):
             }
             for subject in academic_subjects
         ]
-        
-       
 
         return academic_subject_list
+
+    except AcademicSubjects.DoesNotExist:
+        response_data = {
+            "result": False,
+            "message": "Subjects not found"
+        }
+        return JsonResponse(response_data, status=400)
 
     except Exception as e:
         response_data = {
@@ -3896,6 +4004,10 @@ def add_subject_data(user, data):
         saved_subject = {
             "id": str(subjects.id),
             "subject_name":subjects.subject_name,
+            "board_id": str(subjects.standard.medium_name.board_name.id),
+            "board_name": subjects.standard.medium_name.board_name.board_name,
+            "medium_id": str(subjects.standard.medium_name.id),
+            "medium_name": subjects.standard.medium_name.medium_name,
             "standard_id":str(subjects.standard.id),
             "standard": subjects.standard.standard,
             "status": subjects.status,
@@ -3910,6 +4022,13 @@ def add_subject_data(user, data):
         }
 
         return response_data 
+    
+    except AcademicStandards.DoesNotExist:
+        response_data = {
+            "result": False,
+            "message": "Standard not found"
+        }
+        return JsonResponse(response_data, status=400)
 
     except Exception as e:
         response_data = {
@@ -3926,6 +4045,10 @@ def get_academic_subject_data(subject_id):
         academic_standard_list = {
                 "id": str(academic_subjects.id),
                 "subject_name":academic_subjects.subject_name,
+                "board_id": str(academic_subjects.standard.medium_name.board_name.id),
+                "board_name": academic_subjects.standard.medium_name.board_name.board_name,
+                "medium_id": str(academic_subjects.standard.medium_name.id),
+                "medium_name": academic_subjects.standard.medium_name.medium_name,
                 "standard_id":str(academic_subjects.standard.id),
                 "standard": academic_subjects.standard.standard,
                 "status": academic_subjects.status,
@@ -3940,6 +4063,13 @@ def get_academic_subject_data(subject_id):
         }
 
         return response_data
+    
+    except AcademicSubjects.DoesNotExist:
+        response_data = {
+            "result": False,
+            "message": "Subject not found"
+        }
+        return JsonResponse(response_data, status=400)
 
     except Exception as e:
         response_data = {
@@ -3963,6 +4093,13 @@ def delete_subject_data(user,subject_id):
         }
 
         return response_data
+    
+    except AcademicSubjects.DoesNotExist:
+        response_data = {
+            "result": False,
+            "message": "Subject not found"
+        }
+        return JsonResponse(response_data, status=400)
 
     except Exception as e:
         response_data = {
@@ -3986,13 +4123,15 @@ def update_subject_data(user,data,subject_id):
                     academic_subjects.standard = standard
                 else:
                     setattr(academic_subjects, field, value)
-        
-        
-       
+
         academic_subjects.save()
         updated_subject = {
             "id": str(academic_subjects.id),
             "subject_name":academic_subjects.subject_name,
+            "board_id": str(academic_subjects.standard.medium_name.board_name.id),
+            "board_name": academic_subjects.standard.medium_name.board_name.board_name,
+            "medium_id": str(academic_subjects.standard.medium_name.id),
+            "medium_name": academic_subjects.standard.medium_name.medium_name,
             "standard_id": str(academic_subjects.standard_id),
             "standard": academic_subjects.standard.standard,
             "status": academic_subjects.status,
@@ -4007,8 +4146,23 @@ def update_subject_data(user,data,subject_id):
         }
 
         return response_data
+    
+    except AcademicSubjects.DoesNotExist:
+        response_data = {
+            "result": False,
+            "message": "Subject not found"
+        }
+        return JsonResponse(response_data, status=400)
+    
+    except AcademicStandards.DoesNotExist:
+        response_data = {
+            "result": False,
+            "message": "Standard not found"
+        }
+        return JsonResponse(response_data, status=400)
 
     except Exception as e:
+        
         response_data = {
                     "result": False,
                     "message": "Something went wrong"
@@ -4016,7 +4170,9 @@ def update_subject_data(user,data,subject_id):
         return JsonResponse(response_data, status=400)
     
 
-
+#-----------------------------------------------------------------------------------------------------------#
+#--------------------------------------------------CHAPTER--------------------------------------------------#
+#-----------------------------------------------------------------------------------------------------------#
 
 
 def get_academic_chapter_list(user, filter_prompt):
@@ -4045,6 +4201,12 @@ def get_academic_chapter_list(user, filter_prompt):
             {
                 "id": str(chapter.id),
                 "chapter_name": chapter.chapter_name,
+                "board_id": str(chapter.subject_name.standard.medium_name.board_name.id),
+                "board_name": chapter.subject_name.standard.medium_name.board_name.board_name,
+                "medium_id": str(chapter.subject_name.standard.medium_name.id),
+                "medium_name": chapter.subject_name.standard.medium_name.medium_name,
+                "standard_id": str(chapter.subject_name.standard_id),
+                "standard": chapter.subject_name.standard.standard,
                 "subject_id": str(chapter.subject_name.id),
                 "subject_name": chapter.subject_name.subject_name,
                 "status": chapter.status,
@@ -4053,10 +4215,15 @@ def get_academic_chapter_list(user, filter_prompt):
             }
             for chapter in academic_chapters
         ]
-        
-       
 
         return academic_chapters_list
+    
+    except AcademicChapters.DoesNotExist:
+        response_data = {
+            "result": False,
+            "message": "Chapter not found"
+        }
+        return JsonResponse(response_data, status=400)
 
     except Exception as e:
         response_data = {
@@ -4083,7 +4250,13 @@ def add_chapter_data(user, data):
         saved_chapter = {
             "id": str(chapter.id),
             "chapter_name":chapter.chapter_name,
-            "subject_id":str(chapter.subject_name.id),
+            "board_id": str(chapter.subject_name.standard.medium_name.board_name.id),
+            "board_name": chapter.subject_name.standard.medium_name.board_name.board_name,
+            "medium_id": str(chapter.subject_name.standard.medium_name.id),
+            "medium_name": chapter.subject_name.standard.medium_name.medium_name,
+            "standard_id": str(chapter.subject_name.standard_id),
+            "standard": chapter.subject_name.standard.standard,
+            "subject_id": str(chapter.subject_name.id),
             "subject_name": chapter.subject_name.subject_name,
             "status": chapter.status,
             "created_at": chapter.created_at,
@@ -4098,6 +4271,13 @@ def add_chapter_data(user, data):
 
         return response_data 
 
+    except AcademicSubjects.DoesNotExist:
+        response_data = {
+            "result": False,
+            "message": "Subject not found"
+        }
+        return JsonResponse(response_data, status=400)
+
     except Exception as e:
         response_data = {
                     "result": False,
@@ -4110,12 +4290,16 @@ def get_academic_chapter_data(chapter_id):
     try:
         academic_chapters = AcademicChapters.objects.get(id=chapter_id)
 
-        
-
         academic_chapter_list = {
                 "id": str(academic_chapters.id),
                 "chapter_name":academic_chapters.chapter_name,
-                "subject_id":str(academic_chapters.subject_name.id),
+                "board_id": str(academic_chapters.subject_name.standard.medium_name.board_name.id),
+                "board_name": academic_chapters.subject_name.standard.medium_name.board_name.board_name,
+                "medium_id": str(academic_chapters.subject_name.standard.medium_name.id),
+                "medium_name": academic_chapters.subject_name.standard.medium_name.medium_name,
+                "standard_id": str(academic_chapters.subject_name.standard_id),
+                "standard": academic_chapters.subject_name.standard.standard,
+                "subject_id": str(academic_chapters.subject_name.id),
                 "subject_name": academic_chapters.subject_name.subject_name,
                 "status": academic_chapters.status,
                 "created_at": academic_chapters.created_at,
@@ -4153,6 +4337,13 @@ def delete_chapter_data(user,chapter_id):
         }
 
         return response_data
+    
+    except AcademicChapters.DoesNotExist:
+        response_data = {
+            "result": False,
+            "message": "Chapter not found"
+        }
+        return JsonResponse(response_data, status=400)
 
     except Exception as e:
         response_data = {
@@ -4184,6 +4375,12 @@ def update_chapter_data(user,data,chapter_id):
         updated_chapter = {
             "id": str(academic_chapters.id),
             "chapter_name":academic_chapters.chapter_name,
+            "board_id": str(academic_chapters.subject_name.standard.medium_name.board_name.id),
+            "board_name": academic_chapters.subject_name.standard.medium_name.board_name.board_name,
+            "medium_id": str(academic_chapters.subject_name.standard.medium_name.id),
+            "medium_name": academic_chapters.subject_name.standard.medium_name.medium_name,
+            "standard_id": str(academic_chapters.subject_name.standard_id),
+            "standard": academic_chapters.subject_name.standard.standard,
             "subject_id": str(academic_chapters.subject_name.id),
             "subject_name": academic_chapters.subject_name.subject_name,
             "status": academic_chapters.status,
@@ -4198,7 +4395,20 @@ def update_chapter_data(user,data,chapter_id):
         }
 
         return response_data
-
+    
+    except AcademicChapters.DoesNotExist:
+        response_data = {
+            "result": False,
+            "message": "Chapter not found"
+        }
+        return JsonResponse(response_data, status=400)
+    
+    except AcademicSubjects.DoesNotExist:
+        response_data = {
+            "result": False,
+            "message": "Subject not found"
+        }
+        return JsonResponse(response_data, status=400)
     except Exception as e:
         print(e)
         response_data = {
@@ -4208,11 +4418,14 @@ def update_chapter_data(user,data,chapter_id):
         return JsonResponse(response_data, status=400)
     
 
+#-----------------------------------------------------------------------------------------------------------#
+#-------------------------------------------------QUESTION--------------------------------------------------#
+#-----------------------------------------------------------------------------------------------------------#
+
+
 def add_question_data(user,data):
     try:
-        options_data = data.options  # Extract options data dictionary from the main data
-        print("AREYRDWFJWJJKEOQ")
-        # Create an instance of Options using options_data dictionary
+        options_data = data.options 
         options_instance = Options.objects.create(
             option1=options_data.option1,
             option2=options_data.option2,
@@ -4220,13 +4433,11 @@ def add_question_data(user,data):
             option4=options_data.option4
         )
 
-        academic_chapter = AcademicChapters.objects.get(id=data.chapter)
-        print(academic_chapter)
-        # Create the question
+        academic_chapter = AcademicChapters.objects.get(id=data.chapter_id)
         question = AcademicQuestions.objects.create(
             academic_chapter=academic_chapter,
             question=data.question,
-            options=options_instance,  # Pass the instance of Options
+            options=options_instance, 
             answer=data.answer,
             question_category=data.question_category,
             marks=data.marks,
@@ -4244,7 +4455,7 @@ def add_question_data(user,data):
             "subject_id": str(question.academic_chapter.subject_name.id),
             "subject_name": question.academic_chapter.subject_name.subject_name,
             "question_category": question.question_category,
-            "marks": question.marks,
+            "marks": str(question.marks),
             "time": question.time_duration,
             "status": question.status,
             "created_at":question.created_at,
@@ -4257,6 +4468,19 @@ def add_question_data(user,data):
             "message":"Question added successfully"
         }
         return response_data
+
+    except AcademicChapters.DoesNotExist:
+        response_data = {
+            "result": False,
+            "message": "Chapter not found"
+        }
+        return JsonResponse(response_data, status=400)
+    except Options.DoesNotExist:
+        response_data = {
+            "result": False,
+            "message": "Options not found"
+        }
+        return JsonResponse(response_data, status=400)
 
     except Exception as e:
         response_data = {
@@ -4338,7 +4562,7 @@ def get_academic_question_list(user, filter_prompt):
                     "subject_id": str(question.academic_chapter.subject_name.id),
                     "subject_name": question.academic_chapter.subject_name.subject_name, 
                     "question_category": question.question_category,
-                    "marks": question.marks,
+                    "marks": str(question.marks),
                     "time": str(question.time_duration),
                     "status": question.status,
                     "created_at":question.created_at,
@@ -4348,6 +4572,20 @@ def get_academic_question_list(user, filter_prompt):
             
         
         return question_list
+    
+    except AcademicChapters.DoesNotExist:
+        response_data = {
+            "result": False,
+            "message": "Chapter not found"
+        }
+        return JsonResponse(response_data, status=400)
+    
+    except AcademicQuestions.DoesNotExist:
+        response_data = {
+            "result": False,
+            "message": "Question not found"
+        }
+        return JsonResponse(response_data, status=400)
 
     except Exception as e:
         response_data = {
@@ -4356,7 +4594,6 @@ def get_academic_question_list(user, filter_prompt):
                 }
         return JsonResponse(response_data, status=400)
     
-
 
 def get_academic_question_data(question_id):
     try:
@@ -4379,7 +4616,7 @@ def get_academic_question_data(question_id):
                 "subject_id": str(question.academic_chapter.subject_name.id),
                 "subject_name": question.academic_chapter.subject_name.subject_name, 
                 "question_category": question.question_category,
-                "marks": question.marks,
+                "marks": str(question.marks),
                 "time": str(question.time_duration),
                 "status": question.status,
                 "created_at":question.created_at,
@@ -4393,6 +4630,20 @@ def get_academic_question_data(question_id):
             "message":"Questions retrived successfully"
         }
         return response_data
+    
+    except AcademicQuestions.DoesNotExist:
+        response_data = {
+            "result": False,
+            "message": "Question not found"
+        }
+        return JsonResponse(response_data, status=400)
+    
+    except Options.DoesNotExist:
+        response_data = {
+            "result": False,
+            "message": "Options not found"
+        }
+        return JsonResponse(response_data, status=400)
 
     except Exception as e:
         response_data = {
@@ -4427,17 +4678,16 @@ def delete_question_data(user, question_id):
     except AcademicQuestions.DoesNotExist:
         response_data = {
             "result": False,
-            "message": "Academic question not found."
+            "message": "Question not found"
         }
-        return JsonResponse(response_data, status=404)
+        return JsonResponse(response_data, status=400)
     
     except Options.DoesNotExist:
-        # Handle the case where options are not found
         response_data = {
             "result": False,
-            "message": "Options not found."
+            "message": "Options not found"
         }
-        return JsonResponse(response_data, status=404)
+        return JsonResponse(response_data, status=400)
     
     except Exception as e:
         response_data = {
@@ -4445,19 +4695,6 @@ def delete_question_data(user, question_id):
                     "message": "Something went wrong"
                 }
         return JsonResponse(response_data, status=400)
-    
-
-
-
-
-def parse_time_duration(time_str):
-    try:
-        time_parts = time_str.split(":")
-        hours = int(time_parts[0])
-        minutes = int(time_parts[1])
-        return timedelta(hours=hours, minutes=minutes)
-    except ValueError:
-        raise HttpError(400, "Invalid time duration format")
 
 
 def update_question_data(data, question_id):
@@ -4497,7 +4734,7 @@ def update_question_data(data, question_id):
                 "subject_id": str(question.academic_chapter.subject_name.id),
                 "subject_name": question.academic_chapter.subject_name.subject_name,
                 "question_category": question.question_category,
-                "marks": question.marks,
+                "marks": str(question.marks),
                 "time": str(question.time_duration),
                 "status": question.status,
                 "created_at": question.created_at,
@@ -4550,14 +4787,12 @@ def update_question_data(data, question_id):
                     "message": "Something went wrong"
                 }
         return JsonResponse(response_data, status=400)
-    
-
-import random
+ 
 
 def create_academic_exam(user, data):
     try:
      
-        standard_instance = AcademicStandards.objects.get(id=data.standard)
+        standard_instance = AcademicStandards.objects.get(id=data.standard_id)
         total_weightage = data.total_questions
         selected_acad_questions_set1 = []
         selected_acad_questions_set2 = []        
@@ -4641,14 +4876,14 @@ def create_academic_exam(user, data):
             subject_marks = round(float(data.total_marks * subject_percentage))
             print(subject_marks, "MMMMAAAARRRKKKKKK")
         
-            subject_instance = AcademicSubjects.objects.get(id=subject_data.subject)
+            subject_instance = AcademicSubjects.objects.get(id=subject_data.subject_id)
             
-            chapter_instance = AcademicChapters.objects.filter(id__in=subject_data.chapter)
+            chapter_instance = AcademicChapters.objects.filter(id__in=subject_data.chapters)
             chapters = list(chapter_instance)
             chapter_ids = [f"{item.id}," for item in chapters]
             chapters = " ".join(chapter_ids)
             question_data = AcademicQuestions.objects.filter(academic_chapter__subject_name=subject_instance)
-            question_data = question_data.filter(academic_chapter__id__in=subject_data.chapter)
+            question_data = question_data.filter(academic_chapter__id__in=subject_data.chapters)
             question_data_list = list(question_data)
             
             selected_questions_set1 = []
@@ -4771,6 +5006,7 @@ def create_academic_exam(user, data):
         return response_data
     
     except Exception as e:
+        print(e)
         response_data = {
                     "result": False,
                     "message": "Something went wrong"
@@ -4781,7 +5017,7 @@ def create_academic_exam(user, data):
 def get_acad_examlist(user, query):
     try: 
         
-        exams = AcademicExams.objects.filter(business_owner=user)
+        exams = AcademicExams.objects.filter(business_owner=user, start_date__isnull=False)
         
         if query.standard:
             exams = exams.filter(standard=query.standard)
@@ -4805,18 +5041,50 @@ def get_acad_examlist(user, query):
        
         exam_list = []
         for exam in exams:
-            exam_data = {
+            exam_data_list = []
+            for exam_data in exam.exam_data.all():
+                subject_name = exam_data.subject.subject_name
+                chapter = exam_data.chapter
+                # chapters = exam_data.chapter.split(",")
+
+                # chapter_list = []
+                # for chapter_id in chapters:
+                #     if chapter_id:  
+                #         print(chapter_id)
+                #         chapter = CompetitiveChapters.objects.get(id=chapter_id)
+                #         chapter_list.append({
+                #             "chapter_name": chapter.chapter_name
+                #         })
+                exam_data_list.append({"subject": subject_name, "chapters": chapter})
+
+            exam_detail = {
                 "id":str(exam.id),
                 "exam_title": exam.exam_title,
-                "standard": str(exam.standard.id),
+                "board_id": str(exam.standard.medium_name.board_name.id),
+                "board_name": exam.standard.medium_name.board_name.board_name,
+                "medium_id": str(exam.standard.medium_name.id),
+                "medium_name": exam.standard.medium_name.medium_name,
+                "standard_id": str(exam.standard.id),
+                "standard_name": exam.standard.standard,
                 "total_question":exam.total_questions,
                 "time_duration":exam.time_duration,
                 "negative_marks":exam.negative_marks,
                 "total_marks":exam.total_marks,
+                "start_date":exam.start_date,
+                "exam_datas": exam_data_list, 
                
             }
-            exam_list.append(exam_data)
+            exam_list.append(exam_detail)
+
         return exam_list
+    
+    except AcademicExams.DoesNotExist:
+        response_data = {
+            "result": False,
+            "message": "Exam not found"
+        }
+        return JsonResponse(response_data, status=400)
+    
     except Exception as e:
         response_data = {
                     "result": False,
@@ -4836,10 +5104,19 @@ def start_acad_exam(exam_id, data):
             exam.question_set.add(question)
         exam.save()
         result = {
-            "message": "Data Saved Succesfully"
+            "result": True,
+            "message": "Exam will start soon"
         }
       
         return result
+    
+    except AcademicExams.DoesNotExist:
+        response_data = {
+            "result": False,
+            "message": "Exam not found"
+        }
+        return JsonResponse(response_data, status=400)
+    
     except Exception as e:
         response_data = {
                     "result": False,
@@ -4890,6 +5167,14 @@ def get_acad_examreport(user, query):
             }
             exam_list.append(exam_data)
         return exam_list
+    
+    except AcademicExams.DoesNotExist:
+        response_data = {
+            "result": False,
+            "message": "Exam not found"
+        }
+        return JsonResponse(response_data, status=400)
+
     except Exception as e:
         response_data = {
                     "result": False,
