@@ -258,7 +258,7 @@ def get_news(user):
     try:
         newses = BusinessNewses.objects.filter(
             Q(standard=user.standard, batch=None) | Q(standard=None, batch=user.batch) | Q(standard=None, batch=None),
-            business_owner=user.business_owner,
+            business_owner=user.selected_institute,
             status="active",
         )
 
@@ -281,6 +281,12 @@ def get_news(user):
         response_data = {
             "result": False,
             "message": "News not found"
+        }
+        return JsonResponse(response_data, status=400)
+    except Students.DoesNotExist:
+        response_data = {
+            "result": False,
+            "message": "Student not found"
         }
         return JsonResponse(response_data, status=400)
     

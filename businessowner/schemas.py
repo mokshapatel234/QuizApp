@@ -232,8 +232,8 @@ class CompChapterUpdate(Schema):
 
 class CompChapterFilter(Schema):
     status: Optional[str]
-    batch_id: Optional[UUID]
-    subject_id: Optional[UUID]
+    batch_id: Optional[str]
+    subject_id: Optional[str]
     search: Optional[str]
 
 class ChapterBatch(Schema):
@@ -279,9 +279,9 @@ class QuestionIn(Schema):
 
 class CompQuestionFilter(Schema):
     status: Optional[str]
-    chapter_id: Optional[UUID]
-    subject_id: Optional[UUID]
-    batch_id: Optional[UUID]
+    chapter_id: Optional[str]
+    subject_id: Optional[str]
+    batch_id: Optional[str]
     question_category: Optional[str]
     search: Optional[str]
     
@@ -348,9 +348,9 @@ class CompExamIn(Schema):
     exam_data: List[CompExamData]
 
 class CompExamFilter(Schema):
-    batch_id: Optional[UUID]
-    subject_id: Optional[UUID]
-    chapter_id: Optional[UUID]
+    batch_id: Optional[str]
+    subject_id: Optional[str]
+    chapter_id: Optional[str]
     search: Optional[str]
 
 class CompExam(Schema):
@@ -417,10 +417,10 @@ class StudentUpdate(Schema):
 
 class StudentFilter(Schema):
     status: Optional[str]
-    batch_id: Optional[UUID]
-    board_id: Optional[UUID]
-    medium_id: Optional[UUID]
-    standard_id: Optional[UUID]
+    batch_id: Optional[str]
+    board_id: Optional[str]
+    medium_id: Optional[str]
+    standard_id: Optional[str]
     search: Optional[str]
 
 class Competitive(Schema):
@@ -955,6 +955,7 @@ class UpdateQuestionIn(Schema):
    question_category: Optional[str]
    marks: Optional[int]
    time: Optional[int]
+   status: Optional[str]
 
 
 #-----------------------------------------------------------------------------------------------------------#

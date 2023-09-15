@@ -40,7 +40,7 @@ def get_user_profile(request):
     return get_profile(request.user)
 
 
-@router.patch("/profile", response={200: ProfileOut, 400: dict, 401: dict})
+@router.put("/profile", response={200: ProfileOut, 400: dict, 401: dict})
 @verify_token
 def update_user_profile(request, data:ProfileUpdate):
     return update_profile(request.user, data)

@@ -2398,16 +2398,15 @@ def student_list(user, query):
         students = Students.objects.filter(business_owner=user)
         if query.status:
             students = students.filter(status=query.status)
-        if query.batch_id:
-            students = students.filter(batch=str(query.batch))
-        if query.board_id:
-            students = students.filter(standard__medium_name__board_name=str(query.board))
-            print(query.board,"afh")
-        if query.medium_id:
-            students = students.filter(standard__medium_name=str(query.medium))
-        if query.standard_id:
-            students = students.filter(standard=str(query.standard))
-        if query.search:
+        elif query.batch_id:
+            students = students.filter(batch__id=query.batch_id)
+        elif query.board_id:
+            students = students.filter(standard__medium_name__board_name__id=query.board_id)
+        elif query.medium_id:
+            students = students.filter(standard__medium_name__id=query.medium_id)
+        elif query.standard_id:
+            students = students.filter(standard__id=query.standard_id)
+        elif query.search:
             search_terms = query.search.strip().split()
             search_query = Q()
 
@@ -2426,6 +2425,8 @@ def student_list(user, query):
                 )
 
             students = students.filter(search_query)
+        else:
+            students = Students.objects.filter(business_owner=user)
         student_list = []
         for student in students:
             
@@ -3654,6 +3655,7 @@ def delete_medium_data(user,medium_id):
 def get_academic_standard_list(user, filter_prompt):
     try:
         academic_standards = AcademicStandards.objects.filter(medium_name__board_name__business_owner=user)
+        
 
         if filter_prompt.search:
             q_objects = (
@@ -3662,42 +3664,45 @@ def get_academic_standard_list(user, filter_prompt):
             )
             academic_standards = academic_standards.filter(q_objects)
 
-        elif filter_prompt.status and filter_prompt.medium_id and filter_prompt.board_id and filter_prompt.standard:
-            academic_standards = academic_standards.filter(
-                status=filter_prompt.status,
-                medium_name__id=filter_prompt.medium_id,
-                medium_name__board_name__id=filter_prompt.board_id,
-                id=filter_prompt.standard
-            )
-        elif filter_prompt.status and filter_prompt.medium_id and filter_prompt.board_id:
-            academic_standards = academic_standards.filter(
-                status=filter_prompt.status,
-                medium_name__id=filter_prompt.medium_id,
-                medium_name__board_name__id=filter_prompt.board_id
-            )
-        elif filter_prompt.status and filter_prompt.medium_id:
-            academic_standards = academic_standards.filter(
-                status=filter_prompt.status,
-                medium_name__id=filter_prompt.medium_id
-            )
-        elif filter_prompt.status and filter_prompt.board_id:
-            academic_standards = academic_standards.filter(
-                status=filter_prompt.status,
-                medium_name__board_name__id=filter_prompt.board_id
-            )
-        elif filter_prompt.medium_id and filter_prompt.board_id:
-            academic_standards = academic_standards.filter(
-                medium_name__id=filter_prompt.medium_id,
-                medium_name__board_name__id=filter_prompt.board_id
-            )
+        # elif filter_prompt.status and filter_prompt.medium_id and filter_prompt.board_id and filter_prompt.standard_id:
+        #     academic_standards = academic_standards.filter(
+        #         status=filter_prompt.status,
+        #         medium_name__id=filter_prompt.medium_id,
+        #         medium_name__board_name__id=filter_prompt.board_id,
+        #         id=filter_prompt.standard
+        #     )
+        # elif filter_prompt.status and filter_prompt.medium_id and filter_prompt.board_id:
+        #     academic_standards = academic_standards.filter(
+        #         status=filter_prompt.status,
+        #         medium_name__id=filter_prompt.medium_id,
+        #         medium_name__board_name__id=filter_prompt.board_id
+        #     )
+        # elif filter_prompt.status and filter_prompt.medium_id:
+        #     academic_standards = academic_standards.filter(
+        #         status=filter_prompt.status,
+        #         medium_name__id=filter_prompt.medium_id
+        #     )
+        # elif filter_prompt.status and filter_prompt.board_id:
+        #     academic_standards = academic_standards.filter(
+        #         status=filter_prompt.status,
+        #         medium_name__board_name__id=filter_prompt.board_id
+        #     )
+        # elif filter_prompt.medium_id and filter_prompt.board_id:
+        #     academic_standards = academic_standards.filter(
+        #         medium_name__id=filter_prompt.medium_id,
+        #         medium_name__board_name__id=filter_prompt.board_id
+        #     )
         elif filter_prompt.status:
             academic_standards = academic_standards.filter(status=filter_prompt.status)
         elif filter_prompt.medium_id:
             academic_standards = academic_standards.filter(medium_name__id=filter_prompt.medium_id)
         elif filter_prompt.board_id:
             academic_standards = academic_standards.filter(medium_name__board_name__id=filter_prompt.board_id)
-        elif filter_prompt.standard:
-            academic_standards = academic_standards.filter(id=filter_prompt.standard)
+        elif filter_prompt.standard_id:
+            academic_standards = academic_standards.filter(id=filter_prompt.standard_id)
+
+        else:
+            academic_standards = AcademicStandards.objects.filter(medium_name__board_name__business_owner=user)
         academic_standard_list = [
             {
                 "id": str(standards.id),
@@ -3946,7 +3951,6 @@ def get_academic_subject_list(user, filter_prompt):
             q_objects &= Q(standard__id=filter_prompt.standard_id)
 
         elif filter_prompt.subject_id:
-            print(filter_prompt.subject_id)
             q_objects &= Q(id=filter_prompt.subject_id)
 
         academic_subjects = academic_subjects.filter(q_objects)
@@ -4188,8 +4192,13 @@ def get_academic_chapter_list(user, filter_prompt):
             academic_chapters = academic_chapters.filter(q_objects)
 
         elif filter_prompt.status:
-            print(filter_prompt)
             academic_chapters = academic_chapters.filter(status=filter_prompt.status)
+
+        elif filter_prompt.medium_id:
+            academic_chapters = academic_chapters.filter(subject_name__standard__medium_name__id=filter_prompt.medium_id)
+
+        elif filter_prompt.board_id:
+            academic_chapters = academic_chapters.filter(subject_name__standard__medium_name__board_name__id=filter_prompt.board_id)
 
         elif filter_prompt.subject_id:
             academic_chapters = academic_chapters.filter(subject_name__id=filter_prompt.subject_id)
@@ -4240,13 +4249,11 @@ def add_chapter_data(user, data):
         subject_id = data.subject_id 
     
         subject_instance = AcademicSubjects.objects.get(id=subject_id) 
-     # Convert to UUID and fetch the corresponding board instance
         chapter = AcademicChapters.objects.create(
             chapter_name=data.chapter_name,
-            subject_name=subject_instance,  # Use the fetched board instance
+            subject_name=subject_instance, 
         )
     
-        
         saved_chapter = {
             "id": str(chapter.id),
             "chapter_name":chapter.chapter_name,
@@ -4512,11 +4519,11 @@ def get_academic_question_list(user, filter_prompt):
         elif filter_prompt.status:
             q_objects &= Q(status=filter_prompt.status)
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      
-        elif filter_prompt.medium_id and filter_prompt.board_id and filter_prompt.standard:
+        elif filter_prompt.medium_id and filter_prompt.board_id and filter_prompt.standard_id:
             q_objects &= (
                 Q(academic_chapter__subject_name__standard__medium_name__id=filter_prompt.medium_id) &
                 Q(academic_chapter__subject_name__standard__medium_name__board_name__id=filter_prompt.board_id) &
-                Q(academic_chapter__subject_name__standard__id=filter_prompt.standard)
+                Q(academic_chapter__subject_name__standard__id=filter_prompt.standard_id)
             )
         elif filter_prompt.medium_id and filter_prompt.board_id:
             q_objects &= (
@@ -4527,15 +4534,13 @@ def get_academic_question_list(user, filter_prompt):
             q_objects &= Q(academic_chapter__subject_name__standard__medium_name__id=filter_prompt.medium_id)
         elif filter_prompt.board_id:
             q_objects &= Q(academic_chapter__subject_name__standard__medium_name__board_name__id=filter_prompt.board_id)
-        elif filter_prompt.standard:
-            q_objects &= Q(academic_chapter__subject_name__standard__id=filter_prompt.standard)
+        elif filter_prompt.standard_id:
+            q_objects &= Q(academic_chapter__subject_name__standard__id=filter_prompt.standard_id)
 
         elif filter_prompt.subject_id:
-            print(filter_prompt.subject_id)
             q_objects &= Q(academic_chapter__subject_name=filter_prompt.subject_id)
 
         elif filter_prompt.chapter_id:
-            print(filter_prompt.chapter_id)
             q_objects &= Q(academic_chapter__id=filter_prompt.chapter_id)
 
         questions = questions.filter(q_objects)
@@ -4544,7 +4549,7 @@ def get_academic_question_list(user, filter_prompt):
             try:
                 options_data = Options.objects.get(id=question.options_id)
             except Options.DoesNotExist:
-                options_data = None  # Handle the case where options are not found
+                options_data = None 
             
             options_dict = {
                 "option1": options_data.option1 if options_data else None,
@@ -4556,7 +4561,7 @@ def get_academic_question_list(user, filter_prompt):
                     "id": str(question.id),
                     "question": question.question,
                     "answer": question.answer,
-                    "options": options_dict,  # Return the options data as-is
+                    "options": options_dict,  
                     "chapter_id": str(question.academic_chapter.id),
                     "chapter_name": question.academic_chapter.chapter_name,
                     "subject_id": str(question.academic_chapter.subject_name.id),
@@ -5045,16 +5050,7 @@ def get_acad_examlist(user, query):
             for exam_data in exam.exam_data.all():
                 subject_name = exam_data.subject.subject_name
                 chapter = exam_data.chapter
-                # chapters = exam_data.chapter.split(",")
-
-                # chapter_list = []
-                # for chapter_id in chapters:
-                #     if chapter_id:  
-                #         print(chapter_id)
-                #         chapter = CompetitiveChapters.objects.get(id=chapter_id)
-                #         chapter_list.append({
-                #             "chapter_name": chapter.chapter_name
-                #         })
+                
                 exam_data_list.append({"subject": subject_name, "chapters": chapter})
 
             exam_detail = {
