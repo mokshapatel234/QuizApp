@@ -8,25 +8,15 @@ from ninja.errors import HttpError
 from .utils import generate_token
 import pandas as pd
 from datetime import timedelta, timezone
-import random
 import time
-import jwt
-import razorpay
-from datetime import datetime
-from django.core.mail import EmailMultiAlternatives
-from django.template.loader import render_to_string
-from django.utils import timezone
 import base64
-from urllib.request import urlopen
 from django.core.files.base import ContentFile  # Import ContentFile
-import os
 
 
 
 def perform_login(data):
     try:
         students = Students.objects.filter(contact_no=data.contact_no)
-        print(students)
         if students:
             first_student = students.first()
             token = generate_token(str(first_student.id))  
@@ -42,7 +32,7 @@ def perform_login(data):
                     "status": first_student.status,
                     "token": token,   
                 },
-                "message": "Login successful for multiple students",
+                "message": "Login successful",
             }
             return response_data
         else:
@@ -51,6 +41,13 @@ def perform_login(data):
                 "message": "No students found with the provided contact number",
             }
             return JsonResponse(response_data, status=404)
+        
+    except Students.DoesNotExist:
+        response_data = {
+            "result": False,
+            "message": "Student not found"
+        }
+        return JsonResponse(response_data, status=400)
         
     except Exception as e:
         response_data = {
@@ -142,10 +139,7 @@ def get_profile(user):
     try:
         student = Students.objects.get(id=user.id)
 
-        # Get the current month
-        # current_month = datetime.now().strftime('%B')
-
-        # List of months with the current month first
+    
         months = [
             # current_month,
             'January', 'February', 'March', 'April', 'May', 'June',
@@ -169,10 +163,18 @@ def get_profile(user):
             "message": "Profile retrieved successfully"
         }
         return response_data
+    
+    except Students.DoesNotExist:
+        response_data = {
+            "result": False,
+            "message": "Student not found"
+        }
+        return JsonResponse(response_data, status=400)
+    
     except Exception as e:
         response_data = {
             "result": False,
-            "message": str(e),
+            "message": "Something went wrong",
         }
         return JsonResponse(response_data, status=400)
     
@@ -184,7 +186,6 @@ def update_profile(user, data):
         if student:
             update_data = {field: value for field, value in data.dict().items() if value is not None}
             if update_data:
-                image_path = update_data.get('profile_image')
                 for field, value in update_data.items():
                     
                     if field == "email":
@@ -198,21 +199,19 @@ def update_profile(user, data):
                             return JsonResponse(response_data, status=400)
                         else:
                             student.email = value
+                    elif field == "profile_image":
+                        # Handle the image data here
+                        image_data = base64.b64decode(value)
+                        timestamp = int(time.time())
+                        unique_filename = f"profile_image_{timestamp}.png"
+                        
+                        student.profile_image.save(unique_filename, ContentFile(image_data))
+        
                     else:
                         setattr(student, field, value)
-                if image_path:
-                    with open(image_path, 'rb') as image_file:
-                        binary_data = image_file.read()
-                        image_base64 = base64.b64encode(binary_data).decode('utf-8')
-                    image_name = os.path.basename(image_path)
-                    student.profile_image.save(image_name, ContentFile(base64.b64decode(image_base64)))
-                    
+                
                 student.save()
 
-                # Get the current month
-                # current_month = datetime.now().strftime('%B')
-
-                # List of months with the current month first
                 months = [
                     # current_month,
                     'January', 'February', 'March', 'April', 'May', 'June',
@@ -228,69 +227,85 @@ def update_profile(user, data):
                         "email": student.email,
                         "contact_no": student.contact_no,
                         "profile_image": student.profile_image.url if student.profile_image else None,
-                        "months": months  # List of months with the current month first
+                        "months": months  
                     },
                     "message": "Profile updated successfully"
                 }
-                return response_data  # Return response here
-            return None  # Return None if update_data is empty
+                return response_data  
+            return None  
+        
+    except Students.DoesNotExist:
+        response_data = {
+            "result": False,
+            "message": "Student not found"
+        }
+        return JsonResponse(response_data, status=400)
 
     except Exception as e:
         response_data = {
             "result": False,
-            "message": str(e),
+            "message": "Something went wrong",
         }
         return JsonResponse(response_data, status=400)
 
-    
+
+#-----------------------------------------------------------------------------------------------------------#
+#---------------------------------------------------NEWS----------------------------------------------------#
+#-----------------------------------------------------------------------------------------------------------#
 
 
 def get_news(user):
     try:
-        # Determine the user's role (standard or batch)
-        is_standard_user = hasattr(user, 'standard')
-        is_batch_user = hasattr(user, 'batch')
-        print(is_standard_user)
-        print(is_batch_user)
-        if is_standard_user:
-            # Filter news for standard user
-            newses = BusinessNewses.objects.filter(business_owner=user.business_owner, status="active", standard=user.standard)
-            
-        elif is_batch_user:
-            # Filter news for batch user
-            newses = BusinessNewses.objects.filter(business_owner=user.business_owner, status="active", batch=user.batch)
-        else:
-            # Handle cases where the user doesn't have a specific role
-            return JsonResponse({"result": False, "message": "User has no specific standard or batch."}, status=400)
+        newses = BusinessNewses.objects.filter(
+            Q(standard=user.standard, batch=None) | Q(standard=None, batch=user.batch) | Q(standard=None, batch=None),
+            business_owner=user.selected_institute,
+            status="active",
+        )
 
-        newses_list = [
-            {
+        news_list = []
+
+        for news in newses:
+            news_list.append({
                 "id": str(news.id),
                 "image": news.image.url if news.image else None,
                 "text": news.news if news.news else None,
                 "status": news.status,
                 "standard": str(news.standard.id) if news.standard else None,
                 "batch": str(news.batch.id) if news.batch else None,
-            }
-            for news in newses
-        ]
-        return newses_list
+                "is_image": True if news.image else False
+            })
 
+        return news_list
+    
+    except BusinessNewses.DoesNotExist:
+        response_data = {
+            "result": False,
+            "message": "News not found"
+        }
+        return JsonResponse(response_data, status=400)
+    except Students.DoesNotExist:
+        response_data = {
+            "result": False,
+            "message": "Student not found"
+        }
+        return JsonResponse(response_data, status=400)
+    
     except Exception as e:
         response_data = {
             "result": False,
-            "message": str(e)
+            "message": "Something went wrong"
         }
         return JsonResponse(response_data, status=500)
     
 
+#-----------------------------------------------------------------------------------------------------------#
+#-------------------------------------------TERMS & CONDITION-----------------------------------------------#
+#-----------------------------------------------------------------------------------------------------------#
+   
 
 def get_termsandcondtion(user):
     try:
-        # Fetch the latest terms and conditions from the database
         latest_terms = TermsandPolicy.objects.first()
-
-        # Create a dictionary with the terms and conditions data
         data = {
             "terms_and_condition": latest_terms.terms_and_condition,
             "privacy_policy": latest_terms.privacy_policy,
@@ -304,7 +319,7 @@ def get_termsandcondtion(user):
         return response_data
 
     except TermsandPolicy.DoesNotExist:
-        return {"result": False, "message": "No terms and conditions found"}
+        return {"result": False, "message": "Terms and conditions not found"}
 
     except Exception as e:
-        return {"result": False, "message": str(e)}
+        return {"result": False, "message": "Something went wrong"}

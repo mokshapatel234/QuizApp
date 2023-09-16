@@ -9,6 +9,12 @@ from.paginator import CustomPagination
 from ninja.pagination import paginate, PaginationBase
 router = Router()
 
+
+#-----------------------------------------------------------------------------------------------------------#
+#--------------------------------------------------BOARD----------------------------------------------------#
+#-----------------------------------------------------------------------------------------------------------#
+
+
 @router.get("/academic/board", response={200:List[AcademicBoardSchema],401:dict, 400:dict})
 @verify_token
 @paginate(CustomPagination)
@@ -43,13 +49,16 @@ def delete_board(request, board_id):
     return result
 
 
+#-----------------------------------------------------------------------------------------------------------#
+#-------------------------------------------------MEDIUM----------------------------------------------------#
+#-----------------------------------------------------------------------------------------------------------#
 
 
 @router.get("/academic/medium", response={200:List[AcademicMedium], 401:dict})
 @verify_token
 @paginate(CustomPagination)
 def get_academic_medium_list(request,filter_prompt: AcademicFilter = Query(...)):
-    result = get_academic_mediums_list(filter_prompt)
+    result = get_academic_mediums_list(request.user, filter_prompt)
     return result
 
 @router.get("/academic/medium/{medium_id}", response={200:AddAcademicMediumOut, 401:dict})
@@ -79,14 +88,16 @@ def delete_medium(request, medium_id):
     return result
 
 
-
+#-----------------------------------------------------------------------------------------------------------#
+#-------------------------------------------------STANDARD--------------------------------------------------#
+#-----------------------------------------------------------------------------------------------------------#
 
 
 @router.get("/academic/standard", response={200:List[AcademicStandard], 401:dict, 400:dict})
 @verify_token
 @paginate(CustomPagination)
 def get_academic_standards(request,filter_prompt: AcademicFilter = Query(...)):
-    result = get_academic_standard_list(filter_prompt)
+    result = get_academic_standard_list(request.user, filter_prompt)
     return result
 
 @router.get("/academic/standard/{standard_id}", response={200:AcademicStandardOut, 401:dict,400:dict})
@@ -114,13 +125,16 @@ def delete_standard(request, standard_id):
     return result
 
 
+#-----------------------------------------------------------------------------------------------------------#
+#--------------------------------------------------SUBJECT--------------------------------------------------#
+#-----------------------------------------------------------------------------------------------------------#
 
 
 @router.get("/academic/subject", response={200:List[AcademicSubject], 401:dict, 400:dict})
 @verify_token
 @paginate(CustomPagination)
 def get_academic_subjects(request,filter_prompt: AcademicFilter = Query(...)):
-    result = get_academic_subject_list(filter_prompt)
+    result = get_academic_subject_list(request.user, filter_prompt)
     return result
 
 
@@ -152,14 +166,16 @@ def update_subject(request, subject_id: UUID, data: updateSubjectIn):
     return result
 
 
-
+#-----------------------------------------------------------------------------------------------------------#
+#--------------------------------------------------CHAPTER--------------------------------------------------#
+#-----------------------------------------------------------------------------------------------------------#
 
 
 @router.get("/academic/chapter", response={200:List[AcademicChapter], 401:dict, 400:dict})
 @verify_token
 @paginate(CustomPagination)
 def get_academic_chapter(request,filter_prompt: AcademicFilter = Query(...)):
-    result = get_academic_chapter_list(filter_prompt)
+    result = get_academic_chapter_list(request.user, filter_prompt)
     return result
 
 @router.post("/academic/chapter", response={200: AcademicChapterOut, 401: dict,400:dict})
@@ -188,8 +204,9 @@ def update_chapter(request, chapter_id: UUID, data: updateChaptertIn):
     return result
 
 
-
-
+#-----------------------------------------------------------------------------------------------------------#
+#-------------------------------------------------QUESTION--------------------------------------------------#
+#-----------------------------------------------------------------------------------------------------------#
 
 
 @router.post("/academic/question", response={200: QuestionOut, 401: dict,400:dict})
@@ -202,8 +219,8 @@ def add_question(request,data: QuestionIn):
 @router.get("/academic/question", response={200:List[Question], 401:dict, 400:dict})
 @verify_token
 @paginate(CustomPagination)
-def get_academic_question(request):
-    result = get_academic_question_list(request.user)
+def get_academic_question(request, filter_prompt: AcademicFilter = Query(...)):
+    result = get_academic_question_list(request.user, filter_prompt)
     return result
 
 
@@ -228,33 +245,24 @@ def update_question(request, question_id: UUID, data: UpdateQuestionIn):
     return result
 
 
-
-# @router.post("/academic/exam", response={200: List[AcademicExam], 401: dict, 400: dict})
-# @verify_token
-# def add_exam(request, data: AcademicExamIn):
-#     result = create_academic_exam(request.user, data)
-    
-#     if isinstance(result, list):
-#         if result:  # If the result list is not empty
-#             return result
-#         else:
-#             return [{"message": "No exams created."}]  # Return a custom message
-#     else:
-#         return []  # Return an empty list if 'result' is not a list
+#-----------------------------------------------------------------------------------------------------------#
+#---------------------------------------------------EXAM----------------------------------------------------#
+#-----------------------------------------------------------------------------------------------------------#
 
 
-@router.post("/academic/exam", response={200:dict, 401: dict, 400: dict})
+@router.post("/academic/exam", response={200:AcadeExamOut, 401: dict, 400: dict})
 @verify_token
 def create_acad_exam(request, data: AcademicExamIn):
     return create_academic_exam(request.user, data)
 
-@router.get("/academic/exam", response={200: List[dict], 400: dict, 401: dict})
+@router.get("/academic/exam", response={200: List[AcadeExamOut], 400: dict, 401: dict})
 @verify_token
+@paginate(CustomPagination)
 def get_academic_examlist(request, query:AcadExamFilter = Query(...)):
     return get_acad_examlist(request.user, query)
 
 
-@router.post("/academic/startExam/{exam_id}", response={200: dict, 400: dict, 401: dict})
+@router.post("/academic/startExam/{exam_id}", response={200: DeleteOut, 400: dict, 401: dict})
 @verify_token
 def start_academic_exam(request, exam_id, data:AcadExamQuestion):
     return start_acad_exam(exam_id, data)

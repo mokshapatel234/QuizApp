@@ -46,13 +46,24 @@ def update_user_profile(request, data:ProfileUpdate):
     return update_profile(request.user, data)
 
 
-@router.get("/news", response={200: List[News], 400: dict, 401: dict})
+#-----------------------------------------------------------------------------------------------------------#
+#---------------------------------------------------NEWS----------------------------------------------------#
+#-----------------------------------------------------------------------------------------------------------#
+
+
+@router.get("/news", response={200: List[NewsOut], 400: dict, 401: dict})
 @paginate(CustomPagination)
 @verify_token
 def get_user_news(request):
     return get_news(request.user)
 
-@router.get("/termsandpolicy", response={200: TermsOut, 400: dict, 401: dict})
+
+#-----------------------------------------------------------------------------------------------------------#
+#-------------------------------------------TERMS & CONDITION-----------------------------------------------#
+#-----------------------------------------------------------------------------------------------------------#
+
+
+@router.get("/termsAndPolicy", response={200: TermsOut, 400: dict, 401: dict})
 @verify_token
 def get_terms(request):
     return get_termsandcondtion(request.user)

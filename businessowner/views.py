@@ -300,13 +300,13 @@ def delete_competitive_question(request, question_id):
 #-----------------------------------------------------------------------------------------------------------#
 
 
-@router.post("/competitive/exam", response={200: dict, 400: dict, 401: dict})
+@router.post("/competitive/exam", response={200: CompExamOut, 400: dict, 401: dict})
 @verify_token
 def create_competitive_exam(request, data: CompExamIn):
     return create_comp_exam(request.user, data)
 
 
-@router.post("/competitive/startExam/{exam_id}", response={200: dict, 400: dict, 401: dict})
+@router.post("/competitive/startExam/{exam_id}", response={200: DeleteOut, 400: dict, 401: dict})
 @verify_token
 def start_competitive_exam(request, exam_id, data:CompExamQuestion):
     return start_comp_exam(exam_id, data)
@@ -377,6 +377,3 @@ def delete_student(request, student_id):
 #     return get_comp_examreport(request.user, query)
 
 
-#-----------------------------------------------------------------------------------------------------------#
-#-------------------------------------------------DashBoard-------------------------------------------------#
-#-----------------------------------------------------------------------------------------------------------#
