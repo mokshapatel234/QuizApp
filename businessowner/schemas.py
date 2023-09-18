@@ -295,13 +295,13 @@ class QuestionUpdate(Schema):
    question: Optional[str]
    options: Optional[OptionUpdateSchema]
    answer: Optional[str] 
-   chapter_id: Optional[UUID]
+   chapter_id: Optional[str]
    question_category: Optional[str]
    marks: Optional[int]
    time: Optional[str]
    status: Optional[str]
 
-class Question(Schema):
+class CompetitiveQuestion(Schema):
     id: str
     question: str
     options: Optionschema
@@ -318,9 +318,9 @@ class Question(Schema):
     updated_at: datetime 
 
 
-class QuestionOut(Schema):
+class CompQuestionOut(Schema):
     result: bool
-    data: Question
+    data: CompetitiveQuestion
     message: str
 
 
@@ -910,10 +910,16 @@ class Question(Schema):
     question: str
     options: Optionschema
     answer: str 
-    chapter_id: str
-    chapter_name: str
+    board_id: str
+    board_name: str
+    medium_id: str
+    medium_name: str
+    standard_id: str
+    standard_name: str
     subject_id: str
     subject_name: str
+    chapter_id: str
+    chapter_name: str
     question_category: str
     marks: str
     time: str
@@ -935,6 +941,7 @@ class QuestionIn(Schema):
    question_category: str
    marks: int
    time: float
+
 
 class QuestionOut(Schema):
     result: bool

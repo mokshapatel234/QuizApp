@@ -242,11 +242,43 @@ def update_profile(user, data):
         return JsonResponse(response_data, status=400)
 
     except Exception as e:
+        print(e)
         response_data = {
             "result": False,
             "message": "Something went wrong",
         }
         return JsonResponse(response_data, status=400)
+
+
+#-----------------------------------------------------------------------------------------------------------#
+#------------------------------------------------DASHBOARD--------------------------------------------------#
+#-----------------------------------------------------------------------------------------------------------#
+
+
+def dashboard(user):
+    try:
+        student = Students.objects.get(id=user.id)
+        response_data ={
+                    "result":True,
+                    "data":{
+                        "id": str(student.id),
+                        "selected_institute_id": str(student.selected_institute.id) if student.selected_institute else None,
+                        "selected_institute_name": str(student.selected_institute.business_name) if student.selected_institute else None,
+                        "logo": student.selected_institute.logo.url if student.selected_institute.logo else None,
+                
+                    },
+                    "message": "Profile updated successfully"
+                }
+        return response_data  
+
+    except Exception as e:
+        print(e)
+        response_data = {
+            "result": False,
+            "message": "Something went wrong",
+        }
+        return JsonResponse(response_data, status=400)
+
 
 
 #-----------------------------------------------------------------------------------------------------------#
@@ -260,7 +292,7 @@ def get_news(user):
             Q(standard=user.standard, batch=None) | Q(standard=None, batch=user.batch) | Q(standard=None, batch=None),
             business_owner=user.selected_institute,
             status="active",
-        )
+        ).order_by('-created_at')[:5]
 
         news_list = []
 
@@ -272,7 +304,9 @@ def get_news(user):
                 "status": news.status,
                 "standard": str(news.standard.id) if news.standard else None,
                 "batch": str(news.batch.id) if news.batch else None,
-                "is_image": True if news.image else False
+                "is_image": True if news.image else False,
+                "created_at": str(news.created_at),
+                "updated_at": str(news.updated_at)
             })
 
         return news_list

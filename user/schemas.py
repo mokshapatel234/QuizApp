@@ -76,6 +76,8 @@ class NewsOut(Schema):
     batch : Optional[UUID]
     status: str
     is_image: bool
+    created_at: str
+    updated_at: str
 
 
 #-----------------------------------------------------------------------------------------------------------#

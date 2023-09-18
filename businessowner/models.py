@@ -337,7 +337,7 @@ class CompetitiveExams(models.Model):
         return self.exam_title
     
     class Meta:
-        verbose_name_plural = "6. Competitive Exams"
+        verbose_name_plural = "7. Competitive Exams"
 
 
 class AcademicBoards(models.Model):
@@ -483,7 +483,7 @@ class Students(models.Model):
         return self.email
     
     class Meta:
-        verbose_name_plural = "8. Students"
+        verbose_name_plural = "9. Students"
 
 
 class BusinessNewses(models.Model):
@@ -510,10 +510,6 @@ class BusinessNewses(models.Model):
     def __str__(self):
         return self.title
 
-class TermsandPolicy(models.Model):
-    user = models.OneToOneField(User,on_delete=models.CASCADE )
-    terms_and_condition = RichTextField()
-    privacy_policy = RichTextField()
 
 class AcademicQuestions(models.Model):
     QUESTION_CHOICES = (('easy','easy'),('medium','medium'), ('hard', 'hard'))
@@ -590,7 +586,7 @@ class AcademicExams(models.Model):
         return self.exam_title
     
     class Meta:
-        verbose_name_plural = "7. Academic Exams"
+        verbose_name_plural = "8. Academic Exams"
 
 
 class Results(models.Model):
@@ -613,4 +609,12 @@ class Results(models.Model):
             self.deleted_at = now()
             self.save()
 
+class TermsandPolicy(models.Model):
+    user = models.OneToOneField(User,on_delete=models.CASCADE )
+    terms_and_condition = RichTextField()
+    privacy_policy = RichTextField()
 
+    def __str__(self):
+        return "Terms And Policy"
+    class Meta:
+        verbose_name_plural = "6. Terms And Policy"

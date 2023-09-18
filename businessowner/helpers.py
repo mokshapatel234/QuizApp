@@ -739,7 +739,7 @@ def add_news(data, user):
 def get_news_list(user):
     try:
         print(user)
-        newses = BusinessNewses.objects.filter(business_owner=user, status="active")
+        newses = BusinessNewses.objects.filter(business_owner=user, status="active").order_by('-created_at')
         newses_list = [
             {
                 "id": str(news.id),
@@ -971,7 +971,7 @@ def add_batch(data, user):
 def get_batchlist(user, query):
     try:
 
-        batches = CompetitiveBatches.objects.filter(business_owner=user)
+        batches = CompetitiveBatches.objects.filter(business_owner=user).order_by('-created_at')
         if query.status:
             batches = batches.filter(status=query.status)
         if query.search:
@@ -1164,7 +1164,7 @@ def add_comp_subect(data, user):
 
 def get_comp_subjectlist(user, query):
     try:
-        subjects = CompetitiveSubjects.objects.filter(business_owner=user)
+        subjects = CompetitiveSubjects.objects.filter(business_owner=user).order_by('-created_at')
         if query.status:
             subjects = subjects.filter(status=query.status)
         if query.search:
@@ -1385,7 +1385,7 @@ def add_comp_chapter(data, user):
 
 def get_comp_chapterlist(user, query):
     try:
-        chapters = CompetitiveChapters.objects.filter(subject_name__business_owner=user)
+        chapters = CompetitiveChapters.objects.filter(subject_name__business_owner=user).order_by('-created_at')
 
         if query.status:
             chapters = chapters.filter(status=query.status)
@@ -1667,21 +1667,31 @@ def add_comp_question(user,data):
 
 def get_comp_questionlist(user, query):
     try:
-        questions = CompetitiveQuestions.objects.filter(business_owner=user)
+        questions = CompetitiveQuestions.objects.filter(business_owner=user).order_by('-created_at')
         if query.status:
             questions = questions.filter(status=query.status)
-        if query.chapter_id:
-            questions = questions.filter(competitve_chapter=query.chapter_id)
-        if query.subject_id:
-            questions = questions.filter(competitve_chapter__subject_name=query.subject_id)
-        if query.batch_id:
+            
+        elif query.subject_id and query.chapter_id and query.batch_id:
             batch_id = query.batch_id
             questions = [question for question in questions if str(batch_id) in [str(batch.id) for batch in question.competitve_chapter.batches.all()]]
 
-        if query.question_category:
+        elif query.subject_id and query.chapter_id:
+            questions = questions.filter(competitve_chapter=query.chapter_id)
+
+        elif query.chapter_id:
+            questions = questions.filter(competitve_chapter=query.chapter_id)
+
+        elif query.subject_id:
+            questions = questions.filter(competitve_chapter__subject_name=query.subject_id)
+
+        elif query.batch_id:
+            batch_id = query.batch_id
+            questions = [question for question in questions if str(batch_id) in [str(batch.id) for batch in question.competitve_chapter.batches.all()]]
+
+        elif query.question_category:
             questions = questions.filter(question_category=query.question_category)
 
-        if query.search:
+        elif query.search:
             search_terms = query.search.strip().split()
             search_query = Q()
 
@@ -2172,13 +2182,11 @@ def start_comp_exam(exam_id, data):
         return JsonResponse(response_data, status=400)
 
 
-
-
 def get_comp_examlist(user, query):
     try: 
-        
-        exams = CompetitiveExams.objects.filter(business_owner=user, start_date__isnull=False)
+        exams = CompetitiveExams.objects.filter(business_owner=user, start_date__isnull=False).order_by('-created_at')
         exam_list = []
+        
         if query.batch_id:
             exams = exams.filter(batch=query.batch_id)
         if query.subject_id:
@@ -2395,9 +2403,13 @@ def upload_student(xl_file, user):
 
 def student_list(user, query):
     try:
-        students = Students.objects.filter(business_owner=user)
+        students = Students.objects.filter(business_owner=user).order_by('-created_at')
         if query.status:
             students = students.filter(status=query.status)
+        elif query.board_id and query.medium_id and query.standard_id:
+            students = students.filter(standard__id=query.standard_id)
+        elif query.board_id and query.medium_id:
+            students = students.filter(standard__medium_name__id=query.medium_id)
         elif query.batch_id:
             students = students.filter(batch__id=query.batch_id)
         elif query.board_id:
@@ -3214,7 +3226,7 @@ def remove_student(student_id):
 
 def get_boards_list(user,filter_prompt):
     try:
-        academic_boards = AcademicBoards.objects.filter(business_owner=user)
+        academic_boards = AcademicBoards.objects.filter(business_owner=user).order_by('-created_at')
 
         if filter_prompt.search:
             q_objects = Q(board_name__icontains=filter_prompt.search) | Q(business_owner__business_name__icontains=filter_prompt.search)
@@ -3407,7 +3419,7 @@ def delete_board_data(user,board_id):
 
 def get_academic_mediums_list(user, filter_prompt):
     try:
-        academic_mediums = AcademicMediums.objects.filter(board_name__business_owner=user)
+        academic_mediums = AcademicMediums.objects.filter(board_name__business_owner=user).order_by('-created_at')
 
         if filter_prompt.search:
             q_objects = Q(medium_name__icontains=filter_prompt.search) | Q(board_name__board_name__icontains=filter_prompt.search)
@@ -3654,7 +3666,7 @@ def delete_medium_data(user,medium_id):
 
 def get_academic_standard_list(user, filter_prompt):
     try:
-        academic_standards = AcademicStandards.objects.filter(medium_name__board_name__business_owner=user)
+        academic_standards = AcademicStandards.objects.filter(medium_name__board_name__business_owner=user).order_by('-created_at')
         
 
         if filter_prompt.search:
@@ -3664,34 +3676,8 @@ def get_academic_standard_list(user, filter_prompt):
             )
             academic_standards = academic_standards.filter(q_objects)
 
-        # elif filter_prompt.status and filter_prompt.medium_id and filter_prompt.board_id and filter_prompt.standard_id:
-        #     academic_standards = academic_standards.filter(
-        #         status=filter_prompt.status,
-        #         medium_name__id=filter_prompt.medium_id,
-        #         medium_name__board_name__id=filter_prompt.board_id,
-        #         id=filter_prompt.standard
-        #     )
-        # elif filter_prompt.status and filter_prompt.medium_id and filter_prompt.board_id:
-        #     academic_standards = academic_standards.filter(
-        #         status=filter_prompt.status,
-        #         medium_name__id=filter_prompt.medium_id,
-        #         medium_name__board_name__id=filter_prompt.board_id
-        #     )
-        # elif filter_prompt.status and filter_prompt.medium_id:
-        #     academic_standards = academic_standards.filter(
-        #         status=filter_prompt.status,
-        #         medium_name__id=filter_prompt.medium_id
-        #     )
-        # elif filter_prompt.status and filter_prompt.board_id:
-        #     academic_standards = academic_standards.filter(
-        #         status=filter_prompt.status,
-        #         medium_name__board_name__id=filter_prompt.board_id
-        #     )
-        # elif filter_prompt.medium_id and filter_prompt.board_id:
-        #     academic_standards = academic_standards.filter(
-        #         medium_name__id=filter_prompt.medium_id,
-        #         medium_name__board_name__id=filter_prompt.board_id
-        #     )
+        elif filter_prompt.medium_id and filter_prompt.board_id:
+            academic_standards = academic_standards.filter(medium_name__id=filter_prompt.medium_id)
         elif filter_prompt.status:
             academic_standards = academic_standards.filter(status=filter_prompt.status)
         elif filter_prompt.medium_id:
@@ -3919,7 +3905,7 @@ def update_standard_data(user,data,standard_id):
 
 def get_academic_subject_list(user, filter_prompt):
     try:
-        academic_subjects = AcademicSubjects.objects.filter(standard__medium_name__board_name__business_owner=user)
+        academic_subjects = AcademicSubjects.objects.filter(standard__medium_name__board_name__business_owner=user).order_by('-created_at')
 
         q_objects = Q()
         if filter_prompt.search:
@@ -4181,7 +4167,7 @@ def update_subject_data(user,data,subject_id):
 
 def get_academic_chapter_list(user, filter_prompt):
     try:
-        academic_chapters = AcademicChapters.objects.filter(subject_name__standard__medium_name__board_name__business_owner=user)
+        academic_chapters = AcademicChapters.objects.filter(subject_name__standard__medium_name__board_name__business_owner=user).order_by('-created_at')
 
         if filter_prompt.search:
             q_objects = (
@@ -4190,6 +4176,14 @@ def get_academic_chapter_list(user, filter_prompt):
                 Q(status__icontains=filter_prompt.search)
             )
             academic_chapters = academic_chapters.filter(q_objects)
+        elif filter_prompt.board_id and filter_prompt.medium_id and filter_prompt.standard_id and filter_prompt.subject_id:
+            academic_chapters = academic_chapters.filter(subject_name__id=filter_prompt.subject_id)
+
+        elif filter_prompt.board_id and filter_prompt.medium_id and filter_prompt.standard_id:
+            academic_chapters = academic_chapters.filter(subject_name__standard_id__id=filter_prompt.standard_id)
+
+        elif filter_prompt.board_id and filter_prompt.medium_id:
+            academic_chapters = academic_chapters.filter(subject_name__standard__medium_name__id=filter_prompt.medium_id)
 
         elif filter_prompt.status:
             academic_chapters = academic_chapters.filter(status=filter_prompt.status)
@@ -4457,10 +4451,16 @@ def add_question_data(user,data):
             "question": question.question,
             "answer": question.answer,
             "options": options_data,  # Return the options data as-is
+            "board_id": str(question.academic_chapter.subject_name.standard.medium_name.board_name.id),
+            "board_name": str(question.academic_chapter.subject_name.standard.medium_name.board_name.board_name),
+            "medium_id": str(question.academic_chapter.subject_name.standard.medium_name.id),
+            "medium_name": str(question.academic_chapter.subject_name.standard.medium_name.medium_name),
+            "standard_id": str(question.academic_chapter.subject_name.standard.id),
+            "standard_name": str(question.academic_chapter.subject_name.standard.standard),
+            "subject_id": str(question.academic_chapter.subject_name.id),
+            "subject_name": question.academic_chapter.subject_name.subject_name, 
             "chapter_id": str(question.academic_chapter.id),
             "chapter_name": question.academic_chapter.chapter_name,
-            "subject_id": str(question.academic_chapter.subject_name.id),
-            "subject_name": question.academic_chapter.subject_name.subject_name,
             "question_category": question.question_category,
             "marks": str(question.marks),
             "time": question.time_duration,
@@ -4501,7 +4501,7 @@ def add_question_data(user,data):
 def get_academic_question_list(user, filter_prompt):
     try:
 
-        questions = AcademicQuestions.objects.filter(business_owner=user)
+        questions = AcademicQuestions.objects.filter(business_owner=user).order_by('-created_at')
         q_objects = Q()
         if filter_prompt.search:
             q_objects = (
@@ -4518,6 +4518,12 @@ def get_academic_question_list(user, filter_prompt):
             
         elif filter_prompt.status:
             q_objects &= Q(status=filter_prompt.status)
+        
+        elif filter_prompt.medium_id and filter_prompt.board_id and filter_prompt.standard_id and filter_prompt.subject_id and filter_prompt.chapter_id:
+            q_objects &= Q(academic_chapter__id=filter_prompt.chapter_id)
+
+        elif filter_prompt.medium_id and filter_prompt.board_id and filter_prompt.standard_id and filter_prompt.subject_id:
+            q_objects &= Q(academic_chapter__subject_name=filter_prompt.subject_id)
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      
         elif filter_prompt.medium_id and filter_prompt.board_id and filter_prompt.standard_id:
             q_objects &= (
@@ -4562,10 +4568,16 @@ def get_academic_question_list(user, filter_prompt):
                     "question": question.question,
                     "answer": question.answer,
                     "options": options_dict,  
-                    "chapter_id": str(question.academic_chapter.id),
-                    "chapter_name": question.academic_chapter.chapter_name,
+                    "board_id": str(question.academic_chapter.subject_name.standard.medium_name.board_name.id),
+                    "board_name": str(question.academic_chapter.subject_name.standard.medium_name.board_name.board_name),
+                    "medium_id": str(question.academic_chapter.subject_name.standard.medium_name.id),
+                    "medium_name": str(question.academic_chapter.subject_name.standard.medium_name.medium_name),
+                    "standard_id": str(question.academic_chapter.subject_name.standard.id),
+                    "standard_name": str(question.academic_chapter.subject_name.standard.standard),
                     "subject_id": str(question.academic_chapter.subject_name.id),
                     "subject_name": question.academic_chapter.subject_name.subject_name, 
+                    "chapter_id": str(question.academic_chapter.id),
+                    "chapter_name": question.academic_chapter.chapter_name, 
                     "question_category": question.question_category,
                     "marks": str(question.marks),
                     "time": str(question.time_duration),
@@ -4616,10 +4628,16 @@ def get_academic_question_data(question_id):
                 "question": question.question,
                 "answer": question.answer,
                 "options": options_dict,  # Return the options data as-is
-                "chapter_id": str(question.academic_chapter.id),
-                "chapter_name": question.academic_chapter.chapter_name,
+                "board_id": str(question.academic_chapter.subject_name.standard.medium_name.board_name.id),
+                "board_name": str(question.academic_chapter.subject_name.standard.medium_name.board_name.board_name),
+                "medium_id": str(question.academic_chapter.subject_name.standard.medium_name.id),
+                "medium_name": str(question.academic_chapter.subject_name.standard.medium_name.medium_name),
+                "standard_id": str(question.academic_chapter.subject_name.standard.id),
+                "standard_name": str(question.academic_chapter.subject_name.standard.standard),
                 "subject_id": str(question.academic_chapter.subject_name.id),
                 "subject_name": question.academic_chapter.subject_name.subject_name, 
+                "chapter_id": str(question.academic_chapter.id),
+                "chapter_name": question.academic_chapter.chapter_name,
                 "question_category": question.question_category,
                 "marks": str(question.marks),
                 "time": str(question.time_duration),
@@ -4734,10 +4752,16 @@ def update_question_data(data, question_id):
                 "id": str(question.id),
                 "question": question.question,
                 "answer": question.answer,
+                "board_id": str(question.academic_chapter.subject_name.standard.medium_name.board_name.id),
+                "board_name": str(question.academic_chapter.subject_name.standard.medium_name.board_name.board_name),
+                "medium_id": str(question.academic_chapter.subject_name.standard.medium_name.id),
+                "medium_name": str(question.academic_chapter.subject_name.standard.medium_name.medium_name),
+                "standard_id": str(question.academic_chapter.subject_name.standard.id),
+                "standard_name": str(question.academic_chapter.subject_name.standard.standard),
+                "subject_id": str(question.academic_chapter.subject_name.id),
+                "subject_name": question.academic_chapter.subject_name.subject_name, 
                 "chapter_id": str(question.academic_chapter.id),
                 "chapter_name": question.academic_chapter.chapter_name,
-                "subject_id": str(question.academic_chapter.subject_name.id),
-                "subject_name": question.academic_chapter.subject_name.subject_name,
                 "question_category": question.question_category,
                 "marks": str(question.marks),
                 "time": str(question.time_duration),
@@ -5022,7 +5046,7 @@ def create_academic_exam(user, data):
 def get_acad_examlist(user, query):
     try: 
         
-        exams = AcademicExams.objects.filter(business_owner=user, start_date__isnull=False)
+        exams = AcademicExams.objects.filter(business_owner=user, start_date__isnull=False).order_by('-created_at')
         
         if query.standard:
             exams = exams.filter(standard=query.standard)

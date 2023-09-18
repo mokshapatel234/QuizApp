@@ -179,7 +179,17 @@ CSRF_COOKIE_HTTPONLY = True
 
 CORS_ALLOWED_ORIGINS = ['*']
 
+DATA_UPLOAD_MAX_MEMORY_SIZE = 209715200  # 200MB
 
+CKEDITOR_UPLOAD_PATH = 'uploads/'
+
+CKEDITOR_CONFIGS = {
+    'default': {
+        'toolbar': 'full',
+        'height': 300,
+        'width': 300,
+    },
+}
 
 EMAIL_HOST = os.getenv("EMAIL_HOST")
 EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER")

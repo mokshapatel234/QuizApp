@@ -264,26 +264,26 @@ def delete_competitive_chapter(request, chapter_id):
 #-----------------------------------------------------------------------------------------------------------#
 
 
-@router.post("/competitive/question", response={200: QuestionOut, 400: dict, 401: dict})
+@router.post("/competitive/question", response={200: CompQuestionOut, 400: dict, 401: dict})
 @verify_token
 def add_competitive_question(request, data: QuestionIn):
     return add_comp_question(request.user,data)
     
 
-@router.get("/competitive/question", response={200: List[Question], 400: dict, 401: dict})
+@router.get("/competitive/question", response={200: List[CompetitiveQuestion], 400: dict, 401: dict})
 @verify_token
 @paginate(CustomPagination)
 def get_competitive_questionlist(request, query:CompQuestionFilter = Query(...)):
     return get_comp_questionlist(request.user, query)
 
 
-@router.get("/competitive/question/{question_id}", response={200: QuestionOut, 400: dict, 401: dict})
+@router.get("/competitive/question/{question_id}", response={200: CompQuestionOut, 400: dict, 401: dict})
 @verify_token
 def get_competitive_question(request, question_id):
     return get_comp_question(request.user, question_id)
 
 
-@router.patch("/competitive/question/{question_id}",  response={200: QuestionOut, 400: dict, 401: dict})
+@router.patch("/competitive/question/{question_id}",  response={200: CompQuestionOut, 400: dict, 401: dict})
 @verify_token
 def update_competitive_question(request, question_id, data: QuestionUpdate):
     return update_comp_question(question_id, data)

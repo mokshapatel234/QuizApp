@@ -1,16 +1,25 @@
 from django.contrib import admin
 from .models import *
-# from django.contrib.auth.models import Group
 from django.contrib import admin
 from django.contrib.auth.models import Group
 from import_export.admin import ExportActionMixin
 from import_export.formats import base_formats
 from import_export import fields, resources
-from import_export.widgets import ForeignKeyWidget
-
+from django import forms
+from ckeditor_uploader.widgets import CKEditorUploadingWidget 
 
 
 admin.site.unregister(Group)
+
+
+class TermsandPolicyAdminForm(forms.ModelForm):
+    class Meta:
+        model = TermsandPolicy
+        fields = ['user', 'terms_and_condition', 'privacy_policy']
+        widgets = {
+            'terms_and_condition': forms.Textarea(attrs={'class': 'ckeditor'}),
+            'privacy_policy': forms.Textarea(attrs={'class': 'ckeditor'}),
+        }
 
 class UserAdmin(admin.ModelAdmin):
     admin.site.site_header = 'MindscapeQ'
@@ -153,6 +162,20 @@ class AcademicExamAdmin(ExportActionMixin, admin.ModelAdmin):
 
     def has_add_permission(self, request, obj=None):
         return False
+    
+    
+class TermsandPolicyAdminForm(forms.ModelForm):
+    class Meta:
+        model = TermsandPolicy
+        fields = ['user', 'terms_and_condition', 'privacy_policy']
+        widgets = {
+            'terms_and_condition': forms.Textarea(attrs={'class': 'django-ckeditor-widget'}),
+            'privacy_policy': forms.Textarea(attrs={'class': 'django-ckeditor-widget'}),
+        }  
+
+class TermsAndPolicyAdmin(admin.ModelAdmin):
+    form = TermsandPolicyAdminForm
+
 
 
 admin.site.register(States, StateAdmin)
@@ -163,4 +186,4 @@ admin.site.register(Notifications, NotificationAdmin)
 admin.site.register(Students, StudentAdmin)
 admin.site.register(CompetitiveExams, CompetitiveExamAdmin)
 admin.site.register(AcademicExams, AcademicExamAdmin)
-admin.site.register(TermsandPolicy)
+admin.site.register(TermsandPolicy, TermsAndPolicyAdmin)
