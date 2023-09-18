@@ -5074,6 +5074,7 @@ def get_acad_examlist(user, query):
             for exam_data in exam.exam_data.all():
                 subject_name = exam_data.subject.subject_name
                 chapter = exam_data.chapter
+                # print(exam_data.easy_question, exam_data.medium_question, exam_data.hard_question)
                 
                 exam_data_list.append({"subject": subject_name, "chapters": chapter})
 
@@ -5091,7 +5092,7 @@ def get_acad_examlist(user, query):
                 "negative_marks":exam.negative_marks,
                 "total_marks":exam.total_marks,
                 "start_date":exam.start_date,
-                "exam_datas": exam_data_list, 
+                "exam_data": exam_data_list, 
                
             }
             exam_list.append(exam_detail)

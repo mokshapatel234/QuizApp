@@ -250,7 +250,7 @@ def update_question(request, question_id: UUID, data: UpdateQuestionIn):
 #-----------------------------------------------------------------------------------------------------------#
 
 
-@router.post("/academic/exam", response={200:AcadeExamOut, 401: dict, 400: dict})
+@router.post("/academic/exam", response={200:dict, 401: dict, 400: dict})
 @verify_token
 def create_acad_exam(request, data: AcademicExamIn):
     return create_academic_exam(request.user, data)

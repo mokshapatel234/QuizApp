@@ -29,6 +29,9 @@ class LoginOut(Schema):
 class ClassSelectIn(Schema):
     id: UUID
 
+class LanguageSelectIn(Schema):
+    language: str
+
 class InstituteOut(Schema):
     result: bool
     data: Institute
@@ -39,6 +42,15 @@ class InstituteListOut(Schema):
     data: List[Institute]
     message: str
 
+
+class Language(Schema):
+    id: str
+    selected_language: str
+
+class LanguageOut(Schema):
+    result: bool
+    data: Language
+    message: str    
 
 #-----------------------------------------------------------------------------------------------------------#
 #----------------------------------------------USER PROFILE-------------------------------------------------#
@@ -53,6 +65,7 @@ class Profile(Schema):
     contact_no: str
     profile_image: Optional[str]
     months: List[str]
+    selected_language: str
 
 class ProfileOut(Schema):
     result: bool

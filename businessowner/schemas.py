@@ -1027,4 +1027,4 @@ class AcadeExamOut(Schema):
     negative_marks:float
     total_marks:int
     start_date: datetime
-    exam_datas: List[Exammm]
+    exam_data: List[Exammm]

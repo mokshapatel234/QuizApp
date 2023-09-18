@@ -29,6 +29,13 @@ def select_institute(request, data:ClassSelectIn):
     return select_class(request.user, data)
 
 
+@router.post("/languageSelect", response={200: LanguageOut, 400: dict, 401: dict})
+@verify_token
+def select_language(request, data:LanguageSelectIn):
+    return select_lan(request.user, data)
+
+
+
 #-----------------------------------------------------------------------------------------------------------#
 #----------------------------------------------USER PROFILE-------------------------------------------------#
 #-----------------------------------------------------------------------------------------------------------#

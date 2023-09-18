@@ -130,6 +130,41 @@ def select_class(user, data):
         return JsonResponse(response_data, status=400)
     
 
+def select_lan(user, data):
+    try:
+
+        student = Students.objects.get(id = user.id)
+        student.selected_language = data.language
+        student.save()
+        response_data = {
+            "result": True,
+            "data": {
+                "id": str(student.id),
+                "selected_language": student.selected_language
+            },
+            "message": "Institute selected successfully"
+        }
+        return response_data
+    except Students.DoesNotExist:
+        response_data = {
+            "result": False,
+            "message": "Student not found",
+        }
+        return JsonResponse(response_data, status=400)
+    except BusinessOwners.DoesNotExist:
+        response_data = {
+            "result": False,
+            "message": "Institute not found",   
+        }
+        return JsonResponse(response_data, status=400)
+    except Exception as e:
+        response_data = {
+            "result": False,
+            "message": "Something went wrong",
+        }
+        return JsonResponse(response_data, status=400)
+    
+
 #-----------------------------------------------------------------------------------------------------------#
 #----------------------------------------------USER PROFILE-------------------------------------------------#
 #-----------------------------------------------------------------------------------------------------------#
@@ -154,7 +189,9 @@ def get_profile(user):
             email=student.email,
             contact_no=student.contact_no,
             profile_image=student.profile_image.url if student.profile_image else None,
+            selected_language=student.selected_language,
             months=months
+            
         )
 
         response_data = {
@@ -264,6 +301,7 @@ def dashboard(user):
                         "id": str(student.id),
                         "selected_institute_id": str(student.selected_institute.id) if student.selected_institute else None,
                         "selected_institute_name": str(student.selected_institute.business_name) if student.selected_institute else None,
+                        "selected_language": student.selected_language,
                         "logo": student.selected_institute.logo.url if student.selected_institute.logo else None,
                 
                     },

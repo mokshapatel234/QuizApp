@@ -452,9 +452,11 @@ class AcademicChapters(models.Model):
 
 class Students(models.Model):
     CHOICES = (('inactive','inactive'),('active','active'))
+    LANGUAGE_CHOICE = (('english', 'english'), ('gujarati', 'gujarati'))
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     business_owner = models.ForeignKey(BusinessOwners, on_delete=models.CASCADE, related_name="owner_student")
     selected_institute = models.ForeignKey(BusinessOwners, on_delete=models.CASCADE, related_name="institute_select", null=True)
+    selected_language = models.CharField(("selected_language"),choices=LANGUAGE_CHOICE, max_length=50,default='english')
     fcm_token = models.CharField(max_length=255, blank=True, null=True)
     first_name = models.CharField(max_length=50)
     last_name = models.CharField(max_length=50)
