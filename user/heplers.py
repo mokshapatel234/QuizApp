@@ -30,6 +30,7 @@ def perform_login(data):
                     "address": first_student.address if first_student.address else None,
                     "profile_image": first_student.profile_image.url if first_student.profile_image else None,
                     "status": first_student.status,
+                    "selected_language": first_student.selected_language,
                     "token": token,   
                 },
                 "message": "Login successful",
@@ -264,7 +265,9 @@ def update_profile(user, data):
                         "email": student.email,
                         "contact_no": student.contact_no,
                         "profile_image": student.profile_image.url if student.profile_image else None,
-                        "months": months  
+                        "selected_language": student.selected_language ,
+                        "months": months
+                         
                     },
                     "message": "Profile updated successfully"
                 }

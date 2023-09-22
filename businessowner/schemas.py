@@ -182,6 +182,7 @@ class BatchOut(Schema):
 class BatchFilter(Schema):
     status: Optional[str]
     search: Optional[str]
+    chapter_id: Optional[str]
 
 
 #-----------------------------------------------------------------------------------------------------------#
@@ -235,6 +236,7 @@ class CompChapterFilter(Schema):
     batch_id: Optional[str]
     subject_id: Optional[str]
     search: Optional[str]
+    subject_ids: Optional[str]
 
 class ChapterBatch(Schema):
     id: str
@@ -310,6 +312,7 @@ class CompetitiveQuestion(Schema):
     chapter_name: str
     subject_id: str
     subject_name: str
+    batches: List[ChapterBatch]
     question_category: str
     marks: int
     time: str
@@ -381,7 +384,6 @@ class CompExamOut(Schema):
     time_duration: float
     negative_marks:float
     total_marks:int
-    start_date: datetime
     exam_datas: List[Exammm]
     
 
@@ -399,8 +401,8 @@ class StudentIn(Schema):
     parent_contact_no: str
     profile_image: Optional[str]  
     address: Optional[str]  
-    batch_id: Optional[UUID]  
-    standard_id: Optional[UUID]  
+    batch_id: Optional[str]  
+    standard_id: Optional[str]  
 
 class StudentUpdate(Schema):
     first_name: Optional[str]  
@@ -741,6 +743,7 @@ class AcademicFilter(Schema):
     medium_id : Optional[str]
     subject_id : Optional[str]
     chapter_id : Optional[str]
+    subject_ids: Optional[str]
 
 class AcademicBoardOut(Schema):
     result: bool

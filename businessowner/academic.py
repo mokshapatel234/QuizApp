@@ -171,7 +171,7 @@ def update_subject(request, subject_id: UUID, data: updateSubjectIn):
 #-----------------------------------------------------------------------------------------------------------#
 
 
-@router.get("/academic/chapter", response={200:List[AcademicChapter], 401:dict, 400:dict})
+@router.get("/academic/chapter", response={200:List[dict], 401:dict, 400:dict})
 @verify_token
 @paginate(CustomPagination)
 def get_academic_chapter(request,filter_prompt: AcademicFilter = Query(...)):

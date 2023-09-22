@@ -234,7 +234,7 @@ def add_competitive_chapter(request, data: CompChapterIn):
     return add_comp_chapter(data, request.user)
     
 
-@router.get("/competitive/chapter", response={200: List[CompChapter], 400: dict, 401: dict})
+@router.get("/competitive/chapter", response={200: List[dict], 400: dict, 401: dict})
 @verify_token
 @paginate(CustomPagination)
 def get_competitive_chapterlist(request, query:CompChapterFilter = Query(...)):
@@ -300,7 +300,7 @@ def delete_competitive_question(request, question_id):
 #-----------------------------------------------------------------------------------------------------------#
 
 
-@router.post("/competitive/exam", response={200: CompExamOut, 400: dict, 401: dict})
+@router.post("/competitive/exam", response={200: dict, 400: dict, 401: dict})
 @verify_token
 def create_competitive_exam(request, data: CompExamIn):
     return create_comp_exam(request.user, data)
