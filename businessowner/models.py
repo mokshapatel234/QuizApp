@@ -24,7 +24,7 @@ class States(models.Model):
     status = models.CharField(("status"),choices=CHOICES, max_length=50,default='active') 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    deleted_at = models.DateTimeField(blank=True,null=True ,default=None, editable=False)
+    deleted_at = models.DateTimeField(blank=True, null=True, default=None, editable=False)
     objects = ParanoidModelManager()   
 
     def delete(self, hard=False, **kwargs):
@@ -49,7 +49,7 @@ class Cities(models.Model):
     status = models.CharField(("status"),choices=CHOICES, max_length=50,default='active') 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    deleted_at = models.DateTimeField(blank=True,null=True ,default=None, editable=False)
+    deleted_at = models.DateTimeField(blank=True, null=True, default=None, editable=False)
     objects = ParanoidModelManager()   
 
     def delete(self, hard=False, **kwargs):
@@ -86,7 +86,7 @@ class BusinessOwners(models.Model):
     is_plan_purchase = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    deleted_at = models.DateTimeField(blank=True,null=True ,default=None, editable=False)
+    deleted_at = models.DateTimeField(blank=True, null=True, default=None, editable=False)
     objects = ParanoidModelManager()   
 
     def delete(self, hard=False, **kwargs):
@@ -115,7 +115,7 @@ class Plans(models.Model):
     status = models.CharField(("status"),choices=CHOICES, max_length=50,default='active')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    deleted_at = models.DateTimeField(blank=True,null=True ,default=None, editable=False)
+    deleted_at = models.DateTimeField(blank=True, null=True, default=None, editable=False)
     objects = ParanoidModelManager()
     
     def delete(self, hard=False, **kwargs):
@@ -132,7 +132,6 @@ class Plans(models.Model):
         verbose_name_plural = "4. Plans"
 
 
-
 class PurchaseHistory(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     plan = models.ForeignKey(Plans, on_delete=models.CASCADE, related_name="plan")
@@ -143,7 +142,7 @@ class PurchaseHistory(models.Model):
     expire_date = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    deleted_at = models.DateTimeField(blank=True,null=True ,default=None, editable=False)
+    deleted_at = models.DateTimeField(blank=True, null=True, default=None, editable=False)
     objects = ParanoidModelManager()
     
     def delete(self, hard=False, **kwargs):
@@ -156,7 +155,6 @@ class PurchaseHistory(models.Model):
     def __str__(self):
         return f"{self.plan.plan_name} ({self.business_owner.first_name} {self.business_owner.last_name})"
     
-
     
 class Notifications(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -165,7 +163,7 @@ class Notifications(models.Model):
     message = models.TextField()
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    deleted_at = models.DateTimeField(blank=True,null=True ,default=None, editable=False)
+    deleted_at = models.DateTimeField(blank=True, null=True, default=None, editable=False)
     objects = ParanoidModelManager()
     
     def delete(self, hard=False, **kwargs):
@@ -186,6 +184,7 @@ class Notifications(models.Model):
 #---------------------------------------BUSINESS-OWNER-------------------------------------------#
 #------------------------------------------------------------------------------------------------#        
 
+
 class CompetitiveBatches(models.Model):
     CHOICES = (('inactive','inactive'),('active','active'))
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -194,7 +193,7 @@ class CompetitiveBatches(models.Model):
     status = models.CharField(("status"),choices=CHOICES, max_length=50,default='active')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    deleted_at = models.DateTimeField(blank=True,null=True ,default=None, editable=False )
+    deleted_at = models.DateTimeField(blank=True, null=True, default=None, editable=False)
     objects = ParanoidModelManager()
     
     def delete(self, hard=False, **kwargs):
@@ -216,7 +215,7 @@ class CompetitiveSubjects(models.Model):
     status = models.CharField(("status"),choices=CHOICES, max_length=50,default='active')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    deleted_at = models.DateTimeField(blank=True,null=True ,default=None, editable=False)
+    deleted_at = models.DateTimeField(blank=True, null=True, default=None, editable=False)
     objects = ParanoidModelManager()
     
     def delete(self, hard=False, **kwargs):
@@ -228,7 +227,8 @@ class CompetitiveSubjects(models.Model):
 
     def __str__(self):
         return self.subject_name
-    
+
+
 class CompetitiveChapters(models.Model):
     CHOICES = (('inactive','inactive'),('active','active'))
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -238,7 +238,7 @@ class CompetitiveChapters(models.Model):
     status = models.CharField(("status"),choices=CHOICES, max_length=50,default='active')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    deleted_at = models.DateTimeField(blank=True,null=True ,default=None, editable=False)
+    deleted_at = models.DateTimeField(blank=True, null=True, default=None, editable=False)
     objects = ParanoidModelManager()
     
     def delete(self, hard=False, **kwargs):
@@ -250,7 +250,7 @@ class CompetitiveChapters(models.Model):
 
     def __str__(self):
         return self.chapter_name
-    
+
 
 class Options(models.Model):
     id = models.UUIDField(default=uuid.uuid4,primary_key=True, editable=False)
@@ -278,7 +278,7 @@ class CompetitiveQuestions(models.Model):
     status = models.CharField(("Status"),choices=CHOICES, max_length=50,default='active')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    deleted_at = models.DateTimeField(blank=True,null=True ,default=None, editable=False)
+    deleted_at = models.DateTimeField(blank=True, null=True, default=None, editable=False)
     objects = ParanoidModelManager()
     
     def delete(self, hard=False, **kwargs):
@@ -323,7 +323,7 @@ class CompetitiveExams(models.Model):
     status = models.CharField(("status"),choices=CHOICES, max_length=50,default='active')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    deleted_at = models.DateTimeField(blank=True,null=True ,default=None, editable=False)
+    deleted_at = models.DateTimeField(blank=True, null=True, default=None, editable=False)
     objects = ParanoidModelManager()
     
     def delete(self, hard=False, **kwargs):
@@ -348,7 +348,7 @@ class AcademicBoards(models.Model):
     status = models.CharField(("status"),choices=CHOICES, max_length=50,default='active')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    deleted_at = models.DateTimeField(blank=True,null=True ,default=None, editable=False)
+    deleted_at = models.DateTimeField(blank=True, null=True, default=None, editable=False)
     objects = ParanoidModelManager()
     
     def delete(self, hard=False, **kwargs):
@@ -370,7 +370,7 @@ class AcademicMediums(models.Model):
     status = models.CharField(("status"),choices=CHOICES, max_length=50,default='active')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    deleted_at = models.DateTimeField(blank=True,null=True ,default=None, editable=False)
+    deleted_at = models.DateTimeField(blank=True ,null=True, default=None, editable=False)
     objects = ParanoidModelManager()
     
     def delete(self, hard=False, **kwargs):
@@ -382,7 +382,7 @@ class AcademicMediums(models.Model):
 
     def __str__(self):
         return self.medium_name
-    
+
 
 class AcademicStandards(models.Model):
     CHOICES = (('inactive','inactive'),('active','active'))
@@ -392,7 +392,7 @@ class AcademicStandards(models.Model):
     status = models.CharField(("status"),choices=CHOICES, max_length=50,default='active')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    deleted_at = models.DateTimeField(blank=True,null=True ,default=None, editable=False)
+    deleted_at = models.DateTimeField(blank=True, null=True, default=None, editable=False)
     objects = ParanoidModelManager()
     
     def delete(self, hard=False, **kwargs):
@@ -414,7 +414,7 @@ class AcademicSubjects(models.Model):
     status = models.CharField(("status"),choices=CHOICES, max_length=50,default='active')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    deleted_at = models.DateTimeField(blank=True,null=True ,default=None, editable=False)
+    deleted_at = models.DateTimeField(blank=True, null=True, default=None, editable=False)
     objects = ParanoidModelManager()
     
     def delete(self, hard=False, **kwargs):
@@ -436,7 +436,7 @@ class AcademicChapters(models.Model):
     status = models.CharField(("status"),choices=CHOICES, max_length=50,default='active')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    deleted_at = models.DateTimeField(blank=True,null=True ,default=None, editable=False)
+    deleted_at = models.DateTimeField(blank=True, null=True, default=None, editable=False)
     objects = ParanoidModelManager()
     
     def delete(self, hard=False, **kwargs):
@@ -471,7 +471,7 @@ class Students(models.Model):
     status = models.CharField(("status"),choices=CHOICES, max_length=50,default='active')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    deleted_at = models.DateTimeField(blank=True,null=True ,default=None, editable=False)
+    deleted_at = models.DateTimeField(blank=True, null=True, default=None, editable=False)
     objects = ParanoidModelManager()
     
     def delete(self, hard=False, **kwargs):
@@ -499,7 +499,7 @@ class BusinessNewses(models.Model):
     status = models.CharField(("status"),choices=CHOICES, max_length=50,default='active')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    deleted_at = models.DateTimeField(blank=True,null=True ,default=None, editable=False)
+    deleted_at = models.DateTimeField(blank=True, null=True, default=None, editable=False)
     objects = ParanoidModelManager()
     
     def delete(self, hard=False, **kwargs):
@@ -528,7 +528,7 @@ class AcademicQuestions(models.Model):
     status = models.CharField(("status"),choices=CHOICES, max_length=50,default='active')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    deleted_at = models.DateTimeField(blank=True,null=True ,default=None, editable=False)
+    deleted_at = models.DateTimeField(blank=True, null=True, default=None, editable=False)
     objects = ParanoidModelManager()
     
     def delete(self, hard=False, **kwargs):
@@ -540,6 +540,7 @@ class AcademicQuestions(models.Model):
             
     def __str__(self):
         return self.question
+
 
 class AcademicExamData(models.Model):
     id = models.UUIDField(default=uuid.uuid4,primary_key=True)
@@ -554,6 +555,7 @@ class AcademicExamData(models.Model):
 
     def __str__(self):
         return str(self.id)
+
 
 class AcademicExams(models.Model):
     MARKS_CHOICES = (('None','None'),('0.25','0.25'), ('0.33', '0.33'))
@@ -574,7 +576,7 @@ class AcademicExams(models.Model):
     status = models.CharField(("status"),choices=CHOICES, max_length=50,default='active')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    deleted_at = models.DateTimeField(blank=True,null=True ,default=None, editable=False)
+    deleted_at = models.DateTimeField(blank=True, null=True, default=None, editable=False)
     objects = ParanoidModelManager()
     
     def delete(self, hard=False, **kwargs):
@@ -601,7 +603,7 @@ class Results(models.Model):
     result = models.CharField(("result"),choices=CHOICES, max_length=50,default='pass')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    deleted_at = models.DateTimeField(blank=True,null=True ,default=None, editable=False)
+    deleted_at = models.DateTimeField(blank=True, null=True, default=None, editable=False)
     objects = ParanoidModelManager()
     
     def delete(self, hard=False, **kwargs):
@@ -611,12 +613,24 @@ class Results(models.Model):
             self.deleted_at = now()
             self.save()
 
+
+class StudentAnswer(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    academic_question = models.ForeignKey(AcademicQuestions, on_delete=models.CASCADE, related_name="question_acade")
+    competitive_question = models.ForeignKey(CompetitiveQuestions, on_delete=models.CASCADE, related_name="question_comp")
+    selected_answer = models.CharField(max_length=50)
+    student = models.ForeignKey(Students, on_delete=models.CASCADE, related_name="student_answer")
+    competitive_exam = models.ForeignKey(CompetitiveExams, on_delete=models.CASCADE, related_name="exam_comp")
+    academic_exam = models.ForeignKey(AcademicBoards, on_delete=models.CASCADE, related_name="exam_acade") 
+
+
 class TermsandPolicy(models.Model):
-    user = models.OneToOneField(User,on_delete=models.CASCADE )
+    user = models.OneToOneField(User,on_delete=models.CASCADE)
     terms_and_condition = RichTextField()
     privacy_policy = RichTextField()
 
     def __str__(self):
         return "Terms And Policy"
+    
     class Meta:
         verbose_name_plural = "6. Terms And Policy"

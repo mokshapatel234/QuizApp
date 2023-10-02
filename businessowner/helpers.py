@@ -2107,6 +2107,13 @@ def create_comp_exam(user, data):
                 exam_data_calculated.append(exam_data_instance)
 
                 for question in selected_questions_set1:
+                    options_data = Options.objects.get(id=question.options_id)
+                    options_dict = {
+                            "option1": options_data.option1 if options_data else None,
+                            "option2": options_data.option2 if options_data else None,
+                            "option3": options_data.option3 if options_data else None,
+                            "option4": options_data.option4 if options_data else None,
+                        }
                     comp_exam_instance = CompExam(
                         
                         id = str(question.id),
@@ -2121,6 +2128,13 @@ def create_comp_exam(user, data):
             if backtrack_result_set2:
                
                 for question in selected_questions_set2:
+                    options_data = Options.objects.get(id=question.options_id)
+                    options_dict = {
+                            "option1": options_data.option1 if options_data else None,
+                            "option2": options_data.option2 if options_data else None,
+                            "option3": options_data.option3 if options_data else None,
+                            "option4": options_data.option4 if options_data else None,
+                        }
                     comp_exam_instance = CompExam(
                         id = str(question.id),
                         question=question.question,
@@ -2133,6 +2147,13 @@ def create_comp_exam(user, data):
 
             if backtrack_result_set3:
                 for question in selected_questions_set3:
+                    options_data = Options.objects.get(id=question.options_id)
+                    options_dict = {
+                            "option1": options_data.option1 if options_data else None,
+                            "option2": options_data.option2 if options_data else None,
+                            "option3": options_data.option3 if options_data else None,
+                            "option4": options_data.option4 if options_data else None,
+                        }
                     comp_exam_instance = CompExam(
                         id = str(question.id),
                         question=question.question,
@@ -5001,6 +5022,13 @@ def create_academic_exam(user, data):
                 exam_data_calculated.append(exam_data_instance)
 
                 for question in selected_questions_set1:
+                    options_data = Options.objects.get(id=question.options_id)
+                    options_dict = {
+                            "option1": options_data.option1 if options_data else None,
+                            "option2": options_data.option2 if options_data else None,
+                            "option3": options_data.option3 if options_data else None,
+                            "option4": options_data.option4 if options_data else None,
+                        }
                     acad_exam_instance = AcadExam(
                         
                         id = str(question.id),
@@ -5008,32 +5036,53 @@ def create_academic_exam(user, data):
                         time=float(question.time_duration),
                         mark=question.marks,
                         question_category=question.question_category,
-                        subject = str(question.academic_chapter)
+                        subject = str(question.academic_chapter),
+                        options = options_dict,
+                        answer = question.answer
+                        
                     )
                     selected_acad_questions_set1.append(acad_exam_instance)
 
             if backtrack_result_set2:
                
                 for question in selected_questions_set2:
+                    options_data = Options.objects.get(id=question.options_id)
+                    options_dict = {
+                            "option1": options_data.option1 if options_data else None,
+                            "option2": options_data.option2 if options_data else None,
+                            "option3": options_data.option3 if options_data else None,
+                            "option4": options_data.option4 if options_data else None,
+                        }
                     acad_exam_instance = AcadExam(
                         id = str(question.id),
                         question=question.question,
                         time=float(question.time_duration),
                         mark=question.marks,
                         question_category=question.question_category,
-                        subject = str(question.academic_chapter)
+                        subject = str(question.academic_chapter),
+                        options = options_dict,
+                        answer = question.answer
                     )
                     selected_acad_questions_set2.append(acad_exam_instance)
 
             if backtrack_result_set3:
                 for question in selected_questions_set3:
+                    options_data = Options.objects.get(id=question.options_id)
+                    options_dict = {
+                            "option1": options_data.option1 if options_data else None,
+                            "option2": options_data.option2 if options_data else None,
+                            "option3": options_data.option3 if options_data else None,
+                            "option4": options_data.option4 if options_data else None,
+                        }
                     acad_exam_instance = AcadExam(
                         id = str(question.id),
                         question=question.question,
                         time=float(question.time_duration),
                         mark=question.marks,
                         question_category=question.question_category,
-                        subject = str(question.academic_chapter)
+                        subject = str(question.academic_chapter),
+                        options = options_dict,
+                        answer = question.answer
                     )
                     selected_acad_questions_set3.append(acad_exam_instance)
 

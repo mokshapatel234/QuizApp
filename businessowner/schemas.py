@@ -362,6 +362,8 @@ class CompExam(Schema):
     question_category: str
     time: float
     mark: int
+    options: Optionschema
+    answer: str 
     subject: str
 
 class CompExamQuestion(Schema):
@@ -983,8 +985,10 @@ class AcadExam(Schema):
     question_category: str
     time: float
     mark: int
+    options: Optionschema
+    answer: str
     subject: str
-
+    
 
 class AcadExamData(Schema):
     subject_id: UUID

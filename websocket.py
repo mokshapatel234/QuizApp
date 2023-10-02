@@ -7,7 +7,9 @@ from fastapi import WebSocketDisconnect
 import os
 import dotenv
 import jwt
+import random
 import uuid
+import json
 from rest_framework import exceptions
 from fastapi import HTTPException
 from starlette.websockets import WebSocketState
@@ -21,7 +23,7 @@ from django import setup
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "quizapp.settings")  
 
 setup()
-from businessowner.models import BusinessOwners, Students
+from businessowner.models import BusinessOwners, Students, StudentAnswer, CompetitiveExams, AcademicExams, CompetitiveQuestions, AcademicQuestions, Options
 
 app = FastAPI()
 
@@ -57,6 +59,7 @@ class Singleton:
 class ConnectionManager(Singleton):
     def __init__(self):
         self.active_connections = []
+        self.room_clients = {}
 
     async def connect(self, websocket: WebSocket):
         await websocket.accept()  
@@ -70,34 +73,29 @@ class ConnectionManager(Singleton):
         if websocket.application_state == WebSocketState.CONNECTED:
             await websocket.send_text(message)
 
-    async def send_personal_message(self, message: str, receiver: str):
+    async def send_personal_message(self, message: str, receiver_id: int):
         for connection in self.active_connections:
-            websocket = connection
-            if id(websocket) == receiver:
-                await websocket.send_text(message)
-
-
-    async def broadcast(self, message: str):
-        for client_id, data in self.active_connections.items():
-            websocket = data["websocket"]
-            await websocket.send_text(message)
+            if id(connection) == receiver_id:
+                await connection.send_text(message)
 
     async def join_room(self, websocket: WebSocket, room_id: str):
-        self.active_connections.append((websocket, room_id))
+        self.room_clients[room_id] = websocket
 
+    async def leave_room(self, room_id: str):
+        del self.room_clients[room_id]
 
-    def get_connection_by_user_id(self, user_id: str) -> Optional[WebSocket]:
-        for connection, uid in self.active_connections:
-            if uid == user_id:
-                return connection
-        return None
-
+    async def broadcast_to_room(self, room_id: str, message: str):
+        for websocket in self.active_connections:
+            try:
+                await websocket.send_json(message)
+            except Exception as e:
+                print(f"Failed to send message to client : {e}")
 
 manager = ConnectionManager() 
 
 def generate_unique_room_id():
-    return str(uuid.uuid4())
-
+    # return str(uuid.uuid4())
+    return str(random.randint(1000000000, 9999999999))
 
 class JWTAuthentication:
     async def authenticate(self, request, token, user_type):
@@ -172,17 +170,128 @@ async def get_current_user(token: str, user_type: str):
         return user_info
     except HTTPException as e:
         raise e
+    
+
+@sync_to_async
+def get_academic_exam(exam_id):
+    try:
+        return AcademicExams.objects.get(id=exam_id)
+    except AcademicExams.DoesNotExist:
+        return None
+    
+
+@sync_to_async
+def get_academic_question(question_id):
+    try:
+        return AcademicQuestions.objects.get(id=question_id)
+    except AcademicQuestions.DoesNotExist:
+        return None
+    
+    
+@sync_to_async
+def get_competitive_exam(exam_id):
+    try:
+        return CompetitiveExams.objects.get(id=exam_id)
+    except CompetitiveExams.DoesNotExist:
+        return None
+    
+
+@sync_to_async
+def get_competitive_question(question_id):
+    try:
+        return CompetitiveQuestions.objects.get(id=question_id)
+    except CompetitiveQuestions.DoesNotExist:
+        return None
+    
+
+@sync_to_async
+def get_options(option_id):
+    try:
+        options_data = Options.objects.get(id=option_id)
+        if options_data:
+            options_dict = {
+                "option1": options_data.option1,
+                "option2": options_data.option2,
+                "option3": options_data.option3,
+                "option4": options_data.option4,
+            }
+            return options_dict
+        else:
+            return None
+    except Options.DoesNotExist:
+        return None
+
+
+def get_question_set(exam):
+    try:
+        query_string = str(exam.question_set.all().query)
+        import re
+        question_ids = re.findall(r'[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}', query_string, re.IGNORECASE)
+        if question_ids:
+            unique_question_ids = list(set(question_ids))
+            return unique_question_ids
+        else:
+            print("No question IDs found in the query string.")
+            return None
+    except Exception as e:
+        print(e)
+        return None
+
+
+async def fetch_questions_from_database(exam_id, business_type):
+    questions_list = []
+
+    if business_type == 'competitive':
+        exam = await get_competitive_exam(exam_id)
+        question_ids = get_question_set(exam)
+
+        for question_id in question_ids:
+            question = await get_competitive_question(question_id)
+            options = await get_options(question.options_id)
+            if question:
+                question_data = {
+                    "question": question.question,
+                    "options": options,
+                    "answer": question.answer,
+                    "marks": question.marks,
+                    "time_duration": question.time_duration
+                }
+                questions_list.append(question_data)
+
+    elif business_type == 'academic':
+        exam = await get_academic_exam(exam_id)
+        question_ids = get_question_set(exam)
+
+        for question_id in question_ids:
+            question = await get_academic_question(question_id)
+            options = await get_options(question.options_id)
+            if question:
+                question_data = {
+                    "question": question.question,
+                    "options": options,
+                    "answer": question.answer,
+                    "marks": question.marks,
+                    "time_duration": question.time_duration
+                }
+                questions_list.append(question_data)
+
+    return questions_list
+
 
 owner_id = None
+
+active_room = {}
+
 
 @app.websocket("/ws/room_connection")
 async def room_connection(
     websocket: WebSocket,
     token: str = Query(None),
     room_id: str = Query(None),
-    user_type: str = Query(None)
+    user_type: str = Query(None),
+    exam_id: str = Query(None)
 ):
-    global owner_id  
+    global owner_id
 
     user_info = await get_current_user(token, user_type)
     print(user_info)
@@ -190,22 +299,28 @@ async def room_connection(
         await websocket.close(code=1008, reason="Unauthorized")
         return
 
-    
     await manager.connect(websocket)
+    if isinstance(user_info, BusinessOwners):
+        print("info", user_info.business_type)
     if owner_id is None:
         owner_id = id(websocket)
         print(owner_id, "Student")
-        
+
     if room_id:
-        await manager.join_room(websocket, room_id)
-        await websocket.send_text(f"You are now connected to room {room_id}.")
-        if isinstance(user_info, Students):
+        if room_id in active_room and active_room[room_id] == owner_id:
+            await manager.join_room(websocket, room_id)
+            await websocket.send_text(f"You are now connected to room {room_id}.")
+            if isinstance(user_info, Students):
                 print("info", user_info)
                 student_id = user_info.id
                 message = f"Student {user_info.first_name} {user_info.last_name} entered the room."
                 await manager.send_personal_message(message, owner_id)
+        else:
+            await websocket.close(code=1008, reason="Invalid Room ID")
+            return
     else:
         room_id = generate_unique_room_id()
+        active_room[room_id] = owner_id
         await manager.join_room(websocket, room_id)
         await websocket.send_text(f"Room ID: {room_id}")
         await websocket.send_text("You are now connected to the room.")
@@ -214,8 +329,33 @@ async def room_connection(
         while True:
             message = await websocket.receive_text()
 
+            if message.startswith("start"):
+                question_id = int(message.split(" ")[1])
+                questions = await fetch_questions_from_database(exam_id, user_info.business_type)
+                if 0 <= question_id < len(questions):
+                    question_json = json.dumps(questions[question_id])
+                    await manager.broadcast_to_room(room_id, question_json)
+                else:
+                    await manager.broadcast_to_room(room_id, "Invalid question ID")
+
+            elif message == "finish":
+                
+                pass
+
+            elif message.startswith("next question"):
+                question_id += 1
+                questions = await fetch_questions_from_database(exam_id, user_info.business_type)
+                if 0 <= question_id < len(questions):
+                    question_json = json.dumps(questions[question_id])
+                    await manager.broadcast_to_room(room_id, question_json)
+                else:
+                    await manager.broadcast_to_room(room_id, "No more questions.")
+
+
     except WebSocketDisconnect:
         await manager.disconnect(websocket)
+
+
 
 
 if __name__ == '__main__':
