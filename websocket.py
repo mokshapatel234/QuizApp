@@ -170,7 +170,27 @@ async def get_current_user(token: str, user_type: str):
         return user_info
     except HTTPException as e:
         raise e
-    
+
+
+@sync_to_async
+def save_student_answer(academic_question, competitive_question, selected_answer, student_instance, competitive_exam, academic_exam):
+    student_answer = StudentAnswer(
+        academic_question=academic_question,
+        competitive_question=competitive_question,
+        selected_answer=selected_answer,
+        student=student_instance,
+        competitive_exam=competitive_exam,
+        academic_exam=academic_exam,
+    )
+    student_answer.save()
+
+@sync_to_async
+def get_student(student_id):
+    try:
+        return Students.objects.get(id=student_id)
+    except Students.DoesNotExist:
+        return None
+
 
 @sync_to_async
 def get_academic_exam(exam_id):
@@ -194,6 +214,8 @@ def get_competitive_exam(exam_id):
         return CompetitiveExams.objects.get(id=exam_id)
     except CompetitiveExams.DoesNotExist:
         return None
+    except Exception as e:
+        print(e)
     
 
 @sync_to_async
@@ -277,6 +299,41 @@ async def fetch_questions_from_database(exam_id, business_type):
 
     return questions_list
 
+async def process_selected_answer(exam_id, user_info, selected_answer, current_question_id, student_id):
+    exam = None
+    question = None
+    student_instance = None
+    student_score = 0
+
+    if user_info.batch_id:
+        exam = await get_competitive_exam(exam_id)
+    elif user_info.standard_id:
+        exam = await get_academic_exam(exam_id)
+
+    question_ids = get_question_set(exam)
+
+    if 0 <= current_question_id < len(question_ids):
+        if user_info.batch_id:
+            question = await get_competitive_question(question_ids[current_question_id])
+        elif user_info.standard_id:
+            question = await get_academic_question(question_ids[current_question_id])
+
+    if question and question.answer == selected_answer:
+        student_score += question.marks
+
+        student_instance = await get_student(student_id)
+
+    await save_student_answer(
+        question if user_info.standard_id else None,
+        question if user_info.batch_id else None,
+        selected_answer,
+        student_instance,
+        exam if user_info.batch_id else None,
+        exam if user_info.standard_id else None
+    )
+
+    return student_score
+
 
 owner_id = None
 
@@ -325,6 +382,7 @@ async def room_connection(
         await websocket.send_text(f"Room ID: {room_id}")
         await websocket.send_text("You are now connected to the room.")
 
+    student_score = 0
     try:
         while True:
             message = await websocket.receive_text()
@@ -338,9 +396,7 @@ async def room_connection(
                 else:
                     await manager.broadcast_to_room(room_id, "Invalid question ID")
 
-            elif message == "finish":
-                
-                pass
+            
 
             elif message.startswith("next question"):
                 question_id += 1
@@ -350,8 +406,18 @@ async def room_connection(
                     await manager.broadcast_to_room(room_id, question_json)
                 else:
                     await manager.broadcast_to_room(room_id, "No more questions.")
+            
+            elif message.startswith("selected_answer"):
+                parts = message.split(" ")
+                selected_answer = parts[1]
+                current_question_id = int(parts[2])
 
-
+                student_score += await process_selected_answer(exam_id, user_info, selected_answer, current_question_id, student_id)
+                print(student_score, "SCORE")
+                   
+            elif message == "finish":
+                
+                pass
     except WebSocketDisconnect:
         await manager.disconnect(websocket)
 
