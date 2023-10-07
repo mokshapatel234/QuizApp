@@ -2046,7 +2046,7 @@ def create_comp_exam(user, data):
             subject_time = int(data.time_duration * subject_percentage + 0.5)
             subject_marks = round(float(data.total_marks * subject_percentage))
             print(subject_marks, "MMMMAAAARRRKKKKKK")
-        
+
             subject_instance = CompetitiveSubjects.objects.get(id=subject_data.subject)
             
             chapter_instance = CompetitiveChapters.objects.filter(id__in=subject_data.chapter)
@@ -2121,7 +2121,9 @@ def create_comp_exam(user, data):
                         time=float(question.time_duration),
                         mark=question.marks,
                         question_category=question.question_category,
-                        subject = str(question.competitve_chapter)
+                        subject = str(question.competitve_chapter),
+                        options = options_dict,
+                        answer = question.answer
                     )
                     selected_comp_questions_set1.append(comp_exam_instance)
 
@@ -2141,7 +2143,9 @@ def create_comp_exam(user, data):
                         time=float(question.time_duration),
                         mark=question.marks,
                         question_category=question.question_category,
-                        subject = str(question.competitve_chapter)
+                        subject = str(question.competitve_chapter),
+                        options = options_dict,
+                        answer = question.answer
                     )
                     selected_comp_questions_set2.append(comp_exam_instance)
 
@@ -2160,7 +2164,9 @@ def create_comp_exam(user, data):
                         time=float(question.time_duration),
                         mark=question.marks,
                         question_category=question.question_category,
-                        subject = str(question.competitve_chapter)
+                        subject = str(question.competitve_chapter),
+                        options = options_dict,
+                        answer = question.answer
                     )
                     selected_comp_questions_set3.append(comp_exam_instance)
 
@@ -3943,7 +3949,7 @@ def update_standard_data(user,data,standard_id):
 def get_academic_subject_list(user, filter_prompt):
     try:
         academic_subjects = AcademicSubjects.objects.filter(standard__medium_name__board_name__business_owner=user).order_by('-created_at')
-
+        print(academic_subjects,'asdfaf')
         q_objects = Q()
         if filter_prompt.search:
             q_objects = (
@@ -4874,7 +4880,7 @@ def update_question_data(data, question_id):
                 }
         return JsonResponse(response_data, status=400)
  
-
+from django.core import serializers
 def create_academic_exam(user, data):
     try:
      
@@ -4907,9 +4913,9 @@ def create_academic_exam(user, data):
                     updated_remaining_marks = remaining_marks - selected_question.marks
                     updated_remaining_easy_questions = remaining_easy_questions - 1
                     # print("new", updated_remaining_easy_questions)      
-                    print("ADSA", selected_questions)
-                    print("timeee", updated_remaining_time)
-                    print("markssss", updated_remaining_marks)
+                    # print("ADSA", selected_questions)
+                    # print("timeee", updated_remaining_time)
+                    # print("markssss", updated_remaining_marks)
                     if backtrack(selected_questions, updated_remaining_time, updated_remaining_marks, updated_remaining_easy_questions, remaining_medium_questions, remaining_hard_questions, question_data_list):
                         return True
                     else:
@@ -4923,9 +4929,9 @@ def create_academic_exam(user, data):
                     updated_remaining_marks = remaining_marks - selected_question.marks
                     updated_remaining_medium_questions = remaining_medium_questions - 1
                     # print("new", updated_remaining_medium_questions)      
-                    print("ADSA", selected_questions)
-                    print("timeee", updated_remaining_time)
-                    print("markssss", updated_remaining_marks)
+                    # print("ADSA", selected_questions)
+                    # print("timeee", updated_remaining_time)
+                    # print("markssss", updated_remaining_marks)
                     if backtrack(selected_questions, updated_remaining_time, updated_remaining_marks, remaining_easy_questions, updated_remaining_medium_questions, remaining_hard_questions, question_data_list):
                         return True
                     else:
@@ -4939,9 +4945,9 @@ def create_academic_exam(user, data):
                     updated_remaining_marks = remaining_marks - selected_question.marks
                     updated_remaining_hard_questions = remaining_hard_questions - 1
                     # print("new", updated_remaining_hard_questions)      
-                    print("ADSA", selected_questions)
-                    print("timeee", updated_remaining_time)
-                    print("markssss", updated_remaining_marks)
+                    # print("ADSA", selected_questions)
+                    # print("timeee", updated_remaining_time)
+                    # print("markssss", updated_remaining_marks)
                     if backtrack(selected_questions, updated_remaining_time, updated_remaining_marks, remaining_easy_questions, remaining_medium_questions, updated_remaining_hard_questions, question_data_list):
                         return True
                     else:
@@ -4951,6 +4957,7 @@ def create_academic_exam(user, data):
 
             return False
 
+        subject_data_list = []
         
         for subject_data in data.exam_data:
             subject_weightage = sum(
@@ -4960,10 +4967,18 @@ def create_academic_exam(user, data):
 
             subject_time = int(data.time_duration * subject_percentage + 0.5)
             subject_marks = round(float(data.total_marks * subject_percentage))
-            print(subject_marks, "MMMMAAAARRRKKKKKK")
-        
+            # print(subject_marks, "MMMMAAAARRRKKKKKK")
+            print(subject_data.subject_id)
+            print(subject_time)
+            print(subject_marks)
             subject_instance = AcademicSubjects.objects.get(id=subject_data.subject_id)
-            
+            subject_data_list.append({
+            "subject_id": subject_data.subject_id,
+            "subject_time": subject_time,
+            "subject_marks": subject_marks,
+            # Include other relevant data if needed
+        })
+
             chapter_instance = AcademicChapters.objects.filter(id__in=subject_data.chapters)
             chapters = list(chapter_instance)
             chapter_ids = [f"{item.id}," for item in chapters]
@@ -5017,7 +5032,7 @@ def create_academic_exam(user, data):
                     time_per_subject=subject_time,
                     marks_per_subject=subject_marks,
                 )
-                exam_data_instance.save() 
+                # exam_data_instance.save() 
 
                 exam_data_calculated.append(exam_data_instance)
 
@@ -5086,7 +5101,7 @@ def create_academic_exam(user, data):
                     )
                     selected_acad_questions_set3.append(acad_exam_instance)
 
-            print("------------------------------------------------------")
+            # print("------------------------------------------------------")
        
 
         exam_instance = AcademicExams(
@@ -5100,11 +5115,13 @@ def create_academic_exam(user, data):
             option_e=data.option_e,
             business_owner=user
         )
-        exam_instance.save()
+        # exam_instance.save()
         for exam in exam_data_calculated:
             exam_instance.exam_data.add(exam) 
+        # subject_json = serializers.serialize('json', [subject_instance])
         
         result = {
+            "subject_data": subject_data_list,
             "set1": selected_acad_questions_set1,
             "set2": selected_acad_questions_set2 if selected_acad_questions_set2 else None,
             "set3": selected_acad_questions_set3 if selected_acad_questions_set3 else None,
@@ -5131,7 +5148,7 @@ def get_acad_examlist(user, query):
     try: 
         
         exams = AcademicExams.objects.filter(business_owner=user, start_date__isnull=False).order_by('-created_at')
-        
+       
         if query.standard:
             exams = exams.filter(standard=query.standard)
         if query.subject:
@@ -5284,3 +5301,90 @@ def get_acad_examreport(user, query):
                 }
         return JsonResponse(response_data, status=400)
     
+
+
+from django.db import transaction
+
+def start_acad_CSExam(user, data):
+    
+    try:
+        exam_data_calculated = []
+        standard_id = data.standard_id  # Assuming 'standard_id' is a valid UUID4
+        standard_instance = AcademicStandards.objects.get(id=standard_id)
+        for subject_data in data.exam_data:
+            easy=subject_data.easy_question
+            medium=subject_data.medium_question
+            hard=subject_data.hard_question
+            subject_id = subject_data.subject_id
+            subject_instance = AcademicSubjects.objects.get(id=subject_id)
+            chapter_instance = AcademicChapters.objects.filter(id__in=subject_data.chapters)
+            chapters = list(chapter_instance)
+        # Create a new exam object with the provided data
+        exam = AcademicExams.objects.create(
+            exam_title=data.exam_title,
+            standard=standard_instance,
+            total_questions=data.total_questions,
+            time_duration=data.time_duration,
+            passing_marks=data.passing_marks,
+            total_marks=data.total_marks,
+            negative_marks=data.negative_marks,
+            option_e=data.option_e,
+            business_owner=user,
+            start_date=datetime.now()  # Set the start date
+        )
+
+        # Get a list of selected question IDs from the provided data
+        selected_question_ids = data.question
+
+        # Filter and get the actual question instances
+        selected_questions = AcademicQuestions.objects.filter(id__in=selected_question_ids)
+        # print(selected_questions)
+        # print(data.time)
+        # print(data.mark)
+        # Add the selected questions to the exam
+        for question in selected_questions:
+            exam.question_set.add(question)
+        # Save the exam
+    
+        # print(f"Exam {exam.id} saved")
+
+        subject_data = data.subject_data
+        # print(subject_data)
+        for subject_info in subject_data:
+            subject_id = subject_info.subject_id
+            subject_time = subject_info.subject_time
+            subject_marks = subject_info.subject_marks
+            subject_instance = AcademicSubjects.objects.get(id=subject_id)
+            # ... (your existing code)
+
+            exam_data_instance = AcademicExamData(
+                subject=subject_instance,
+                easy_question=easy,
+                chapter=chapters,
+                medium_question=medium,
+                hard_question=hard,
+                time_per_subject=subject_time,
+                marks_per_subject=subject_marks,
+            )
+            exam_data_instance.save()
+        exam_data_calculated.append(exam_data_instance)
+        exam.save()
+        for exam_data_instance in exam_data_calculated:
+            exam.exam_data.add(exam_data_instance)  
+  
+        # for exam in exam_data_calculated:
+        #     exam_instance.exam_data.add(exam) 
+        result = {
+            "result": True,
+            "message": "Exam created and will start soon",
+            "exam_id": exam.id  # Include the exam_id in the response
+        }
+
+        return JsonResponse(result) 
+    
+    except Exception as e:
+        response_data = {
+            "result": False,
+            "message": str(e)
+        }
+        return JsonResponse(response_data, status=400)

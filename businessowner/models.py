@@ -597,7 +597,7 @@ class Results(models.Model):
     CHOICES = (('pass','pass'),('fail','fail'))
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     competitive_exam = models.ForeignKey(CompetitiveExams, on_delete=models.CASCADE, related_name="competitive_result")
-    academic_exam = models.ForeignKey(AcademicBoards, on_delete=models.CASCADE, related_name="academic_result") 
+    academic_exam = models.ForeignKey(AcademicExams, on_delete=models.CASCADE, related_name="academic_result") 
     student = models.ForeignKey(Students, on_delete=models.CASCADE, related_name="student_result")
     score = models.FloatField() 
     result = models.CharField(("result"),choices=CHOICES, max_length=50,default='pass')
@@ -614,14 +614,22 @@ class Results(models.Model):
             self.save()
 
 
-class StudentAnswer(models.Model):
+class StudentAnswers(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     academic_question = models.ForeignKey(AcademicQuestions, on_delete=models.CASCADE, related_name="question_acade")
     competitive_question = models.ForeignKey(CompetitiveQuestions, on_delete=models.CASCADE, related_name="question_comp")
     selected_answer = models.CharField(max_length=50)
     student = models.ForeignKey(Students, on_delete=models.CASCADE, related_name="student_answer")
     competitive_exam = models.ForeignKey(CompetitiveExams, on_delete=models.CASCADE, related_name="exam_comp")
-    academic_exam = models.ForeignKey(AcademicBoards, on_delete=models.CASCADE, related_name="exam_acade") 
+    academic_exam = models.ForeignKey(AcademicExams, on_delete=models.CASCADE, related_name="exam_acade") 
+
+
+class StudentMarks(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    student = models.ForeignKey(Students, on_delete=models.CASCADE, related_name="student")
+    competitive_exam = models.ForeignKey(CompetitiveExams, on_delete=models.CASCADE, related_name="competitive_mark")
+    academic_exam = models.ForeignKey(AcademicExams, on_delete=models.CASCADE, related_name="academic_mark") 
+    marks = models.FloatField(default=0,editable=True)
 
 
 class TermsandPolicy(models.Model):

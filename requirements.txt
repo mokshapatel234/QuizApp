@@ -46,3 +46,4 @@ razorpay==1.3.0
 django-ckeditor
 websockets==11.0.3
 starlette==0.27.0
+fastapi==0.103.1

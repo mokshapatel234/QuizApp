@@ -1,6 +1,6 @@
 from ninja import Schema
 from datetime import datetime
-from typing import Optional,List
+from typing import Optional,List,Dict
 from uuid import UUID
 
 
@@ -1035,3 +1035,38 @@ class AcadeExamOut(Schema):
     total_marks:int
     start_date: datetime
     exam_data: List[Exammm]
+
+
+
+class   QuestionItem(Schema):
+    id: UUID
+    question: str
+    question_category: str
+    time: float
+    mark: int
+    options: Dict[str, str]
+    answer: str
+    subject: str
+
+class subjectinfo(Schema):
+    subject_id: UUID
+    subject_time: int
+    subject_marks: int
+    
+class AcadeCreatestartExam(Schema):
+    exam_title: str
+    standard_id: UUID
+    total_questions: int
+    time_duration: float
+    negative_marks: str
+    passing_marks: int
+    total_marks: int
+    option_e: bool
+    question:List[UUID]
+    exam_data: List[AcadExamData]
+    subject_data: List[subjectinfo]
+
+class AcadeCreatestartExamOut(Schema):
+    result: bool
+    message: str
+    exam_id : UUID

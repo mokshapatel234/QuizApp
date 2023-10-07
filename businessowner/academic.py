@@ -255,7 +255,7 @@ def update_question(request, question_id: UUID, data: UpdateQuestionIn):
 def create_acad_exam(request, data: AcademicExamIn):
     return create_academic_exam(request.user, data)
 
-@router.get("/academic/exam", response={200: List[AcadeExamOut], 400: dict, 401: dict})
+@router.get("/academic/exam", response={200: List[dict], 400: dict, 401: dict})
 @verify_token
 @paginate(CustomPagination)
 def get_academic_examlist(request, query:AcadExamFilter = Query(...)):
@@ -267,3 +267,8 @@ def get_academic_examlist(request, query:AcadExamFilter = Query(...)):
 def start_academic_exam(request, exam_id, data:AcadExamQuestion):
     return start_acad_exam(exam_id, data)
 
+
+@router.post("/academic/CreateExam", response={200: dict, 400: dict, 401: dict})
+@verify_token
+def start_CSExam(request, data:AcadeCreatestartExam):
+    return start_acad_CSExam(request.user,data)
