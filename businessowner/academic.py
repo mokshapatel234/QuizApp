@@ -262,10 +262,10 @@ def get_academic_examlist(request, query:AcadExamFilter = Query(...)):
     return get_acad_examlist(request.user, query)
 
 
-@router.post("/academic/startExam/{exam_id}", response={200: DeleteOut, 400: dict, 401: dict})
+@router.post("/academic/startExam", response={200: DeleteOut, 400: dict, 401: dict})
 @verify_token
-def start_academic_exam(request, exam_id, data:AcadExamQuestion):
-    return start_acad_exam(exam_id, data)
+def start_academic_exam(request,data:AcadExamQuestion):
+    return start_acad_exam(data)
 
 
 @router.post("/academic/CreateExam", response={200: AcadeCreatestartExamOut, 400: dict, 401: dict})

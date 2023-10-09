@@ -1,5 +1,5 @@
 from businessowner.schemas import *
-from .heplers import *
+from .helpers import *
 from .models import *
 from ninja import Router, Query
 from .authentication import verify_token

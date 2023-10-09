@@ -5214,34 +5214,40 @@ def get_acad_examlist(user, query):
     
 
 
-def start_acad_exam(exam_id, data):
+def start_acad_exam(data):
     try:
+        exam_id = data.exam_id  # Assuming 'exam_id' is in the payload
+        print(exam_id)
+        if not exam_id:
+            response_data = {
+                "result": False,
+                "message": "exam_id is required in the payload"
+            }
+            return JsonResponse(response_data, status=400)
+
         exam = AcademicExams.objects.get(id=exam_id)
+        print(exam,"thisgigfg")
         exam.start_date = datetime.now()
-        selected_question = AcademicQuestions.objects.filter(id__in=data.question)
-        questions = list(selected_question)
-        for question in questions:
-            exam.question_set.add(question)
         exam.save()
         result = {
             "result": True,
-            "message": "Exam will start soon"
+            "message": "Exam started."
         }
-      
+
         return result
-    
+
     except AcademicExams.DoesNotExist:
         response_data = {
             "result": False,
             "message": "Exam not found"
         }
         return JsonResponse(response_data, status=400)
-    
+
     except Exception as e:
         response_data = {
-                    "result": False,
-                    "message": "Something went wrong"
-                }
+            "result": False,
+            "message": print(str(e))
+        }
         return JsonResponse(response_data, status=400)
 
 

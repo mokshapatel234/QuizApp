@@ -1017,7 +1017,7 @@ class AcadExamFilter(Schema):
 
 
 class AcadExamQuestion(Schema):
-    question:List[UUID]
+    exam_id:UUID
 
 
 class AcadeExamOut(Schema):
