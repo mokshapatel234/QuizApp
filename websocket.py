@@ -1,28 +1,33 @@
+import re
 from fastapi import FastAPI, WebSocket, Query, Depends, HTTPException, Request
 from starlette.middleware.cors import CORSMiddleware
 import uvicorn
 from pymongo import MongoClient
+from typing import Optional
 from fastapi import WebSocketDisconnect
 import os
 import dotenv
 import jwt
 import random
+import uuid
+import json
 from rest_framework import exceptions
 from fastapi import HTTPException
 from starlette.websockets import WebSocketState
+from django.db import transaction
 from asgiref.sync import sync_to_async
 dotenv.load_dotenv()
 import os
-import re
 from django import setup
-os.environ.setdefault("DJANGO_SETTINGS_MODULE", "quizapp.settings")  
-setup()
+from django.utils import timezone
 from django.db.models import Q
-from businessowner.models import BusinessOwners, Students, StudentAnswer, CompetitiveExams, AcademicExams, CompetitiveQuestions, AcademicQuestions, Options, Results, StudentMarks
 
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "quizapp.settings")  
+
+setup()
+from businessowner.models import Results, StudentAnswers, StudentMarks, BusinessOwners, Students, CompetitiveExams, AcademicExams, CompetitiveQuestions, AcademicQuestions, Options
 
 app = FastAPI()
-
 
 client = MongoClient(os.getenv('DATABASE'))
 db = client["mindscapeqdb_staging"]
@@ -35,7 +40,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
 
 class Singleton:
     _instances = {}
@@ -53,7 +57,6 @@ class Singleton:
         """ Static access method. """
         if cls not in cls._instances:
             cls._instances[cls] = cls(*args, **kwargs)
-
 
 class ConnectionManager(Singleton):
     def __init__(self):
@@ -85,16 +88,16 @@ class ConnectionManager(Singleton):
 
     async def broadcast_to_room(self, room_id: str, message: str):
         for websocket in self.active_connections:
-            await websocket.send_json(message)
-            
+            try:
+                await websocket.send_json(message)
+            except Exception as e:
+                print(f"Failed to send message to client : {e}")
 
 manager = ConnectionManager() 
-
 
 def generate_unique_room_id():
     # return str(uuid.uuid4())
     return str(random.randint(1000000000, 9999999999))
-
 
 class JWTAuthentication:
     async def authenticate(self, request, token, user_type):
@@ -118,7 +121,8 @@ class JWTAuthentication:
             else:
                 raise exceptions.AuthenticationFailed('Invalid user_type in token.')
 
-        except Exception:
+        except Exception as e:
+            print(e)
             raise exceptions.AuthenticationFailed('Error fetching user from the database')
 
         if not user:
@@ -172,7 +176,7 @@ async def get_current_user(token: str, user_type: str):
 
 @sync_to_async
 def save_student_answer(academic_question, competitive_question, selected_answer, student_instance, competitive_exam, academic_exam):
-    student_answer = StudentAnswer(
+    student_answer = StudentAnswers(
         academic_question=academic_question,
         competitive_question=competitive_question,
         selected_answer=selected_answer,
