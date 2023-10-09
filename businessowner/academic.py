@@ -268,7 +268,7 @@ def start_academic_exam(request, exam_id, data:AcadExamQuestion):
     return start_acad_exam(exam_id, data)
 
 
-@router.post("/academic/CreateExam", response={200: dict, 400: dict, 401: dict})
+@router.post("/academic/CreateExam", response={200: AcadeCreatestartExamOut, 400: dict, 401: dict})
 @verify_token
 def start_CSExam(request, data:AcadeCreatestartExam):
     return start_acad_CSExam(request.user,data)
