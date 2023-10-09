@@ -427,6 +427,7 @@ async def get_exam_results(exam_id):
         results_data = []
         for result in results:
             student = await get_student(result.student_id)
+            print(student)
             if student:
                 result_data = {
                     "rank": None,
@@ -537,7 +538,6 @@ async def room_connection(
                     "title": exam.exam_title,
                     "passing_marks": exam.passing_marks,
                     "total_marks": exam.total_marks,
-                    "date": exam.start_date,
                     "time_duration": exam.time_duration
                 }
                 exam_results = await get_exam_results(exam_id)
