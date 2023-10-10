@@ -2037,6 +2037,7 @@ def create_comp_exam(user, data):
             return False
 
         
+        
         for subject_data in data.exam_data:
             subject_weightage = sum(
                 qtype for qtype in [subject_data.easy_question, subject_data.medium_question, subject_data.hard_question]
@@ -2102,7 +2103,7 @@ def create_comp_exam(user, data):
                     time_per_subject=subject_time,
                     marks_per_subject=subject_marks,
                 )
-                exam_data_instance.save() 
+                # exam_data_instance.save() 
 
                 exam_data_calculated.append(exam_data_instance)
 
@@ -2184,12 +2185,12 @@ def create_comp_exam(user, data):
             option_e=data.option_e,
             business_owner=user
         )
-        exam_instance.save()
+        # exam_instance.save()
         for exam in exam_data_calculated:
             exam_instance.exam_data.add(exam) 
         
         result = {
-            "exam_id": exam_instance.id,
+            # "exam_id": exam_instance.id,
             "set1": selected_comp_questions_set1,
             "set2": selected_comp_questions_set2 if selected_comp_questions_set2 else None,
             "set3": selected_comp_questions_set3 if selected_comp_questions_set3 else None,
@@ -2393,7 +2394,7 @@ def create_student(data, user):
         return JsonResponse(response_data, status=400)
  
 
-def upload_student(xl_file, user):
+def     upload_student(xl_file, user):
     try:
         xl_data = pd.read_excel(xl_file.file)
         created_students = []
@@ -3384,6 +3385,36 @@ def add_baord(user, data):
                 }
         return JsonResponse(response_data, status=400)
 
+def upload_boards_from_xl(xl_file, user):
+    try:
+        xl_data = pd.read_excel(xl_file.file)
+        created_boards = []
+
+        for _, row in xl_data.iterrows():
+            board_name = row.get("board_name")
+            if board_name:
+                board_instance, created = AcademicBoards.objects.get_or_create(
+                    board_name=board_name,
+                    business_owner=user,
+                )
+
+                if created:
+                    created_boards.append(board_instance)
+
+        response_data = {
+            "result": True,
+            "message": "Boards created successfully.",
+        }
+
+        return response_data
+
+    except Exception as e:
+        response_data = {
+            "result": False,
+            "message": str(e)
+        }
+
+        return response_data
 
 def update_board_data(user,data,board_id):
     try:

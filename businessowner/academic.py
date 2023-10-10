@@ -7,6 +7,7 @@ from .authentication import verify_token
 from typing import List
 from.paginator import CustomPagination
 from ninja.pagination import paginate, PaginationBase
+from ninja.files import UploadedFile
 router = Router()
 
 
@@ -27,6 +28,12 @@ def get_academic_boards(request,filter_prompt: AcademicFilter = Query(...)):
 def add_boards(request,data: BoardSchema):
     result = add_baord(request.user,data)
     return result
+
+@router.post("/academic/board/upload", response={200: DeleteOut, 400: dict, 401: dict})
+@verify_token
+def upload_boardfile(request, xl_file: UploadedFile = File(...)):
+    return upload_boards_from_xl(xl_file, request.user)
+ 
 
 @router.get("/academic/board/{board_id}", response={200:AcademicBoardOut, 401:dict, 400:dict})
 @verify_token
