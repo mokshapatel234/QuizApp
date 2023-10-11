@@ -1070,3 +1070,11 @@ class AcadeCreatestartExamOut(Schema):
     result: bool
     message: str
     exam_id : UUID
+
+class UploadData(Schema):
+     board_id: Optional[UUID] = None
+     medium_id: Optional[UUID]
+     standard_id: Optional[UUID]
+     subject_id: Optional[UUID]
+     chapter_id: Optional[UUID]
+     competitive_subject_id: Optional[UUID]

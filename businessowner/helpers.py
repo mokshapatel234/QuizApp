@@ -3385,26 +3385,282 @@ def add_baord(user, data):
                 }
         return JsonResponse(response_data, status=400)
 
-def upload_boards_from_xl(xl_file, user):
+
+def create_board(board_name, user):
+    board_instance, created = AcademicBoards.objects.get_or_create(
+        board_name=board_name,
+        business_owner=user,
+    )
+    return board_instance, created
+
+
+def create_medium(medium_name, board_id):
+    board = AcademicBoards.objects.get(pk=board_id)
+    medium_instance, created = AcademicMediums.objects.get_or_create(
+        medium_name=medium_name,
+        board_name=board,
+    )
+    return medium_instance, created
+
+def create_standard(standard_name, medium_id):
+    medium = AcademicMediums.objects.get(pk=medium_id)
+    standard_instance, created = AcademicStandards.objects.get_or_create(
+        standard=standard_name,
+        medium_name=medium,
+    )
+    return standard_instance, created
+
+def create_subject(subject_name, standard_id):
+    standard = AcademicStandards.objects.get(pk=standard_id)
+    subject_instance, created = AcademicSubjects.objects.get_or_create(
+        subject_name=subject_name,
+        standard=standard,
+    )
+    return subject_instance, created
+
+def create_chapter(chapter_name, subject_id):
+    print(f"Creating chapter: {chapter_name} for subject ID: {subject_id}")
+    subject = AcademicSubjects.objects.get(pk=subject_id)
+    chapter_instance, created = AcademicChapters.objects.get_or_create(
+        chapter_name=chapter_name,
+        subject_name=subject,
+    )
+    return chapter_instance, created
+
+def create_question(academic_chapter, question, options, answer, question_category, marks, time_duration, business_owner):
+    question_instance, created = AcademicQuestions.objects.get_or_create(
+        academic_chapter=academic_chapter,
+        question=question,
+        options=options,
+        answer=answer,
+        question_category=question_category,
+        marks=marks,
+        time_duration=time_duration,
+        business_owner=business_owner,
+    )
+    return question_instance, created
+
+def create_batch(batch_name, user):
+    batch_instance, created = CompetitiveBatches.objects.get_or_create(
+        batch_name=batch_name,
+        business_owner=user,
+    )
+    return batch_instance, created
+
+def create_competitive_subject(subject_name, user):
+    subject_instance, created = CompetitiveSubjects.objects.get_or_create(
+        subject_name=subject_name,
+        business_owner=user
+    )
+    return subject_instance, created
+
+def create_competitive_chapter(chapter_name, competitive_subject_id, batch_ids):
+    subject = CompetitiveSubjects.objects.get(pk=competitive_subject_id)
+    chapter_instance, created = CompetitiveChapters.objects.get_or_create(
+        chapter_name=chapter_name,
+        subject_name=subject,
+    )
+    if created and batch_ids:
+        batches = CompetitiveBatches.objects.filter(id__in=batch_ids, business_owner=subject.business_owner)
+        chapter_instance.batches.set(batches)
+    return chapter_instance, created
+
+def upload_from_xl(xl_file, user, flag,param_prompt):
     try:
         xl_data = pd.read_excel(xl_file.file)
         created_boards = []
-
+        existing_boards = []
+        created_mediums = []
+        existing_mediums = []
+        created_standards = []
+        existing_standards = []
+        created_subjects = []
+        existing_subjects = []
+        created_chapters = []
+        existing_chapters = []
+        created_questions = []
+        existing_questions = []
+        created_batches = []  
+        existing_batches = []
+        created_competitive_subjects = []  
+        existing_competitive_subjects = [] 
+        created_competitive_chapters= []  
+        existing_competitive_chapters = [] 
         for _, row in xl_data.iterrows():
-            board_name = row.get("board_name")
-            if board_name:
-                board_instance, created = AcademicBoards.objects.get_or_create(
-                    board_name=board_name,
-                    business_owner=user,
-                )
+            if flag == "board":
+                board_name = row.get("board_name")
+                if board_name:
+                    existing_board = AcademicBoards.objects.filter(board_name=board_name).first()
+                    if existing_board:
+                        existing_boards.append(board_name)
+                    else:
+                        board_instance, created = create_board(board_name, user)
+                        if created:
+                            created_boards.append(board_instance)
 
-                if created:
-                    created_boards.append(board_instance)
+            
 
+            elif flag == "medium":
+                medium_name = row.get("medium_name")
+
+                if medium_name and param_prompt.board_id:
+                    existing_medium = AcademicMediums.objects.filter(medium_name=medium_name, board_name_id=param_prompt.board_id).first()
+                    if existing_medium:
+                        existing_mediums.append(medium_name)
+                    else:
+                        medium_instance, created = create_medium(medium_name, param_prompt.board_id)
+                        if created:
+                            created_mediums.append(medium_instance)
+
+            elif flag == "standard":
+                standard_name = row.get("standard_name")
+
+                if standard_name and param_prompt.medium_id:
+                    existing_standard = AcademicStandards.objects.filter(standard=standard_name, medium_name_id=param_prompt.medium_id).first()
+                    if existing_standard:
+                        existing_standards.append(standard_name)
+                    else:
+                        standard_instance, created = create_standard(standard_name, param_prompt.medium_id)
+                        if created:
+                            created_standards.append(standard_instance)
+
+            elif flag == "subject":
+                subject_name = row.get("subject_name")
+
+                if subject_name and param_prompt.standard_id:
+                    existing_subject = AcademicSubjects.objects.filter(subject_name=subject_name, standard_id=param_prompt.standard_id).first()
+                    if existing_subject:
+                        existing_subjects.append(subject_name)
+                    else:
+                        subject_instance, created = create_subject(subject_name, param_prompt.standard_id)
+                        if created:
+                            created_subjects.append(subject_instance)
+                        
+
+            elif flag == "chapter":
+                chapter_name = row.get("chapter_name")
+
+                if chapter_name and param_prompt.subject_id:
+                    existing_chapter = AcademicChapters.objects.filter(chapter_name=chapter_name, subject_name_id=param_prompt.subject_id).first()
+                    if existing_chapter:
+                        existing_chapters.append(chapter_name)
+                    else:
+                        chapter_instance, created = create_chapter(chapter_name, param_prompt.subject_id)
+                        if created:
+                            created_chapters.append(chapter_instance)
+
+            elif flag == "question":
+                question_text = row.get("question")
+                option1 = row.get("option1")
+                option2 = row.get("option2")
+                option3 = row.get("option3")
+                option4 = row.get("option4")
+                answer = row.get("answer")
+                question_category = row.get("question_category")
+                marks = row.get("marks")
+                time_duration = row.get("time_duration")
+
+                if param_prompt.chapter_id and question_text and option1 and option2 and option3 and option4 and answer and question_category and marks and time_duration :
+                    academic_chapter_id = param_prompt.chapter_id
+                    academic_chapter = AcademicChapters.objects.get(id=academic_chapter_id)
+
+                    existing_question = AcademicQuestions.objects.filter(
+                        academic_chapter=academic_chapter,
+                        question=question_text,
+                    ).first()
+
+                    if existing_question:
+                        existing_questions.append(question_text)
+                    else:
+                        # Create options instance
+                        options_instance = Options.objects.create(
+                            option1=option1,
+                            option2=option2,
+                            option3=option3,
+                            option4=option4
+                        )
+
+                        # Create question instance
+                        question_instance, created = create_question(
+                            academic_chapter, question_text, options_instance, answer, question_category, marks, time_duration, user
+                        )
+
+                        if created:
+                            created_questions.append(question_instance)
+
+            elif flag == "batch":
+                batch_name = row.get("batch_name")
+
+                if batch_name:
+                    existing_batch = CompetitiveBatches.objects.filter(batch_name=batch_name).first()
+                    if existing_batch:
+                        existing_batches.append(batch_name)
+                    else:
+                        batch_instance, created = create_batch(batch_name, user)
+                        if created:
+                            created_batches.append(batch_instance)
+
+
+            elif flag == "competitive_subject":
+                subject_name = row.get("subject_name")
+        
+                if subject_name:
+                    existing_subject = CompetitiveSubjects.objects.filter(subject_name=subject_name).first()
+                    if existing_subject:
+                        existing_competitive_subjects.append(subject_name)
+                    else:
+                        subject_instance, created = create_competitive_subject(subject_name, user)
+                        if created:
+                            created_competitive_subjects.append(subject_instance)   
+
+            elif flag == "competitive_chapter":
+                chapter_name = row.get("chapter_name")
+                batch_ids_str = row.get("batch_ids")  # Make sure to get batch IDs as a string
+
+                if chapter_name and param_prompt.competitive_subject_id and batch_ids_str:  
+                    batch_ids = [uuid.UUID(id.strip()) for id in batch_ids_str.split(",")]  # Convert comma-separated string to a list of UUIDs
+
+                    existing_chapter = CompetitiveChapters.objects.filter(chapter_name=chapter_name, subject_name_id=param_prompt.competitive_subject_id).first()
+                    if existing_chapter:
+                        existing_chapters.append(chapter_name)
+                    else:
+                        chapter_instance, created = create_competitive_chapter(chapter_name, param_prompt.competitive_subject_id, batch_ids)
+                        if created:
+                            created_chapters.append(chapter_instance)
+
+                            
         response_data = {
             "result": True,
-            "message": "Boards created successfully.",
+            "message": "Data uploaded successfully.",
+     
         }
+
+        if existing_boards:
+            response_data["message"] = "Some boards already exist."
+
+        if existing_mediums:
+            response_data["message"] = "Some mediums already exist."
+
+        if existing_standards:
+            response_data["message"] = "Some standards already exist."
+        
+        if existing_subjects:
+            response_data["message"] = "Some subjects already exist."
+        
+        if existing_chapters:
+            response_data["message"] = "Some chapters already exist."
+        
+        if existing_questions:
+            response_data["message"] = "Some questions already exist."
+
+        if existing_batches:
+            response_data["message"] = "Some batches already exist."
+        
+        if existing_competitive_subjects:
+            response_data["message"] = "Some competitive subjects already exist."
+
+        if existing_competitive_chapters:
+            response_data["message"] = "Some competitive chapters already exist."
 
         return response_data
 
@@ -3415,6 +3671,7 @@ def upload_boards_from_xl(xl_file, user):
         }
 
         return response_data
+
 
 def update_board_data(user,data,board_id):
     try:

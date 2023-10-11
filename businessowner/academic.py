@@ -8,6 +8,8 @@ from typing import List
 from.paginator import CustomPagination
 from ninja.pagination import paginate, PaginationBase
 from ninja.files import UploadedFile
+from fastapi.responses import JSONResponse
+
 router = Router()
 
 
@@ -29,10 +31,7 @@ def add_boards(request,data: BoardSchema):
     result = add_baord(request.user,data)
     return result
 
-@router.post("/academic/board/upload", response={200: DeleteOut, 400: dict, 401: dict})
-@verify_token
-def upload_boardfile(request, xl_file: UploadedFile = File(...)):
-    return upload_boards_from_xl(xl_file, request.user)
+
  
 
 @router.get("/academic/board/{board_id}", response={200:AcademicBoardOut, 401:dict, 400:dict})
@@ -55,6 +54,12 @@ def delete_board(request, board_id):
     result = delete_board_data(request.user,board_id)
     return result
 
+@router.post("/upload", response={200: DeleteOut, 400: dict, 401: dict})
+@verify_token
+def upload_file(request, xl_file: UploadedFile = File(...),flag: str = Query(..., description="Flag indicating what to process "),param_prompt: UploadData = Query(...)):
+    if flag not in ["board", "medium","standard","subject","chapter","question","batch","competitive_subject","competitive_chapter"]:
+        return JSONResponse(content={"message": "Invalid flag."}, status_code=400)
+    return upload_from_xl(xl_file, request.user,flag,param_prompt)
 
 #-----------------------------------------------------------------------------------------------------------#
 #-------------------------------------------------MEDIUM----------------------------------------------------#
