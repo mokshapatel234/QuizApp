@@ -1078,3 +1078,4 @@ class UploadData(Schema):
      subject_id: Optional[UUID]
      chapter_id: Optional[UUID]
      competitive_subject_id: Optional[UUID]
+     competitive_chapter_id: Optional[UUID]

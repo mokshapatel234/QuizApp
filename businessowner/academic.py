@@ -9,7 +9,9 @@ from.paginator import CustomPagination
 from ninja.pagination import paginate, PaginationBase
 from ninja.files import UploadedFile
 from fastapi.responses import JSONResponse
-
+from pathlib import Path
+from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse
 router = Router()
 
 
@@ -57,10 +59,18 @@ def delete_board(request, board_id):
 @router.post("/upload", response={200: DeleteOut, 400: dict, 401: dict})
 @verify_token
 def upload_file(request, xl_file: UploadedFile = File(...),flag: str = Query(..., description="Flag indicating what to process "),param_prompt: UploadData = Query(...)):
-    if flag not in ["board", "medium","standard","subject","chapter","question","batch","competitive_subject","competitive_chapter"]:
+    if flag not in ["board", "medium","standard","subject","chapter","question","batch","competitive_subject","competitive_chapter","competitive_question"]:
         return JSONResponse(content={"message": "Invalid flag."}, status_code=400)
     return upload_from_xl(xl_file, request.user,flag,param_prompt)
 
+
+@router.post("/download", response={200: dict, 400: dict, 401: dict})
+@verify_token
+def download_file(request,flag: str = Query(..., description="Flag indicating what to process "),related_id: str = Query(None, description="Related ID for medium or board")):
+    if flag not in ["board", "medium","standard","subject","chapter","question","batch","competitive_subject","competitive_chapter","competitive_question"]:
+        return JSONResponse(content={"message": "Invalid flag."}, status_code=400)
+    result = create_excel_with_column_names("output.xlsx",flag,related_id)
+    return result
 #-----------------------------------------------------------------------------------------------------------#
 #-------------------------------------------------MEDIUM----------------------------------------------------#
 #-----------------------------------------------------------------------------------------------------------#

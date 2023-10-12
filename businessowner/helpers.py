@@ -3454,16 +3454,33 @@ def create_competitive_subject(subject_name, user):
     )
     return subject_instance, created
 
-def create_competitive_chapter(chapter_name, competitive_subject_id, batch_ids):
-    subject = CompetitiveSubjects.objects.get(pk=competitive_subject_id)
-    chapter_instance, created = CompetitiveChapters.objects.get_or_create(
+def create_competitive_chapter(chapter_name, subject_instance, batch_ids):
+    print(batch_ids)
+    print(subject_instance)
+
+    competitive_chapter_instance, created = CompetitiveChapters.objects.get_or_create(
         chapter_name=chapter_name,
-        subject_name=subject,
+        subject_name=subject_instance
     )
-    if created and batch_ids:
-        batches = CompetitiveBatches.objects.filter(id__in=batch_ids, business_owner=subject.business_owner)
-        chapter_instance.batches.set(batches)
-    return chapter_instance, created
+    
+    for batch_id in batch_ids:
+        batch_instance = CompetitiveBatches.objects.get(id=batch_id)
+        competitive_chapter_instance.batches.add(batch_instance)
+
+    return competitive_chapter_instance, created
+
+def create_competitive_question(competitive_chapter, question, options, answer, question_category, marks, time_duration, business_owner):
+    question_instance, created = CompetitiveQuestions.objects.get_or_create(
+        competitve_chapter=competitive_chapter,
+        question=question,
+        options=options,
+        answer=answer,
+        question_category=question_category,
+        marks=marks,
+        time_duration=time_duration,
+        business_owner=business_owner,
+    )
+    return question_instance, created
 
 def upload_from_xl(xl_file, user, flag,param_prompt):
     try:
@@ -3486,6 +3503,8 @@ def upload_from_xl(xl_file, user, flag,param_prompt):
         existing_competitive_subjects = [] 
         created_competitive_chapters= []  
         existing_competitive_chapters = [] 
+        created_competitive_questions = []
+        existing_competitive_questions = []
         for _, row in xl_data.iterrows():
             if flag == "board":
                 board_name = row.get("board_name")
@@ -3615,19 +3634,81 @@ def upload_from_xl(xl_file, user, flag,param_prompt):
 
             elif flag == "competitive_chapter":
                 chapter_name = row.get("chapter_name")
-                batch_ids_str = row.get("batch_ids")  # Make sure to get batch IDs as a string
+                subject_id = row.get("subject_id")  # Assuming you have a field for subject_id in your Excel file
+                batch_ids = row.get("batch_ids")    # Assuming you have a field for batch_ids in your Excel file
 
-                if chapter_name and param_prompt.competitive_subject_id and batch_ids_str:  
-                    batch_ids = [uuid.UUID(id.strip()) for id in batch_ids_str.split(",")]  # Convert comma-separated string to a list of UUIDs
+                if chapter_name and subject_id and batch_ids:
+                    existing_chapter = CompetitiveChapters.objects.filter(
+                        chapter_name=chapter_name,
+                    ).first()
 
-                    existing_chapter = CompetitiveChapters.objects.filter(chapter_name=chapter_name, subject_name_id=param_prompt.competitive_subject_id).first()
                     if existing_chapter:
-                        existing_chapters.append(chapter_name)
+                        existing_competitive_chapters.append(chapter_name)
                     else:
-                        chapter_instance, created = create_competitive_chapter(chapter_name, param_prompt.competitive_subject_id, batch_ids)
-                        if created:
-                            created_chapters.append(chapter_instance)
+                        # Create a list to hold batch instances
+                        batch_instances = []
 
+                        for batch_id in batch_ids.split(','):
+                            batch_instances.append(batch_id)
+
+                        try:
+                            subject_instance = CompetitiveSubjects.objects.get(id=subject_id)
+                            print(subject_instance)
+                            # print(f"subject_id type: {type(subject_id)}, subject_id value: {subject_id}")
+
+                        except Exception as e:
+                            # Handle other exceptions
+                            print(f"Error: {e}")
+
+                        # Create competitive chapter instance
+                        competitive_chapter_instance, created = create_competitive_chapter(
+                            chapter_name, subject_instance, batch_instances
+                        )
+
+                        if created:
+                            created_competitive_chapters.append(competitive_chapter_instance)
+
+
+            elif flag == "competitive_question":
+                question_text = row.get("question")
+                option1 = row.get("option1")
+                option2 = row.get("option2")
+                option3 = row.get("option3")
+                option4 = row.get("option4")
+                answer = row.get("answer")
+                question_category = row.get("question_category")
+                marks = row.get("marks")
+                time_duration = row.get("time_duration")
+
+                if param_prompt.chapter_id and question_text and option1 and option2 and option3 and option4 and answer and question_category and marks and time_duration:
+                    competitive_chapter_id = param_prompt.chapter_id
+                    competitive_chapter = CompetitiveChapters.objects.get(id=competitive_chapter_id)
+
+                    existing_question = CompetitiveQuestions.objects.filter(
+                        competitve_chapter=competitive_chapter,
+                        question=question_text,
+                    ).first()
+
+                    if existing_question:
+                        existing_competitive_questions.append(question_text)
+                    else:
+                        # Create options instance
+                        options_instance = Options.objects.create(
+                            option1=option1,
+                            option2=option2,
+                            option3=option3,
+                            option4=option4
+                        )
+
+                        # Create question instance
+                        question_instance, created = create_competitive_question(
+                            competitive_chapter, question_text, options_instance, answer, question_category, marks, time_duration, user
+                        )
+
+                        if created:
+                            created_competitive_questions.append(question_instance)
+            
+            
                             
         response_data = {
             "result": True,
@@ -3662,6 +3743,8 @@ def upload_from_xl(xl_file, user, flag,param_prompt):
         if existing_competitive_chapters:
             response_data["message"] = "Some competitive chapters already exist."
 
+        if existing_competitive_questions:
+            response_data["message"] = "Some questions already exist."
         return response_data
 
     except Exception as e:
@@ -3671,8 +3754,67 @@ def upload_from_xl(xl_file, user, flag,param_prompt):
         }
 
         return response_data
+        
+import xlsxwriter
+from fastapi.responses import JSONResponse
+def create_excel_with_column_names(file_path,flag,related_id=None, sheet_name="Sheet1"):
+    try:
+        if flag == "board":
+            column_names = ["board_name"]
+        elif flag == "medium":
+            column_names = ["board_id", "medium_name"] if related_id else ["medium_name"]
+        elif flag == "standard":
+            column_names = ["medium_id","standard_name"] if related_id else ["standard_name"]
+        elif flag == "subject":
+            column_names = ["standard_id","subject_name"] if related_id else ["subject_name"]
+        elif flag == "chapter":
+            column_names = ["subject_id","chapter_name"] if related_id else ["chapter_name"]
+        elif flag == "question":
+            column_names = ["question","option1","option2","option3","option4","answer","question_category","marks","time_duration"]
+        elif flag == "batch":
+            column_names = ["batch_name"]
+        elif flag == "competitive_subject":
+            column_names = ["subject_name"]
+        elif flag == "competitive_chapter":
+            column_names = ["chapter_name","subject_id","batch_ids"]
+        elif flag == "competitive_question":
+            column_names = ["competitive_chapter_id","question","option1","option2","option3","option4","answer","question_category","marks","time_duration"] if related_id else ["question","option1","option2","option3","option4","answer","question_category","marks","time_duration"]
+        # Create a new workbook
+
+       
+        file_path = f"format_{flag}.xlsx"
+
+        workbook = xlsxwriter.Workbook(file_path)
+        worksheet = workbook.add_worksheet(sheet_name)
+
+        # Write column headers
+        for col_num, header in enumerate(column_names):
+            worksheet.write(0, col_num, header)
+        
+        if related_id:
+            for row_num in range(1, 30):  # Assuming 1000 rows for example
+                worksheet.write(row_num, 0, related_id)
+
+        # Close the workbook
+        workbook.close()
+
+        response_data = {
+            "result": True,
+            "message": "file successfully created.",
+        }
+        return response_data
+       
+    except Exception as e:
+        response_data = {
+            "result": False,
+            "message": str(e)
+        }
+        
+        return response_data
+# Example usage
 
 
+    
 def update_board_data(user,data,board_id):
     try:
         # Check if the academic board exists
