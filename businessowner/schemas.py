@@ -1079,3 +1079,21 @@ class UploadData(Schema):
      chapter_id: Optional[UUID]
      competitive_subject_id: Optional[UUID]
      competitive_chapter_id: Optional[UUID]
+
+
+class DownloadData(Schema):
+     board_id: Optional[str] = None
+     medium_id: Optional[str]
+     standard_id: Optional[str]
+     subject_id: Optional[str]
+     subject_ids: Optional[str]
+     chapter_id: Optional[str]
+     competitive_subject_id: Optional[str]
+     competitive_chapter_id: Optional[str]
+     batch_ids: Optional[str]
+
+
+
+class StudentdData(Schema):
+     batch_id: Optional[str]
+     standard_id: Optional[str]

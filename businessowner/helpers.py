@@ -2394,7 +2394,7 @@ def create_student(data, user):
         return JsonResponse(response_data, status=400)
  
 
-def     upload_student(xl_file, user):
+def upload_student(xl_file, user):
     try:
         xl_data = pd.read_excel(xl_file.file)
         created_students = []
@@ -2410,24 +2410,16 @@ def     upload_student(xl_file, user):
                 "address": row["address"],
             }
 
-            batch_name = row.get("batch")
-            if batch_name:
-                batch_instance, _ = CompetitiveBatches.objects.get_or_create(batch_name=batch_name)
+            standard_id = row.get("standard_id")  # Change to "standard_id"
+            if standard_id:
+                standard_instance = AcademicStandards.objects.get(id=standard_id)  # Use standard_id
+                student_info["standard"] = standard_instance
+
+            batch_id = row.get("batch_id")  # Change to "batch_id"
+            if batch_id:
+                batch_instance = CompetitiveBatches.objects.get(id=batch_id)  # Use batch_id
                 student_info["batch"] = batch_instance
             
-            board_name = row.get("board")
-            if board_name:
-                board_instance = AcademicBoards.objects.get(board_name=board_name)  
-
-                medium_name = row.get("medium")
-                if medium_name:
-                    medium_instance = AcademicMediums.objects.get(board_name=board_instance, medium_name=medium_name)
-                 
-                    standard_id = row.get("standard")
-                    if standard_id:
-                        standard_instance = AcademicStandards.objects.get(medium_name=medium_instance, standard=standard_id)
-                        student_info["standard"] = standard_instance
-
             existing_student = Students.objects.filter(business_owner=user, contact_no=student_info["contact_no"]).first()
             if existing_student:
                 return JsonResponse({
@@ -2447,11 +2439,64 @@ def     upload_student(xl_file, user):
 
     except Exception as e:
         response_data = {
-                    "result": False,
-                    "message": "Something went wrong"
-                }
+            "result": False,
+            "message": "Something went wrong"
+        }
         return JsonResponse(response_data, status=400)
 
+
+def create_excel_with_column_names_student(file_path,flag,related_id, sheet_name="Sheet1"):
+
+    try:
+        
+        if flag == "standard":
+            column_names = ["standard_id","first_name","last_name","email","contact_no","parent_name","parent_contact_no","address"] if related_id.standard_id else ["standard_name"]
+    
+        elif flag == "batch":
+            column_names = ["batch_id","first_name","last_name","email","contact_no","parent_name","parent_contact_no","address"] if related_id.batch_id else ["batch_name"]
+    
+        # Create a new workbook
+
+       
+        file_path = f"format_{flag}.xlsx"
+
+        workbook = xlsxwriter.Workbook(file_path)
+        worksheet = workbook.add_worksheet(sheet_name)
+
+        for col_num, header in enumerate(column_names):
+            worksheet.set_column(col_num, col_num, len(header) + 30)
+        # Write column headers
+        for col_num, header in enumerate(column_names):
+            worksheet.write(0, col_num, header)
+        
+        if related_id.standard_id:
+            for row_num in range(1, 30):  # Assuming 1000 rows for example
+                worksheet.write(row_num, 0, related_id.standard_id)
+
+        elif related_id.batch_id:
+            for row_num in range(1, 30):  # Assuming 1000 rows for example
+                worksheet.write(row_num, 0, related_id.batch_id)
+
+        # Close the workbook
+        workbook.close()
+
+        with open(file_path, "rb") as file:
+            file_content = file.read()
+
+        # Return the Excel file as a response
+        response = HttpResponse(file_content, content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+        response['Content-Disposition'] = f'attachment; filename={file_path}'
+
+        return response
+       
+    except Exception as e:
+        response_data = {
+            "result": False,
+            "message": str(e)
+        }
+        
+        return response_data
+# Example usage
 
 
 def student_list(user, query):
@@ -3521,54 +3566,55 @@ def upload_from_xl(xl_file, user, flag,param_prompt):
 
             elif flag == "medium":
                 medium_name = row.get("medium_name")
-
-                if medium_name and param_prompt.board_id:
-                    existing_medium = AcademicMediums.objects.filter(medium_name=medium_name, board_name_id=param_prompt.board_id).first()
+                board_id = row.get("board_id")
+                if medium_name:
+                    existing_medium = AcademicMediums.objects.filter(medium_name=medium_name).first()
                     if existing_medium:
                         existing_mediums.append(medium_name)
                     else:
-                        medium_instance, created = create_medium(medium_name, param_prompt.board_id)
+                        medium_instance, created = create_medium(medium_name, board_id)
                         if created:
                             created_mediums.append(medium_instance)
 
             elif flag == "standard":
                 standard_name = row.get("standard_name")
-
-                if standard_name and param_prompt.medium_id:
-                    existing_standard = AcademicStandards.objects.filter(standard=standard_name, medium_name_id=param_prompt.medium_id).first()
+                medium_id = row.get("medium_id")
+                if standard_name :
+                    existing_standard = AcademicStandards.objects.filter(standard=standard_name).first()
                     if existing_standard:
                         existing_standards.append(standard_name)
                     else:
-                        standard_instance, created = create_standard(standard_name, param_prompt.medium_id)
+                        standard_instance, created = create_standard(standard_name,medium_id)
                         if created:
                             created_standards.append(standard_instance)
 
             elif flag == "subject":
                 subject_name = row.get("subject_name")
-
-                if subject_name and param_prompt.standard_id:
-                    existing_subject = AcademicSubjects.objects.filter(subject_name=subject_name, standard_id=param_prompt.standard_id).first()
+                standard_id = row.get ("standard_id")
+                if subject_name:
+                    existing_subject = AcademicSubjects.objects.filter(subject_name=subject_name).first()
                     if existing_subject:
                         existing_subjects.append(subject_name)
                     else:
-                        subject_instance, created = create_subject(subject_name, param_prompt.standard_id)
+                        subject_instance, created = create_subject(subject_name,standard_id)
                         if created:
                             created_subjects.append(subject_instance)
                         
 
             elif flag == "chapter":
                 chapter_name = row.get("chapter_name")
-
-                if chapter_name and param_prompt.subject_id:
-                    existing_chapter = AcademicChapters.objects.filter(chapter_name=chapter_name, subject_name_id=param_prompt.subject_id).first()
+                subject_id = row.get("subject_id")
+                if chapter_name:
+                    existing_chapter = AcademicChapters.objects.filter(chapter_name=chapter_name).first()
                     if existing_chapter:
                         existing_chapters.append(chapter_name)
                     else:
-                        chapter_instance, created = create_chapter(chapter_name, param_prompt.subject_id)
+                        chapter_instance, created = create_chapter(chapter_name,subject_id)
                         if created:
                             created_chapters.append(chapter_instance)
 
             elif flag == "question":
+                chapter_id = row.get("chapter_id")
                 question_text = row.get("question")
                 option1 = row.get("option1")
                 option2 = row.get("option2")
@@ -3579,12 +3625,11 @@ def upload_from_xl(xl_file, user, flag,param_prompt):
                 marks = row.get("marks")
                 time_duration = row.get("time_duration")
 
-                if param_prompt.chapter_id and question_text and option1 and option2 and option3 and option4 and answer and question_category and marks and time_duration :
-                    academic_chapter_id = param_prompt.chapter_id
+                if question_text and option1 and option2 and option3 and option4 and answer and question_category and marks and time_duration :
+                    academic_chapter_id = chapter_id
                     academic_chapter = AcademicChapters.objects.get(id=academic_chapter_id)
 
                     existing_question = AcademicQuestions.objects.filter(
-                        academic_chapter=academic_chapter,
                         question=question_text,
                     ).first()
 
@@ -3634,7 +3679,7 @@ def upload_from_xl(xl_file, user, flag,param_prompt):
 
             elif flag == "competitive_chapter":
                 chapter_name = row.get("chapter_name")
-                subject_id = row.get("subject_id")  # Assuming you have a field for subject_id in your Excel file
+                subject_id = row.get("subject_ids")  # Assuming you have a field for subject_id in your Excel file
                 batch_ids = row.get("batch_ids")    # Assuming you have a field for batch_ids in your Excel file
 
                 if chapter_name and subject_id and batch_ids:
@@ -3670,6 +3715,7 @@ def upload_from_xl(xl_file, user, flag,param_prompt):
 
 
             elif flag == "competitive_question":
+                chapter_id = row.get("chapter_id")
                 question_text = row.get("question")
                 option1 = row.get("option1")
                 option2 = row.get("option2")
@@ -3680,8 +3726,8 @@ def upload_from_xl(xl_file, user, flag,param_prompt):
                 marks = row.get("marks")
                 time_duration = row.get("time_duration")
 
-                if param_prompt.chapter_id and question_text and option1 and option2 and option3 and option4 and answer and question_category and marks and time_duration:
-                    competitive_chapter_id = param_prompt.chapter_id
+                if question_text and option1 and option2 and option3 and option4 and answer and question_category and marks and time_duration:
+                    competitive_chapter_id = chapter_id
                     competitive_chapter = CompetitiveChapters.objects.get(id=competitive_chapter_id)
 
                     existing_question = CompetitiveQuestions.objects.filter(
@@ -3757,28 +3803,29 @@ def upload_from_xl(xl_file, user, flag,param_prompt):
         
 import xlsxwriter
 from fastapi.responses import JSONResponse
-def create_excel_with_column_names(file_path,flag,related_id=None, sheet_name="Sheet1"):
+from django.http import HttpResponse
+def create_excel_with_column_names(file_path,flag,related_id_name, sheet_name="Sheet1"):
     try:
         if flag == "board":
             column_names = ["board_name"]
         elif flag == "medium":
-            column_names = ["board_id", "medium_name"] if related_id else ["medium_name"]
+            column_names = ["board_id", "medium_name"] if related_id_name.board_id else ["plase enter board_id in params"]
         elif flag == "standard":
-            column_names = ["medium_id","standard_name"] if related_id else ["standard_name"]
+            column_names = ["medium_id","standard_name"] if related_id_name.medium_id else ["plase enter medium_id in params"]
         elif flag == "subject":
-            column_names = ["standard_id","subject_name"] if related_id else ["subject_name"]
+            column_names = ["standard_id","subject_name"] if related_id_name.standard_id else ["plase enter standard_id in params"]
         elif flag == "chapter":
-            column_names = ["subject_id","chapter_name"] if related_id else ["chapter_name"]
+            column_names = ["subject_id","chapter_name"] if related_id_name.subject_id  else ["plase enter subject_id in params"]
         elif flag == "question":
-            column_names = ["question","option1","option2","option3","option4","answer","question_category","marks","time_duration"]
+            column_names = ["chapter_id","question","option1","option2","option3","option4","answer","question_category","marks","time_duration"] if related_id_name.chapter_id else ["plase enter chapter_id in params"]
         elif flag == "batch":
             column_names = ["batch_name"]
         elif flag == "competitive_subject":
             column_names = ["subject_name"]
         elif flag == "competitive_chapter":
-            column_names = ["chapter_name","subject_id","batch_ids"]
+            column_names = ["subject_id","batch_ids","chapter_name"] if related_id_name.subject_ids and related_id_name.batch_ids else ["plase enter subject_ids and batch_ids in params"]
         elif flag == "competitive_question":
-            column_names = ["competitive_chapter_id","question","option1","option2","option3","option4","answer","question_category","marks","time_duration"] if related_id else ["question","option1","option2","option3","option4","answer","question_category","marks","time_duration"]
+            column_names = ["chapter_id","question","option1","option2","option3","option4","answer","question_category","marks","time_duration"] if related_id_name.chapter_id else ["plase enter chapter_id in params"]
         # Create a new workbook
 
        
@@ -3787,22 +3834,50 @@ def create_excel_with_column_names(file_path,flag,related_id=None, sheet_name="S
         workbook = xlsxwriter.Workbook(file_path)
         worksheet = workbook.add_worksheet(sheet_name)
 
+        for col_num, header in enumerate(column_names):
+            worksheet.set_column(col_num, col_num, len(header) + 30)
+
         # Write column headers
         for col_num, header in enumerate(column_names):
             worksheet.write(0, col_num, header)
         
-        if related_id:
+        if related_id_name.board_id:
             for row_num in range(1, 30):  # Assuming 1000 rows for example
-                worksheet.write(row_num, 0, related_id)
+                worksheet.write(row_num, 0, related_id_name.board_id)
 
+        elif related_id_name.medium_id:
+            for row_num in range(1, 30):  # Assuming 1000 rows for example
+                worksheet.write(row_num, 0, related_id_name.medium_id)
+        
+        elif related_id_name.standard_id:
+            for row_num in range(1, 30):  # Assuming 1000 rows for example
+                worksheet.write(row_num, 0, related_id_name.standard_id)
+
+        
+        elif related_id_name.subject_id:
+            for row_num in range(1, 30):  # Assuming 1000 rows for example
+                worksheet.write(row_num, 0, related_id_name.subject_id)
+
+        elif related_id_name.chapter_id:
+            for row_num in range(1, 30):  # Assuming 1000 rows for example
+                worksheet.write(row_num, 0, related_id_name.chapter_id)
+
+        elif related_id_name.subject_ids and related_id_name.batch_ids:
+            for row_num in range(1, 30):
+                worksheet.write(row_num, 0, related_id_name.subject_ids)
+                worksheet.write(row_num, 1, related_id_name.batch_ids)
+                print(f"Row {row_num}: Subject ID = {related_id_name.subject_id}, Batch IDs = {related_id_name.batch_ids}")
         # Close the workbook
         workbook.close()
 
-        response_data = {
-            "result": True,
-            "message": "file successfully created.",
-        }
-        return response_data
+        with open(file_path, "rb") as file:
+            file_content = file.read()
+
+        # Return the Excel file as a response
+        response = HttpResponse(file_content, content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+        response['Content-Disposition'] = f'attachment; filename={file_path}'
+
+        return response
        
     except Exception as e:
         response_data = {

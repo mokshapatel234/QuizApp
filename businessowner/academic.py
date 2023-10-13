@@ -56,20 +56,20 @@ def delete_board(request, board_id):
     result = delete_board_data(request.user,board_id)
     return result
 
-@router.post("/upload", response={200: DeleteOut, 400: dict, 401: dict})
+@router.post("/import-data", response={200: DeleteOut, 400: dict, 401: dict})
 @verify_token
-def upload_file(request, xl_file: UploadedFile = File(...),flag: str = Query(..., description="Flag indicating what to process "),param_prompt: UploadData = Query(...)):
+def upload_file(request, xl_file: UploadedFile = File(...),flag: str = Query(...),param_prompt: UploadData = Query(...)):
     if flag not in ["board", "medium","standard","subject","chapter","question","batch","competitive_subject","competitive_chapter","competitive_question"]:
         return JSONResponse(content={"message": "Invalid flag."}, status_code=400)
     return upload_from_xl(xl_file, request.user,flag,param_prompt)
 
 
-@router.post("/download", response={200: dict, 400: dict, 401: dict})
+@router.post("/download-data-format", response={200: dict, 400: dict, 401: dict})
 @verify_token
-def download_file(request,flag: str = Query(..., description="Flag indicating what to process "),related_id: str = Query(None, description="Related ID for medium or board")):
+def download_file(request,flag: str = Query(...),related_id_name: DownloadData = Query(...)):
     if flag not in ["board", "medium","standard","subject","chapter","question","batch","competitive_subject","competitive_chapter","competitive_question"]:
         return JSONResponse(content={"message": "Invalid flag."}, status_code=400)
-    result = create_excel_with_column_names("output.xlsx",flag,related_id)
+    result = create_excel_with_column_names("output.xlsx",flag,related_id_name)
     return result
 #-----------------------------------------------------------------------------------------------------------#
 #-------------------------------------------------MEDIUM----------------------------------------------------#
