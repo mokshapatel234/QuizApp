@@ -171,7 +171,7 @@ def update_subject(request, subject_id: UUID, data: updateSubjectIn):
 #-----------------------------------------------------------------------------------------------------------#
 
 
-@router.get("/academic/chapter", response={200:List[AcademicChapter], 401:dict, 400:dict})
+@router.get("/academic/chapter", response={200:List[dict], 401:dict, 400:dict})
 @verify_token
 @paginate(CustomPagination)
 def get_academic_chapter(request,filter_prompt: AcademicFilter = Query(...)):
@@ -255,15 +255,20 @@ def update_question(request, question_id: UUID, data: UpdateQuestionIn):
 def create_acad_exam(request, data: AcademicExamIn):
     return create_academic_exam(request.user, data)
 
-@router.get("/academic/exam", response={200: List[AcadeExamOut], 400: dict, 401: dict})
+@router.get("/academic/exam", response={200: List[dict], 400: dict, 401: dict})
 @verify_token
 @paginate(CustomPagination)
 def get_academic_examlist(request, query:AcadExamFilter = Query(...)):
     return get_acad_examlist(request.user, query)
 
 
-@router.post("/academic/startExam/{exam_id}", response={200: DeleteOut, 400: dict, 401: dict})
+@router.post("/academic/startExam", response={200: DeleteOut, 400: dict, 401: dict})
 @verify_token
-def start_academic_exam(request, exam_id, data:AcadExamQuestion):
-    return start_acad_exam(exam_id, data)
+def start_academic_exam(request,data:AcadExamQuestion):
+    return start_acad_exam(data)
 
+
+@router.post("/academic/CreateExam", response={200: AcadeCreatestartExamOut, 400: dict, 401: dict})
+@verify_token
+def start_CSExam(request, data:AcadeCreatestartExam):
+    return start_acad_CSExam(request.user,data)
