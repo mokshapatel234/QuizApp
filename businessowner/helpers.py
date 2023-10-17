@@ -2482,11 +2482,9 @@ def create_excel_with_column_names_student(file_path,flag,related_id, sheet_name
 
         with open(file_path, "rb") as file:
             file_content = file.read()
-
-        # Return the Excel file as a response
+        
         response = HttpResponse(file_content, content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
         response['Content-Disposition'] = f'attachment; filename={file_path}'
-
         return response
        
     except Exception as e:

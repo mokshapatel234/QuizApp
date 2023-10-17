@@ -277,7 +277,7 @@ def update_question(request, question_id: UUID, data: UpdateQuestionIn):
 def create_acad_exam(request, data: AcademicExamIn):
     return create_academic_exam(request.user, data)
 
-@router.get("/academic/exam", response={200: List[dict], 400: dict, 401: dict})
+@router.get("/academic/exam", response={200: List[AcadExamOut], 400: dict, 401: dict})
 @verify_token
 @paginate(CustomPagination)
 def get_academic_examlist(request, query:AcadExamFilter = Query(...)):

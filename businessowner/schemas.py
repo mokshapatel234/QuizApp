@@ -1097,3 +1097,25 @@ class DownloadData(Schema):
 class StudentdData(Schema):
      batch_id: Optional[str]
      standard_id: Optional[str]
+
+
+
+class Exammm(Schema):
+    subject: str
+    chapters: str
+
+class AcadExamOut(Schema):
+    id:str
+    exam_title: str
+    board_id: str
+    board_name: str
+    medium_id:str
+    medium_name: str
+    standard_id: str
+    standard_name: str
+    total_question:int
+    time_duration: float
+    negative_marks: str
+    total_marks:int
+    exam_data: List[Exammm]
+    
