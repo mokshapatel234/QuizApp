@@ -66,7 +66,6 @@ class ConnectionManager(Singleton):
     async def connect(self, websocket: WebSocket):
         await websocket.accept()  
         self.active_connections.append(websocket)
-        print()
     async def disconnect(self, websocket: WebSocket):
         self.active_connections.remove(websocket)
         print(f"Client #{id(websocket)} left the chat")
