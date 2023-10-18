@@ -1,6 +1,6 @@
 from ninja import Schema
 from datetime import datetime
-from typing import Optional,List
+from typing import Optional,List,Dict
 from uuid import UUID
 
 
@@ -182,6 +182,7 @@ class BatchOut(Schema):
 class BatchFilter(Schema):
     status: Optional[str]
     search: Optional[str]
+    chapter_id: Optional[str]
 
 
 #-----------------------------------------------------------------------------------------------------------#
@@ -235,6 +236,7 @@ class CompChapterFilter(Schema):
     batch_id: Optional[str]
     subject_id: Optional[str]
     search: Optional[str]
+    subject_ids: Optional[str]
 
 class ChapterBatch(Schema):
     id: str
@@ -310,6 +312,7 @@ class CompetitiveQuestion(Schema):
     chapter_name: str
     subject_id: str
     subject_name: str
+    batches: List[ChapterBatch]
     question_category: str
     marks: int
     time: str
@@ -360,6 +363,8 @@ class CompExam(Schema):
     question_category: str
     time: float
     mark: int
+    options: Optionschema
+    answer: str 
     subject: str
 
 class CompExamQuestion(Schema):
@@ -381,7 +386,6 @@ class CompExamOut(Schema):
     time_duration: float
     negative_marks:float
     total_marks:int
-    start_date: datetime
     exam_datas: List[Exammm]
     
 
@@ -399,8 +403,8 @@ class StudentIn(Schema):
     parent_contact_no: str
     profile_image: Optional[str]  
     address: Optional[str]  
-    batch_id: Optional[UUID]  
-    standard_id: Optional[UUID]  
+    batch_id: Optional[str]  
+    standard_id: Optional[str]  
 
 class StudentUpdate(Schema):
     first_name: Optional[str]  
@@ -755,6 +759,7 @@ class AcademicFilter(Schema):
     medium_id : Optional[str]
     subject_id : Optional[str]
     chapter_id : Optional[str]
+    subject_ids: Optional[str]
 
 class AcademicBoardOut(Schema):
     result: bool
@@ -994,8 +999,10 @@ class AcadExam(Schema):
     question_category: str
     time: float
     mark: int
+    options: Optionschema
+    answer: str
     subject: str
-
+    
 
 class AcadExamData(Schema):
     subject_id: UUID
@@ -1024,7 +1031,7 @@ class AcadExamFilter(Schema):
 
 
 class AcadExamQuestion(Schema):
-    question:List[UUID]
+    exam_id:UUID
 
 
 class AcadeExamOut(Schema):
@@ -1042,3 +1049,38 @@ class AcadeExamOut(Schema):
     total_marks:int
     start_date: datetime
     exam_data: List[Exammm]
+
+
+
+class   QuestionItem(Schema):
+    id: UUID
+    question: str
+    question_category: str
+    time: float
+    mark: int
+    options: Dict[str, str]
+    answer: str
+    subject: str
+
+class subjectinfo(Schema):
+    subject_id: UUID
+    subject_time: int
+    subject_marks: int
+    
+class AcadeCreatestartExam(Schema):
+    exam_title: str
+    standard_id: UUID
+    total_questions: int
+    time_duration: float
+    negative_marks: str
+    passing_marks: int
+    total_marks: int
+    option_e: bool
+    question:List[UUID]
+    exam_data: List[AcadExamData]
+    subject_data: List[subjectinfo]
+
+class AcadeCreatestartExamOut(Schema):
+    result: bool
+    message: str
+    exam_id : UUID

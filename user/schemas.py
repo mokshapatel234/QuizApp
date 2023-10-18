@@ -19,6 +19,7 @@ class Login(Schema):
     address :str
     profile_imge: Optional[str]
     status: str
+    selected_language: str
     token: str
 
 class LoginOut(Schema):

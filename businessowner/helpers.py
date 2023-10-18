@@ -32,7 +32,6 @@ def perform_login(data):
             #     user.is_plan_purchase = False
             #     user.save()
             if user.is_plan_purchase == False:
-                print(user)
                 city = Cities.objects.get(id=user.city_id)
                 state = States.objects.get(id=city.state_id)
                 response_data = {
@@ -119,7 +118,7 @@ def perform_login(data):
     except Exception as e:
         response_data = {
             "result": False,
-            "message": print(e) 
+            "message": "Something went wrong"
         }
         return JsonResponse(response_data, status=401)
 
@@ -738,7 +737,6 @@ def add_news(data, user):
 
 def get_news_list(user):
     try:
-        print(user)
         newses = BusinessNewses.objects.filter(business_owner=user, status="active").order_by('-created_at')
         newses_list = [
             {
@@ -960,7 +958,6 @@ def add_batch(data, user):
         }
         return response_data
     except Exception as e:
-        print(e,"dsda")
         response_data = {
                 "result": False,
                 "message": "Something went wrong"
@@ -972,6 +969,13 @@ def get_batchlist(user, query):
     try:
 
         batches = CompetitiveBatches.objects.filter(business_owner=user).order_by('-created_at')
+        chapters = CompetitiveChapters.objects.filter(subject_name__business_owner=user)
+
+        if query.chapter_id:
+            chapters = chapters.filter(id=query.chapter_id)
+            if chapters.exists():
+                chapter = chapters.first()
+                batches = chapter.batches.all().order_by('-created_at')
         if query.status:
             batches = batches.filter(status=query.status)
         if query.search:
@@ -982,9 +986,7 @@ def get_batchlist(user, query):
 
             batches = batches.filter(search_query)
         business_owner = BusinessOwners.objects.get(id=user.id)
-        # else:
-            
-        #     batches = batches[0:]
+    
         batches_list = [
             {
                 "id": str(batch.id),
@@ -1349,7 +1351,6 @@ def add_comp_chapter(data, user):
             chapter.batches.add(batch)
         # chapter_instance.batches = list(batches_instances)
         chapter.save()
-        print(chapter)
         subject_id = CompetitiveSubjects.objects.get(id=chapter.subject_name_id)
         batch_info = [{"id": str(batch.id), "batch_name": batch.batch_name} for batch in chapter.batches.all()]
         chapter_data = {
@@ -1371,13 +1372,13 @@ def add_comp_chapter(data, user):
     
     except CompetitiveSubjects.DoesNotExist:
         response_data = {
-            "result": True,
+            "result": False,
             "message": "Subject not exist",
         }
         return JsonResponse(response_data, status=200)
     except Exception as e:
         response_data = {
-            "result": True,
+            "result": False,
             "message": "Something went wrong",
         }
         return JsonResponse(response_data, status=200)
@@ -1403,22 +1404,42 @@ def get_comp_chapterlist(user, query):
             chapters = chapters.filter(search_query)
 
         chapters_list = []
-        for chapter in chapters:
-            subject_id = CompetitiveSubjects.objects.get(id=chapter.subject_name_id)
-            batch_info = [{"id": str(batch.id), "batch_name": batch.batch_name} for batch in chapter.batches.all()]
-            chapter_data = {
-                "id": str(chapter.id),
-                "chapter_name": chapter.chapter_name,
-                "subject_id": str(subject_id.id),
-                "subject_name": subject_id.subject_name,
-                "batches":batch_info,
-                "status": chapter.status,
-                "created_at": chapter.created_at,
-                "updated_at": chapter.updated_at,
-            }
-            chapters_list.append(chapter_data)
+        if query.subject_ids:
+            subject_ids_str = query.subject_ids.strip()
+            subject_ids = subject_ids_str.split(",")
+            
+            for subject_id in subject_ids:
+                chapters_for_subject = chapters.filter(subject_name__id=subject_id)
+                subject_info = {
+                    "subject_id": subject_id,
+                    "subject_name": chapters_for_subject.first().subject_name.subject_name,
+                    "chapters": [
+                        {
+                            "id": str(chapter.id),
+                            "chapter_name": chapter.chapter_name,
+                        }
+                        for chapter in chapters_for_subject
+                    ]
+                }
+                chapters_list.append(subject_info)
+            return chapters_list
+        else:
+            for chapter in chapters:
+                subject_id = CompetitiveSubjects.objects.get(id=chapter.subject_name_id)
+                batch_info = [{"id": str(batch.id), "batch_name": batch.batch_name} for batch in chapter.batches.all()]
+                chapter_data = {
+                    "id": str(chapter.id),
+                    "chapter_name": chapter.chapter_name,
+                    "subject_id": str(subject_id.id),
+                    "subject_name": subject_id.subject_name,
+                    "batches":batch_info,
+                    "status": chapter.status,
+                    "created_at": chapter.created_at,
+                    "updated_at": chapter.updated_at,
+                }
+                chapters_list.append(chapter_data)
 
-        return chapters_list
+            return chapters_list
     
     except CompetitiveChapters.DoesNotExist:
         response_data = {
@@ -1499,7 +1520,7 @@ def update_comp_chapter(chapter_id, data, user):
 
                     if field == "subject_id":  
                         subject = CompetitiveSubjects.objects.get(id=value)
-                        chapter.subject_id = subject
+                        chapter.subject_name = subject
 
                     elif field == "batches":  
                         new_batches_instances = CompetitiveBatches.objects.filter(id__in=value)
@@ -1618,7 +1639,7 @@ def add_comp_question(user,data):
             time_duration=data.time,
             business_owner=user
         )
-
+        batch_info = [{"id": str(batch.id), "batch_name": batch.batch_name} for batch in competitive_chapter.batches.all()]
         question_data = {
             "id": str(question.id),
             "question": question.question,
@@ -1628,6 +1649,7 @@ def add_comp_question(user,data):
             "chapter_name": question.competitve_chapter.chapter_name,
             "subject_id": str(question.competitve_chapter.subject_name.id),
             "subject_name": question.competitve_chapter.subject_name.subject_name,
+            "batches": batch_info,
             "question_category": question.question_category,
             "marks": str(question.marks),
             "time": str(question.time_duration),
@@ -1671,9 +1693,8 @@ def get_comp_questionlist(user, query):
         if query.status:
             questions = questions.filter(status=query.status)
             
-        elif query.subject_id and query.chapter_id and query.batch_id:
-            batch_id = query.batch_id
-            questions = [question for question in questions if str(batch_id) in [str(batch.id) for batch in question.competitve_chapter.batches.all()]]
+        elif query.batch_id and query.chapter_id:
+            questions = questions.filter(competitve_chapter=query.chapter_id)
 
         elif query.subject_id and query.chapter_id:
             questions = questions.filter(competitve_chapter=query.chapter_id)
@@ -1723,6 +1744,7 @@ def get_comp_questionlist(user, query):
                 "option3": options_data.option3 if options_data else None,
                 "option4": options_data.option4 if options_data else None,
             }
+            batch_info = [{"id": str(batch.id), "batch_name": batch.batch_name} for batch in question.competitve_chapter.batches.all()]
             question_data = {
                     "id": str(question.id),
                     "question": question.question,
@@ -1732,6 +1754,7 @@ def get_comp_questionlist(user, query):
                     "chapter_name": question.competitve_chapter.chapter_name,
                     "subject_id": str(question.competitve_chapter.subject_name.id),
                     "subject_name": question.competitve_chapter.subject_name.subject_name, 
+                    "batches": batch_info,
                     "question_category": question.question_category,
                     "marks": str(question.marks),
                     "time": str(question.time_duration),
@@ -1766,6 +1789,7 @@ def get_comp_question(user, question_id):
             "option3": options_data.option3 if options_data else None,
             "option4": options_data.option4 if options_data else None,
         }
+        batch_info = [{"id": str(batch.id), "batch_name": batch.batch_name} for batch in question.competitve_chapter.batches.all()]
         question_data = {
                 "id": str(question.id),
                 "question": question.question,
@@ -1775,6 +1799,7 @@ def get_comp_question(user, question_id):
                 "chapter_name": question.competitve_chapter.chapter_name,
                 "subject_id": str(question.competitve_chapter.subject_name.id),
                 "subject_name": question.competitve_chapter.subject_name.subject_name, 
+                "batches": batch_info,
                 "question_category": question.question_category,
                 "marks": str(question.marks),
                 "time": str(question.time_duration),
@@ -1837,6 +1862,7 @@ def update_comp_question(question_id, data):
                 else:
                     setattr(question, field, value)
             question.save()
+            batch_info = [{"id": str(batch.id), "batch_name": batch.batch_name} for batch in question.competitve_chapter.batches.all()]
             question_data = {
                 "id": str(question.id),
                 "question": question.question,
@@ -1845,6 +1871,7 @@ def update_comp_question(question_id, data):
                 "chapter_name": question.competitve_chapter.chapter_name,
                 "subject_id": str(question.competitve_chapter.subject_name.id),
                 "subject_name": question.competitve_chapter.subject_name.subject_name, 
+                "batches": batch_info,
                 "question_category": question.question_category,
                 "marks": str(question.marks),
                 "time": str(question.time_duration),
@@ -1889,7 +1916,6 @@ def update_comp_question(question_id, data):
         }
         return JsonResponse(response_data, status=400)
     except Exception as e:
-        print(e)
         response_data = {
                     "result": False,
                     "message": "Something went wrong"
@@ -2328,7 +2354,6 @@ def get_comp_examlist(user, query):
             exams = exams.filter(exam_data__subject=query.subject_id)
         
         if query.chapter_id:
-            print("Query Chapter:", query.chapter_id)
             exams = exams.filter(exam_data__chapter__contains=query.chapter_id)
         
         if query.search:
@@ -2573,7 +2598,7 @@ def student_list(user, query):
 
             students = students.filter(search_query)
         else:
-            students = Students.objects.filter(business_owner=user)
+            students = Students.objects.filter(business_owner=user).order_by('-created_at')
         student_list = []
         for student in students:
             
@@ -2776,19 +2801,15 @@ def student_updation(student_id, data):
 
 def student_file_updation(xl_file, user):
     try:
-        print(xl_file)
         xl_data = pd.read_excel(xl_file.file)
-        print(xl_data)
         updated_students = []
 
         for _, row in xl_data.iterrows():
             student_info = {
                 "contact_no": row["contact_no"]
             }
-            print(student_info["contact_no"])
         
             student = Students.objects.filter(business_owner=user, contact_no=student_info["contact_no"]).first()
-            print(student)
             batch_name = row.get("batch")
             if batch_name:
                 batch_instance, _ = CompetitiveBatches.objects.get(batch_name=batch_name)
@@ -3474,7 +3495,6 @@ def add_baord(user, data):
 
 def update_board_data(user,data,board_id):
     try:
-        print(user)
         # Check if the academic board exists
         academic_board = AcademicBoards.objects.get(id=board_id, business_owner=user)
         update_data = {field: value for field, value in data.dict().items() if value is not None}
@@ -3512,7 +3532,7 @@ def update_board_data(user,data,board_id):
     except Exception as e:
         response_data = {
                     "result": False,
-                    "message": print(e)
+                    "message": "Something went wrong"
                 }
         return JsonResponse(response_data, status=400)
 
@@ -3658,7 +3678,6 @@ def add_medium_data(user, data):
     try:
         board_id = data.get('board_id')  # Fetch board_id (UUID) from the request data
         board_instance = AcademicBoards.objects.get(id=board_id) 
-        print(board_instance) # Convert to UUID and fetch the corresponding board instance
         
         medium = AcademicMediums.objects.create(
             medium_name=data.get('medium_name'),
@@ -3865,12 +3884,10 @@ def add_standard_data(user, data):
     
         medium_instance = AcademicMediums.objects.get(id=medium_id) 
      # Convert to UUID and fetch the corresponding board instance
-        print(medium_instance)
         standards = AcademicStandards.objects.create(
             standard=data.standard,
             medium_name=medium_instance,  # Use the fetched board instance
         )
-        print(standards)
     
         
         saved_standard = {
@@ -4025,7 +4042,6 @@ def update_standard_data(user,data,standard_id):
         return JsonResponse(response_data, status=400)
 
     except Exception as e:
-        print(e)
         response_data = {
                     "result": False,
                     "message": "Something went wrong"
@@ -4041,7 +4057,7 @@ def update_standard_data(user,data,standard_id):
 def get_academic_subject_list(user, filter_prompt):
     try:
         academic_subjects = AcademicSubjects.objects.filter(standard__medium_name__board_name__business_owner=user).order_by('-created_at')
-
+        print(academic_subjects,'asdfaf')
         q_objects = Q()
         if filter_prompt.search:
             q_objects = (
@@ -4118,12 +4134,10 @@ def add_subject_data(user, data):
     
         standard_instance = AcademicStandards.objects.get(id=standard_id) 
      # Convert to UUID and fetch the corresponding board instance
-        print(standard_instance)
         subjects = AcademicSubjects.objects.create(
             subject_name=data.subject_name,
             standard=standard_instance,  # Use the fetched board instance
         )
-        print(subjects)
     
         
         saved_subject = {
@@ -4303,6 +4317,7 @@ def update_subject_data(user,data,subject_id):
 def get_academic_chapter_list(user, filter_prompt):
     try:
         academic_chapters = AcademicChapters.objects.filter(subject_name__standard__medium_name__board_name__business_owner=user).order_by('-created_at')
+        
 
         if filter_prompt.search:
             q_objects = (
@@ -4334,25 +4349,47 @@ def get_academic_chapter_list(user, filter_prompt):
 
         elif filter_prompt.chapter_id:
             academic_chapters = academic_chapters.filter(id=filter_prompt.chapter_id)
+        
+        academic_chapters_list = []
 
-        academic_chapters_list = [
-            {
-                "id": str(chapter.id),
-                "chapter_name": chapter.chapter_name,
-                "board_id": str(chapter.subject_name.standard.medium_name.board_name.id),
-                "board_name": chapter.subject_name.standard.medium_name.board_name.board_name,
-                "medium_id": str(chapter.subject_name.standard.medium_name.id),
-                "medium_name": chapter.subject_name.standard.medium_name.medium_name,
-                "standard_id": str(chapter.subject_name.standard_id),
-                "standard": chapter.subject_name.standard.standard,
-                "subject_id": str(chapter.subject_name.id),
-                "subject_name": chapter.subject_name.subject_name,
-                "status": chapter.status,
-                "created_at": chapter.created_at,
-                "updated_at": chapter.updated_at,
-            }
-            for chapter in academic_chapters
-        ]
+        if filter_prompt.subject_ids:
+            subject_ids_str = filter_prompt.subject_ids.strip()
+            subject_ids = subject_ids_str.split(",")
+            
+            for subject_id in subject_ids:
+                chapters_for_subject = academic_chapters.filter(subject_name__id=subject_id)
+                subject_info = {
+                    "subject_id": subject_id,
+                    "subject_name": chapters_for_subject.first().subject_name.subject_name,
+                    "chapters": [
+                        {
+                            "id": str(chapter.id),
+                            "chapter_name": chapter.chapter_name,
+                        }
+                        for chapter in chapters_for_subject
+                    ]
+                }
+                academic_chapters_list.append(subject_info)
+            return academic_chapters_list
+        else:
+            academic_chapters_list = [
+                {
+                    "id": str(chapter.id),
+                    "chapter_name": chapter.chapter_name,
+                    "board_id": str(chapter.subject_name.standard.medium_name.board_name.id),
+                    "board_name": chapter.subject_name.standard.medium_name.board_name.board_name,
+                    "medium_id": str(chapter.subject_name.standard.medium_name.id),
+                    "medium_name": chapter.subject_name.standard.medium_name.medium_name,
+                    "standard_id": str(chapter.subject_name.standard_id),
+                    "standard": chapter.subject_name.standard.standard,
+                    "subject_id": str(chapter.subject_name.id),
+                    "subject_name": chapter.subject_name.subject_name,
+                    "status": chapter.status,
+                    "created_at": chapter.created_at,
+                    "updated_at": chapter.updated_at,
+                }
+                for chapter in academic_chapters
+            ]
 
         return academic_chapters_list
     
@@ -4546,7 +4583,6 @@ def update_chapter_data(user,data,chapter_id):
         }
         return JsonResponse(response_data, status=400)
     except Exception as e:
-        print(e)
         response_data = {
                     "result": False,
                     "message": "Something went wrong"
@@ -4952,7 +4988,7 @@ def update_question_data(data, question_id):
                 }
         return JsonResponse(response_data, status=400)
  
-
+from django.core import serializers
 def create_academic_exam(user, data):
     try:
      
@@ -4985,9 +5021,9 @@ def create_academic_exam(user, data):
                     updated_remaining_marks = remaining_marks - selected_question.marks
                     updated_remaining_easy_questions = remaining_easy_questions - 1
                     # print("new", updated_remaining_easy_questions)      
-                    print("ADSA", selected_questions)
-                    print("timeee", updated_remaining_time)
-                    print("markssss", updated_remaining_marks)
+                    # print("ADSA", selected_questions)
+                    # print("timeee", updated_remaining_time)
+                    # print("markssss", updated_remaining_marks)
                     if backtrack(selected_questions, updated_remaining_time, updated_remaining_marks, updated_remaining_easy_questions, remaining_medium_questions, remaining_hard_questions, question_data_list):
                         return True
                     else:
@@ -5001,9 +5037,9 @@ def create_academic_exam(user, data):
                     updated_remaining_marks = remaining_marks - selected_question.marks
                     updated_remaining_medium_questions = remaining_medium_questions - 1
                     # print("new", updated_remaining_medium_questions)      
-                    print("ADSA", selected_questions)
-                    print("timeee", updated_remaining_time)
-                    print("markssss", updated_remaining_marks)
+                    # print("ADSA", selected_questions)
+                    # print("timeee", updated_remaining_time)
+                    # print("markssss", updated_remaining_marks)
                     if backtrack(selected_questions, updated_remaining_time, updated_remaining_marks, remaining_easy_questions, updated_remaining_medium_questions, remaining_hard_questions, question_data_list):
                         return True
                     else:
@@ -5017,9 +5053,9 @@ def create_academic_exam(user, data):
                     updated_remaining_marks = remaining_marks - selected_question.marks
                     updated_remaining_hard_questions = remaining_hard_questions - 1
                     # print("new", updated_remaining_hard_questions)      
-                    print("ADSA", selected_questions)
-                    print("timeee", updated_remaining_time)
-                    print("markssss", updated_remaining_marks)
+                    # print("ADSA", selected_questions)
+                    # print("timeee", updated_remaining_time)
+                    # print("markssss", updated_remaining_marks)
                     if backtrack(selected_questions, updated_remaining_time, updated_remaining_marks, remaining_easy_questions, remaining_medium_questions, updated_remaining_hard_questions, question_data_list):
                         return True
                     else:
@@ -5029,6 +5065,7 @@ def create_academic_exam(user, data):
 
             return False
 
+        subject_data_list = []
         
         for subject_data in data.exam_data:
             subject_weightage = sum(
@@ -5038,10 +5075,18 @@ def create_academic_exam(user, data):
 
             subject_time = int(data.time_duration * subject_percentage + 0.5)
             subject_marks = round(float(data.total_marks * subject_percentage))
-            print(subject_marks, "MMMMAAAARRRKKKKKK")
-        
+            # print(subject_marks, "MMMMAAAARRRKKKKKK")
+            print(subject_data.subject_id)
+            print(subject_time)
+            print(subject_marks)
             subject_instance = AcademicSubjects.objects.get(id=subject_data.subject_id)
-            
+            subject_data_list.append({
+            "subject_id": subject_data.subject_id,
+            "subject_time": subject_time,
+            "subject_marks": subject_marks,
+            # Include other relevant data if needed
+        })
+
             chapter_instance = AcademicChapters.objects.filter(id__in=subject_data.chapters)
             chapters = list(chapter_instance)
             chapter_ids = [f"{item.id}," for item in chapters]
@@ -5095,11 +5140,18 @@ def create_academic_exam(user, data):
                     time_per_subject=subject_time,
                     marks_per_subject=subject_marks,
                 )
-                exam_data_instance.save() 
+                # exam_data_instance.save() 
 
                 exam_data_calculated.append(exam_data_instance)
 
                 for question in selected_questions_set1:
+                    options_data = Options.objects.get(id=question.options_id)
+                    options_dict = {
+                            "option1": options_data.option1 if options_data else None,
+                            "option2": options_data.option2 if options_data else None,
+                            "option3": options_data.option3 if options_data else None,
+                            "option4": options_data.option4 if options_data else None,
+                        }
                     acad_exam_instance = AcadExam(
                         
                         id = str(question.id),
@@ -5107,36 +5159,57 @@ def create_academic_exam(user, data):
                         time=float(question.time_duration),
                         mark=question.marks,
                         question_category=question.question_category,
-                        subject = str(question.academic_chapter)
+                        subject = str(question.academic_chapter),
+                        options = options_dict,
+                        answer = question.answer
+                        
                     )
                     selected_acad_questions_set1.append(acad_exam_instance)
 
             if backtrack_result_set2:
                
                 for question in selected_questions_set2:
+                    options_data = Options.objects.get(id=question.options_id)
+                    options_dict = {
+                            "option1": options_data.option1 if options_data else None,
+                            "option2": options_data.option2 if options_data else None,
+                            "option3": options_data.option3 if options_data else None,
+                            "option4": options_data.option4 if options_data else None,
+                        }
                     acad_exam_instance = AcadExam(
                         id = str(question.id),
                         question=question.question,
                         time=float(question.time_duration),
                         mark=question.marks,
                         question_category=question.question_category,
-                        subject = str(question.academic_chapter)
+                        subject = str(question.academic_chapter),
+                        options = options_dict,
+                        answer = question.answer
                     )
                     selected_acad_questions_set2.append(acad_exam_instance)
 
             if backtrack_result_set3:
                 for question in selected_questions_set3:
+                    options_data = Options.objects.get(id=question.options_id)
+                    options_dict = {
+                            "option1": options_data.option1 if options_data else None,
+                            "option2": options_data.option2 if options_data else None,
+                            "option3": options_data.option3 if options_data else None,
+                            "option4": options_data.option4 if options_data else None,
+                        }
                     acad_exam_instance = AcadExam(
                         id = str(question.id),
                         question=question.question,
                         time=float(question.time_duration),
                         mark=question.marks,
                         question_category=question.question_category,
-                        subject = str(question.academic_chapter)
+                        subject = str(question.academic_chapter),
+                        options = options_dict,
+                        answer = question.answer
                     )
                     selected_acad_questions_set3.append(acad_exam_instance)
 
-            print("------------------------------------------------------")
+            # print("------------------------------------------------------")
        
 
         exam_instance = AcademicExams(
@@ -5150,11 +5223,13 @@ def create_academic_exam(user, data):
             option_e=data.option_e,
             business_owner=user
         )
-        exam_instance.save()
+        # exam_instance.save()
         for exam in exam_data_calculated:
             exam_instance.exam_data.add(exam) 
+        # subject_json = serializers.serialize('json', [subject_instance])
         
         result = {
+            "subject_data": subject_data_list,
             "set1": selected_acad_questions_set1,
             "set2": selected_acad_questions_set2 if selected_acad_questions_set2 else None,
             "set3": selected_acad_questions_set3 if selected_acad_questions_set3 else None,
@@ -5170,7 +5245,6 @@ def create_academic_exam(user, data):
         return response_data
     
     except Exception as e:
-        print(e)
         response_data = {
                     "result": False,
                     "message": "Something went wrong"
@@ -5182,14 +5256,13 @@ def get_acad_examlist(user, query):
     try: 
         
         exams = AcademicExams.objects.filter(business_owner=user, start_date__isnull=False).order_by('-created_at')
-        
+       
         if query.standard:
             exams = exams.filter(standard=query.standard)
         if query.subject:
             exams = exams.filter(exam_data__subject=query.subject)
         
         if query.chapter:
-            print("Query Chapter:", query.chapter)
             exams = exams.filter(exam_data__chapter__contains=query.chapter)
         
         if query.search:
@@ -5209,7 +5282,6 @@ def get_acad_examlist(user, query):
             for exam_data in exam.exam_data.all():
                 subject_name = exam_data.subject.subject_name
                 chapter = exam_data.chapter
-                # print(exam_data.easy_question, exam_data.medium_question, exam_data.hard_question)
                 
                 exam_data_list.append({"subject": subject_name, "chapters": chapter})
 
@@ -5250,34 +5322,40 @@ def get_acad_examlist(user, query):
     
 
 
-def start_acad_exam(exam_id, data):
+def start_acad_exam(data):
     try:
+        exam_id = data.exam_id  # Assuming 'exam_id' is in the payload
+        print(exam_id)
+        if not exam_id:
+            response_data = {
+                "result": False,
+                "message": "exam_id is required in the payload"
+            }
+            return JsonResponse(response_data, status=400)
+
         exam = AcademicExams.objects.get(id=exam_id)
+        print(exam,"thisgigfg")
         exam.start_date = datetime.now()
-        selected_question = AcademicQuestions.objects.filter(id__in=data.question)
-        questions = list(selected_question)
-        for question in questions:
-            exam.question_set.add(question)
         exam.save()
         result = {
             "result": True,
-            "message": "Exam will start soon"
+            "message": "Exam started."
         }
-      
+
         return result
-    
+
     except AcademicExams.DoesNotExist:
         response_data = {
             "result": False,
             "message": "Exam not found"
         }
         return JsonResponse(response_data, status=400)
-    
+
     except Exception as e:
         response_data = {
-                    "result": False,
-                    "message": "Something went wrong"
-                }
+            "result": False,
+            "message": print(str(e))
+        }
         return JsonResponse(response_data, status=400)
 
 
@@ -5293,7 +5371,6 @@ def get_acad_examreport(user, query):
             exams = exams.filter(exam_data__subject=query.subject)
         
         if query.chapter:
-            print("Query Chapter:", query.chapter)
             exams = exams.filter(exam_data__chapter__contains=query.chapter)
         
         if query.search:
@@ -5338,3 +5415,90 @@ def get_acad_examreport(user, query):
                 }
         return JsonResponse(response_data, status=400)
     
+
+
+from django.db import transaction
+
+def start_acad_CSExam(user, data):
+    
+    try:
+        exam_data_calculated = []
+        standard_id = data.standard_id  # Assuming 'standard_id' is a valid UUID4
+        standard_instance = AcademicStandards.objects.get(id=standard_id)
+        for subject_data in data.exam_data:
+            easy=subject_data.easy_question
+            medium=subject_data.medium_question
+            hard=subject_data.hard_question
+            subject_id = subject_data.subject_id
+            subject_instance = AcademicSubjects.objects.get(id=subject_id)
+            chapter_instance = AcademicChapters.objects.filter(id__in=subject_data.chapters)
+            chapters = list(chapter_instance)
+        # Create a new exam object with the provided data
+        exam = AcademicExams.objects.create(
+            exam_title=data.exam_title,
+            standard=standard_instance,
+            total_questions=data.total_questions,
+            time_duration=data.time_duration,
+            passing_marks=data.passing_marks,
+            total_marks=data.total_marks,
+            negative_marks=data.negative_marks,
+            option_e=data.option_e,
+            business_owner=user,
+            start_date=datetime.now()  # Set the start date
+        )
+
+        # Get a list of selected question IDs from the provided data
+        selected_question_ids = data.question
+
+        # Filter and get the actual question instances
+        selected_questions = AcademicQuestions.objects.filter(id__in=selected_question_ids)
+        # print(selected_questions)
+        # print(data.time)
+        # print(data.mark)
+        # Add the selected questions to the exam
+        for question in selected_questions:
+            exam.question_set.add(question)
+        # Save the exam
+    
+        # print(f"Exam {exam.id} saved")
+
+        subject_data = data.subject_data
+        # print(subject_data)
+        for subject_info in subject_data:
+            subject_id = subject_info.subject_id
+            subject_time = subject_info.subject_time
+            subject_marks = subject_info.subject_marks
+            subject_instance = AcademicSubjects.objects.get(id=subject_id)
+            # ... (your existing code)
+
+            exam_data_instance = AcademicExamData(
+                subject=subject_instance,
+                easy_question=easy,
+                chapter=chapters,
+                medium_question=medium,
+                hard_question=hard,
+                time_per_subject=subject_time,
+                marks_per_subject=subject_marks,
+            )
+            exam_data_instance.save()
+        exam_data_calculated.append(exam_data_instance)
+        exam.save()
+        for exam_data_instance in exam_data_calculated:
+            exam.exam_data.add(exam_data_instance)  
+  
+        # for exam in exam_data_calculated:
+        #     exam_instance.exam_data.add(exam) 
+        result = {
+            "result": True,
+            "message": "Exam created and will start soon",
+            "exam_id": exam.id  # Include the exam_id in the response
+        }
+
+        return JsonResponse(result) 
+    
+    except Exception as e:
+        response_data = {
+            "result": False,
+            "message": str(e)
+        }
+        return JsonResponse(response_data, status=400)
