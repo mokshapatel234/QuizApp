@@ -2287,8 +2287,7 @@ def get_comp_examlist(user, query):
                 "negative_marks":exam.negative_marks,
                 "total_marks":exam.total_marks,
                 "start_date":exam.start_date,
-                "exam_datas": exam_data_list, 
-               
+                "exam_datas": exam_data_list
             }
             exam_list.append(exam_detail)
 
