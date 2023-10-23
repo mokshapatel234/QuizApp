@@ -436,23 +436,27 @@ def get_exam_history(user, query):
                     result = Results.objects.get(competitive_exam=exam)
                 except Results.DoesNotExist:
                     result = None
-                exam_data_list = []
-                for exam_data in exam.exam_data.all():
-                    subject_name = exam_data.subject.subject_name
-                    
-                    exam_data_list.append({"subject": subject_name})
 
-                exam_detail = {
-                    "id":str(exam.id),
-                    "exam_title": exam.exam_title,
-                    "batch": str(exam.batch.id),
-                    "batch_name": exam.batch.batch_name,
-                    "total_marks":exam.total_marks,
-                    "start_date":exam.start_date,
-                    "exam_datas": exam_data_list,
-                    "result": result.result if result else None
-                }
-                exam_list.append(exam_detail)
+                # If query.month is not provided or not valid, add all exams to the list
+                if not query.month or (query.month and exam.start_date.month == int(query.month)):
+                    # Add filtering by year
+                    if not query.year or (query.year and exam.start_date.year == int(query.year)):
+                        exam_data_list = []
+                        for exam_data in exam.exam_data.all():
+                            subject_name = exam_data.subject.subject_name
+                            subject_id = exam_data.subject.id
+                            exam_data_list.append({"subject_id": str(subject_id), "subject": subject_name})
+
+                        exam_detail = {
+                            "id": str(exam.id),
+                            "exam_title": exam.exam_title,
+                            "total_marks": exam.total_marks,
+                            "start_date": str(exam.start_date),
+                            "exam_datas": exam_data_list,
+                            "result": result.result if result else None
+                        }
+                        exam_list.append(exam_detail)
+
             return exam_list
 
         if business_owner.business_type == "academic":
@@ -465,31 +469,31 @@ def get_exam_history(user, query):
             search_terms = query.search.strip().split()
             search_query = Q()
 
-            for term in search_terms:
-                search_query |= (
-                     Q(exam_title__icontains=term)
-                    | Q(status__icontains=term)
-                )
-        exam_list = []
-        for exam in exams:
-            exam_data_list = []
-            for exam_data in exam.exam_data.all():
-                subject_name = exam_data.subject.subject_name
-                chapter = exam_data.chapter
-                
-                exam_data_list.append({"subject": subject_name, "chapters": chapter})
+            for exam in exams:
+                # If query.month is not provided or not valid, add all exams to the list
+                if not query.month or (query.month and exam.start_date.month == int(query.month)):
+                    # Add filtering by year
+                    if not query.year or (query.year and exam.start_date.year == int(query.year)):
+                        exam_data_list = []
+                        for exam_data in exam.exam_data.all():
+                            subject_name = exam_data.subject.subject_name
+                            subject_id = exam_data.subject.id
+                            exam_data_list.append({"subject_id": str(subject_id),"subject": subject_name,})
 
-            exam_detail = {
-                "id":str(exam.id),
-                "exam_title": exam.exam_title,
-                "negative_marks":exam.negative_marks,
-                "total_marks":exam.total_marks,
-                "start_date":exam.start_date,
-                "exam_data": exam_data_list,
-                "result": result.result if result else None
-            }
-            exam_list.append(exam_detail)
-        return exam_list
+                        result = None  # Assuming result is not defined in academic exams
+
+                        exam_detail = {
+                            "id": str(exam.id),
+                            "exam_title": exam.exam_title,
+                            "negative_marks": exam.negative_marks,
+                            "total_marks": exam.total_marks,
+                            "start_date": exam.start_date,
+                            "exam_datas": exam_data_list,
+                            "result": result.result if result else None
+                        }
+                        exam_list.append(exam_detail)
+
+            return exam_list
     except Exception as e:
         response_data = {
                     "result": False,
@@ -502,49 +506,75 @@ def get_exam_detail(user, exam_id):
     business_owner = BusinessOwners.objects.get(id=user.selected_institute.id)
     if business_owner.business_type == "competitive":
         exam = CompetitiveExams.objects.get(id=exam_id)
+  
         try:
             result = Results.objects.get(competitive_exam=exam)
         except Results.DoesNotExist:
             result = None
+
         exam_data_list = []
         for exam_data in exam.exam_data.all():
             subject_name = exam_data.subject.subject_name
-            chapter = exam_data.chapter
+
+        
+            chapters = []
+            for chapter_id in exam_data.chapter.split(","):
+                chapter_id = chapter_id.strip()  
+
+                if chapter_id:  
+                    try:
+                        chapter = CompetitiveChapters.objects.get(id=chapter_id)
+                        chapters.append(chapter.chapter_name)
+                    except CompetitiveChapters.DoesNotExist:
+                        pass  
             
-            exam_data_list.append({"subject": subject_name, "chapters": chapter})
+            exam_data_list.append({"subject": subject_name, "chapters": chapters})
+
         exam_detail = {
-                    "id":str(exam.id),
-                    "exam_title": exam.exam_title,
-                    "batch": str(exam.batch.id),
-                    "batch_name": exam.batch.batch_name,
-                    "total_marks":exam.total_marks,
-                    "start_date":exam.start_date,
-                    "exam_datas": exam_data_list,
-                    "mark": result.score if result else None
-                }
+            "id": str(exam.id),
+            "exam_title": exam.exam_title,
+            "batch": str(exam.batch.id),
+            "batch_name": exam.batch.batch_name,
+            "total_marks": exam.total_marks,
+            "start_date": exam.start_date,
+            "exam_datas": exam_data_list,
+            "mark": result.score if result else None
+        }
         return exam_detail
 
     elif business_owner.business_type == "academic":
-        exam = CompetitiveExams.objects.get(id=exam_id)
+        exam = AcademicExams.objects.get(id=exam_id)
         try:
-            result = Results.objects.get(competitive_exam=exam)
+            result = Results.objects.get(academic_exam=exam)
         except Results.DoesNotExist:
             result = None
+
         exam_data_list = []
         for exam_data in exam.exam_data.all():
             subject_name = exam_data.subject.subject_name
-            chapter = exam_data.chapter
+
+            chapters = []
+            for chapter_id in exam_data.chapter.split(","):
+                chapter_id = chapter_id.strip()  
+
+                if chapter_id:  
+                    try:
+                        chapter = AcademicChapters.objects.get(id=chapter_id)
+                        chapters.append(chapter.chapter_name)
+                    except AcademicChapters.DoesNotExist:
+                        pass
             
-            exam_data_list.append({"subject": subject_name, "chapters": chapter})
+            exam_data_list.append({"subject": subject_name, "chapters": chapters})
+
         exam_detail = {
-                "id":str(exam.id),
-                "exam_title": exam.exam_title,
-                "total_question":exam.total_questions,
-                "time_duration":exam.time_duration,
-                "negative_marks":exam.negative_marks,
-                "total_marks":exam.total_marks,
-                "start_date":exam.start_date,
-                "exam_data": exam_data_list,
-                "mark": result.score if result else None
-            }
+            "id": str(exam.id),
+            "exam_title": exam.exam_title,
+            "total_question": exam.total_questions,
+            "time_duration": exam.time_duration,
+            "negative_marks": exam.negative_marks,
+            "total_marks": exam.total_marks,
+            "start_date": exam.start_date,
+            "exam_data": exam_data_list,
+            "mark": result.score if result else None
+        }
         return exam_detail

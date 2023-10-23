@@ -92,9 +92,9 @@ def get_terms(request):
 #-----------------------------------------------------------------------------------------------------------#
 
 
-@router.get("/examHistory", response={200: List[dict], 400: dict, 401: dict})
+@router.get("/examHistory", response={200: List[ExamDetail], 400: dict, 401: dict})
 @verify_token
-# @paginate(CustomPagination)
+@paginate(CustomPagination)
 def get_examlist(request, query:ExamFilter = Query(...)):
     return get_exam_history(request.user, query)
 

@@ -333,8 +333,8 @@ class CompQuestionOut(Schema):
 
 
 class CompExamData(Schema):
-    subject: UUID
-    chapter: List[UUID]
+    subject_id: UUID
+    chapters: List[UUID]
     easy_question: int
     medium_question: int
     hard_question: int

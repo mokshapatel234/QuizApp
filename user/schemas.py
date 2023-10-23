@@ -114,5 +114,18 @@ class MonthFilter(Schema):
 class ExamFilter(Schema):
     subject_id: Optional[str]
     month: Optional[int]
-    yesr: Optional[int]
+    year: Optional[int]
     search: Optional[str]
+
+class ExamData(Schema):
+    subject_id: Optional[str]
+    subject: Optional[str]
+    
+class ExamDetail(Schema):
+    id: Optional[str]
+    exam_title: Optional[str]
+    total_marks: Optional[int]
+    start_date: Optional[str]
+    exam_datas: List[ExamData]
+    result: Optional[str]
+
