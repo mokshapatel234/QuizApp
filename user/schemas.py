@@ -107,3 +107,12 @@ class TermsOut(Schema):
     result: bool
     data: Terms
     message: str
+
+class MonthFilter(Schema):
+    month: Optional[int]
+
+class ExamFilter(Schema):
+    subject_id: Optional[str]
+    month: Optional[int]
+    yesr: Optional[int]
+    search: Optional[str]

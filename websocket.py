@@ -68,8 +68,8 @@ class ConnectionManager(Singleton):
         except Exception as e:
             print(e)
 
-    async def disconnect(self, websocket: WebSocket):
-        self.active_connections.remove(websocket)
+    async def disconnect(self, websocket: WebSocket, room_id):
+        self.room_clients[room_id].remove(websocket)
         print(f"Client #{id(websocket)} left the chat")
 
     async def save_active_room(self, websocket: WebSocket, room_id):
@@ -676,7 +676,7 @@ async def room_connection(
 
 
     except WebSocketDisconnect:
-        await manager.disconnect(websocket)
+        await manager.disconnect(websocket, room_id)
 
 
 if __name__ == '__main__':

@@ -2256,10 +2256,7 @@ def get_comp_examlist(user, query):
                 search_query |= (
                      Q(exam_title__icontains=term)
                     | Q(status__icontains=term)
-                    
                 )
-       
-        
         for exam in exams:
             exam_data_list = []
             for exam_data in exam.exam_data.all():

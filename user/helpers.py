@@ -171,18 +171,28 @@ def select_lan(user, data):
 #-----------------------------------------------------------------------------------------------------------#
 
 
-def get_profile(user):
+def get_profile(user, query):
     try:
         student = Students.objects.get(id=user.id)
-
-    
+        if not query.month:
+            current_month = datetime.now().month
+            print(current_month)
+        else:
+            print(query.month)
+            current_month = query.month
+        results = Results.objects.filter(student=user.id)
+        # results = results.filter(created_at__month=current_month)
+        total_exams = results.count()
+        passed_result = results.filter(result="pass")
+        passed_exams = passed_result.count()
+        failed_result = results.filter(result="fail")
+        failed_exams = failed_result.count()
+        
+        print(total_exams, passed_exams, failed_exams)
         months = [
-            # current_month,
             'January', 'February', 'March', 'April', 'May', 'June',
             'July', 'August', 'September', 'October', 'November', 'December'
         ]
-
-        # Create a Profile instance
         profile_data = Profile(
             id=str(student.id),
             first_name=student.first_name,
@@ -192,9 +202,7 @@ def get_profile(user):
             profile_image=student.profile_image.url if student.profile_image else None,
             selected_language=student.selected_language,
             months=months
-            
         )
-
         response_data = {
             "result": True,
             "data": profile_data.dict(),
@@ -212,7 +220,7 @@ def get_profile(user):
     except Exception as e:
         response_data = {
             "result": False,
-            "message": "Something went wrong",
+            "message": str(e),
         }
         return JsonResponse(response_data, status=400)
     
@@ -398,3 +406,145 @@ def get_termsandcondtion(user):
 
     except Exception as e:
         return {"result": False, "message": "Something went wrong"}
+    
+
+#-----------------------------------------------------------------------------------------------------------#
+#--------------------------------------------------EXAM-----------------------------------------------------#
+#-----------------------------------------------------------------------------------------------------------#
+
+def get_exam_history(user, query):
+    try:
+        business_owner = BusinessOwners.objects.get(id=user.selected_institute.id)
+        if business_owner.business_type == "competitive":        
+            exams = CompetitiveExams.objects.filter(business_owner=business_owner, start_date__isnull=False).order_by('-created_at')
+            exam_list = []
+            
+            if query.subject_id:
+                exams = exams.filter(exam_data__subject=query.subject_id)
+            
+            if query.search:
+                search_terms = query.search.strip().split()
+                search_query = Q()
+
+                for term in search_terms:
+                    search_query |= (
+                        Q(exam_title__icontains=term)
+                        | Q(status__icontains=term)
+                    )
+            for exam in exams:
+                try:
+                    result = Results.objects.get(competitive_exam=exam)
+                except Results.DoesNotExist:
+                    result = None
+                exam_data_list = []
+                for exam_data in exam.exam_data.all():
+                    subject_name = exam_data.subject.subject_name
+                    
+                    exam_data_list.append({"subject": subject_name})
+
+                exam_detail = {
+                    "id":str(exam.id),
+                    "exam_title": exam.exam_title,
+                    "batch": str(exam.batch.id),
+                    "batch_name": exam.batch.batch_name,
+                    "total_marks":exam.total_marks,
+                    "start_date":exam.start_date,
+                    "exam_datas": exam_data_list,
+                    "result": result.result if result else None
+                }
+                exam_list.append(exam_detail)
+            return exam_list
+
+        if business_owner.business_type == "academic":
+            exams = AcademicExams.objects.filter(business_owner=business_owner, start_date__isnull=False).order_by('-created_at')
+
+        if query.subject:
+            exams = exams.filter(exam_data__subject=query.subject)
+
+        if query.search:
+            search_terms = query.search.strip().split()
+            search_query = Q()
+
+            for term in search_terms:
+                search_query |= (
+                     Q(exam_title__icontains=term)
+                    | Q(status__icontains=term)
+                )
+        exam_list = []
+        for exam in exams:
+            exam_data_list = []
+            for exam_data in exam.exam_data.all():
+                subject_name = exam_data.subject.subject_name
+                chapter = exam_data.chapter
+                
+                exam_data_list.append({"subject": subject_name, "chapters": chapter})
+
+            exam_detail = {
+                "id":str(exam.id),
+                "exam_title": exam.exam_title,
+                "negative_marks":exam.negative_marks,
+                "total_marks":exam.total_marks,
+                "start_date":exam.start_date,
+                "exam_data": exam_data_list,
+                "result": result.result if result else None
+            }
+            exam_list.append(exam_detail)
+        return exam_list
+    except Exception as e:
+        response_data = {
+                    "result": False,
+                    "message": "Something went wrong"
+                }
+        return JsonResponse(response_data, status=400)
+    
+
+def get_exam_detail(user, exam_id):
+    business_owner = BusinessOwners.objects.get(id=user.selected_institute.id)
+    if business_owner.business_type == "competitive":
+        exam = CompetitiveExams.objects.get(id=exam_id)
+        try:
+            result = Results.objects.get(competitive_exam=exam)
+        except Results.DoesNotExist:
+            result = None
+        exam_data_list = []
+        for exam_data in exam.exam_data.all():
+            subject_name = exam_data.subject.subject_name
+            chapter = exam_data.chapter
+            
+            exam_data_list.append({"subject": subject_name, "chapters": chapter})
+        exam_detail = {
+                    "id":str(exam.id),
+                    "exam_title": exam.exam_title,
+                    "batch": str(exam.batch.id),
+                    "batch_name": exam.batch.batch_name,
+                    "total_marks":exam.total_marks,
+                    "start_date":exam.start_date,
+                    "exam_datas": exam_data_list,
+                    "mark": result.score if result else None
+                }
+        return exam_detail
+
+    elif business_owner.business_type == "academic":
+        exam = CompetitiveExams.objects.get(id=exam_id)
+        try:
+            result = Results.objects.get(competitive_exam=exam)
+        except Results.DoesNotExist:
+            result = None
+        exam_data_list = []
+        for exam_data in exam.exam_data.all():
+            subject_name = exam_data.subject.subject_name
+            chapter = exam_data.chapter
+            
+            exam_data_list.append({"subject": subject_name, "chapters": chapter})
+        exam_detail = {
+                "id":str(exam.id),
+                "exam_title": exam.exam_title,
+                "total_question":exam.total_questions,
+                "time_duration":exam.time_duration,
+                "negative_marks":exam.negative_marks,
+                "total_marks":exam.total_marks,
+                "start_date":exam.start_date,
+                "exam_data": exam_data_list,
+                "mark": result.score if result else None
+            }
+        return exam_detail

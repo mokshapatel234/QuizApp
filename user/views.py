@@ -4,9 +4,9 @@ from .models import *
 from ninja import Router, Query
 from .authentication import verify_token
 from typing import List
-from ninja.files import UploadedFile
 from ninja.pagination import paginate, PaginationBase
 from .paginator import CustomPagination
+from .schemas import MonthFilter, ExamFilter
 
 
 router = Router()
@@ -43,8 +43,8 @@ def select_language(request, data:LanguageSelectIn):
 
 @router.get("/profile", response={200: ProfileOut, 400: dict, 401: dict})
 @verify_token
-def get_user_profile(request):
-    return get_profile(request.user)
+def get_user_profile(request, query:MonthFilter = Query(...)):
+    return get_profile(request.user, query)
 
 
 @router.put("/profile", response={200: ProfileOut, 400: dict, 401: dict})
@@ -85,3 +85,21 @@ def get_user_news(request):
 @verify_token
 def get_terms(request):
     return get_termsandcondtion(request.user)
+
+
+#-----------------------------------------------------------------------------------------------------------#
+#--------------------------------------------------EXAM-----------------------------------------------------#
+#-----------------------------------------------------------------------------------------------------------#
+
+
+@router.get("/examHistory", response={200: List[dict], 400: dict, 401: dict})
+@verify_token
+# @paginate(CustomPagination)
+def get_examlist(request, query:ExamFilter = Query(...)):
+    return get_exam_history(request.user, query)
+
+
+@router.get("/examDetail/{exam_id}", response={200: dict, 400: dict, 401: dict})
+@verify_token
+def get_exam(request, exam_id ):
+    return get_exam_detail(request.user, exam_id)
