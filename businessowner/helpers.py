@@ -1963,7 +1963,7 @@ def delete_comp_question(question_id):
 def create_comp_exam(user, data):
     try:
      
-        batch_instance = CompetitiveBatches.objects.get(id=data.batch)
+        batch_instance = CompetitiveBatches.objects.get(id=data.batch_id)
         total_weightage = data.total_questions
         selected_comp_questions_set1 = []
         selected_comp_questions_set2 = []        
@@ -1992,9 +1992,10 @@ def create_comp_exam(user, data):
                     updated_remaining_marks = remaining_marks - selected_question.marks
                     updated_remaining_easy_questions = remaining_easy_questions - 1
                     # print("new", updated_remaining_easy_questions)      
-                    print("ADSA", selected_questions)
-                    print("timeee", updated_remaining_time)
-                    print("markssss", updated_remaining_marks)
+                    # print("ADSA", selected_questions)
+                    # print("timeee", updated_remaining_time)
+                    # print("markssss", updated_remaining_marks)
+                    
                     if backtrack(selected_questions, updated_remaining_time, updated_remaining_marks, updated_remaining_easy_questions, remaining_medium_questions, remaining_hard_questions, question_data_list):
                         return True
                     else:
@@ -2008,9 +2009,9 @@ def create_comp_exam(user, data):
                     updated_remaining_marks = remaining_marks - selected_question.marks
                     updated_remaining_medium_questions = remaining_medium_questions - 1
                     # print("new", updated_remaining_medium_questions)      
-                    print("ADSA", selected_questions)
-                    print("timeee", updated_remaining_time)
-                    print("markssss", updated_remaining_marks)
+                    # print("ADSA", selected_questions)
+                    # print("timeee", updated_remaining_time)
+                    # print("markssss", updated_remaining_marks)
                     if backtrack(selected_questions, updated_remaining_time, updated_remaining_marks, remaining_easy_questions, updated_remaining_medium_questions, remaining_hard_questions, question_data_list):
                         return True
                     else:
@@ -2024,9 +2025,9 @@ def create_comp_exam(user, data):
                     updated_remaining_marks = remaining_marks - selected_question.marks
                     updated_remaining_hard_questions = remaining_hard_questions - 1
                     # print("new", updated_remaining_hard_questions)      
-                    print("ADSA", selected_questions)
-                    print("timeee", updated_remaining_time)
-                    print("markssss", updated_remaining_marks)
+                    # print("ADSA", selected_questions)
+                    # print("timeee", updated_remaining_time)
+                    # print("markssss", updated_remaining_marks)
                     if backtrack(selected_questions, updated_remaining_time, updated_remaining_marks, remaining_easy_questions, remaining_medium_questions, updated_remaining_hard_questions, question_data_list):
                         return True
                     else:
@@ -2036,6 +2037,7 @@ def create_comp_exam(user, data):
 
             return False
 
+        subject_data_list = []
         
         for subject_data in data.exam_data:
             subject_weightage = sum(
@@ -2046,9 +2048,16 @@ def create_comp_exam(user, data):
             subject_time = int(data.time_duration * subject_percentage + 0.5)
             subject_marks = round(float(data.total_marks * subject_percentage))
             print(subject_marks, "MMMMAAAARRRKKKKKK")
-
-            subject_instance = CompetitiveSubjects.objects.get(id=subject_data.subject)
-            
+            print(subject_data.subject_id)
+            print(subject_time)
+            print(subject_marks)
+            subject_instance = CompetitiveSubjects.objects.get(id=subject_data.subject_id)
+            subject_data_list.append({
+            "subject_id": subject_data.subject_id,
+            "subject_time": subject_time,
+            "subject_marks": subject_marks,
+            # Include other relevant data if needed
+        })
             chapter_instance = CompetitiveChapters.objects.filter(id__in=subject_data.chapter)
             chapters = list(chapter_instance)
             chapter_ids = [f"{item.id}," for item in chapters]
@@ -2102,7 +2111,7 @@ def create_comp_exam(user, data):
                     time_per_subject=subject_time,
                     marks_per_subject=subject_marks,
                 )
-                exam_data_instance.save() 
+                # exam_data_instance.save() 
 
                 exam_data_calculated.append(exam_data_instance)
 
@@ -2184,12 +2193,13 @@ def create_comp_exam(user, data):
             option_e=data.option_e,
             business_owner=user
         )
-        exam_instance.save()
+        # exam_instance.save()
         for exam in exam_data_calculated:
             exam_instance.exam_data.add(exam) 
         
         result = {
-            "exam_id": exam_instance.id,
+            # "exam_id": exam_instance.id,
+            "subject_data": subject_data_list,
             "set1": selected_comp_questions_set1,
             "set2": selected_comp_questions_set2 if selected_comp_questions_set2 else None,
             "set3": selected_comp_questions_set3 if selected_comp_questions_set3 else None,
@@ -2207,31 +2217,129 @@ def create_comp_exam(user, data):
     except Exception as e:
         response_data = {
                     "result": False,
-                    "message": "Something went wrong"
+                    "message": str(e)
                 }
         return JsonResponse(response_data, status=400)
 
 
-def start_comp_exam(exam_id, data):
+def start_comp_CompExam(user, data):
+    
     try:
-        exam = CompetitiveExams.objects.get(id=exam_id)
-        exam.start_date = datetime.now()
-        selected_question = CompetitiveQuestions.objects.filter(id__in=data.question)
-        questions = list(selected_question)
-        for question in questions:
+        exam_data_calculated = []
+        batch_id = data.batch_id  # Assuming 'standard_id' is a valid UUID4
+        batch_instance = CompetitiveBatches.objects.get(id=batch_id)
+        for subject_data in data.exam_data:
+            easy=subject_data.easy_question
+            medium=subject_data.medium_question
+            hard=subject_data.hard_question
+            subject_id = subject_data.subject_id
+            subject_instance = CompetitiveSubjects.objects.get(id=subject_id)
+            chapter_instance = CompetitiveChapters.objects.filter(id__in=subject_data.chapters)
+            chapters = list(chapter_instance)
+        # Create a new exam object with the provided data
+        exam = CompetitiveExams.objects.create(
+            exam_title=data.exam_title,
+            batch=batch_instance,
+            total_questions=data.total_questions,
+            time_duration=data.time_duration,
+            passing_marks=data.passing_marks,
+            total_marks=data.total_marks,
+            negative_marks=data.negative_marks,
+            option_e=data.option_e,
+            business_owner=user,
+  
+        )
+
+        # Get a list of selected question IDs from the provided data
+        selected_question_ids = data.question
+
+        # Filter and get the actual question instances
+        selected_questions = CompetitiveQuestions.objects.filter(id__in=selected_question_ids)
+        # print(selected_questions)
+        # print(data.time)
+        # print(data.mark)
+        # Add the selected questions to the exam
+        for question in selected_questions:
             exam.question_set.add(question)
+        # Save the exam
+    
+        # print(f"Exam {exam.id} saved")
+
+        subject_data = data.subject_data
+        # print(subject_data)
+        for subject_info in subject_data:
+            subject_id = subject_info.subject_id
+            subject_time = subject_info.subject_time
+            subject_marks = subject_info.subject_marks
+            subject_instance = CompetitiveSubjects.objects.get(id=subject_id)
+            # ... (your existing code)
+
+            exam_data_instance = CompetitiveExamData(
+                subject=subject_instance,
+                easy_question=easy,
+                chapter=chapters,
+                medium_question=medium,
+                hard_question=hard,
+                time_per_subject=subject_time,
+                marks_per_subject=subject_marks,
+            )
+            exam_data_instance.save()
+        exam_data_calculated.append(exam_data_instance)
+        exam.save()
+        for exam_data_instance in exam_data_calculated:
+            exam.exam_data.add(exam_data_instance)  
+  
+        # for exam in exam_data_calculated:
+        #     exam_instance.exam_data.add(exam) 
+        result = {
+            "result": True,
+            "message": "Exam created and will start soon",
+            "exam_id": exam.id  # Include the exam_id in the response
+        }
+
+        return JsonResponse(result) 
+    
+    except Exception as e:
+        response_data = {
+            "result": False,
+            "message": str(e)
+        }
+        return JsonResponse(response_data, status=400)
+
+def start_comp_exam(data):
+    try:
+        exam_id = data.exam_id  # Assuming 'exam_id' is in the payload
+        print(exam_id)
+        if not exam_id:
+            response_data = {
+                "result": False,
+                "message": "exam_id is required in the payload"
+            }
+            return JsonResponse(response_data, status=400)
+
+        exam = CompetitiveExams.objects.get(id=exam_id)
+        print(exam,"thisgigfg")
+        exam.start_date = datetime.now()
         exam.save()
         result = {
             "result": True,
-            "message": "Exam will start soon"
+            "message": "Exam started."
         }
-      
+
         return result
+
+    except AcademicExams.DoesNotExist:
+        response_data = {
+            "result": False,
+            "message": "Exam not found"
+        }
+        return JsonResponse(response_data, status=400)
+
     except Exception as e:
         response_data = {
-                    "result": False,
-                    "message": "Something went wrong"
-                }
+            "result": False,
+            "message": print(str(e))
+        }
         return JsonResponse(response_data, status=400)
 
 
