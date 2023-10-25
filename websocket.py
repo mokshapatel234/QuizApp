@@ -564,30 +564,35 @@ async def room_connection(
     user_type: str = Query(None),
     exam_id: str = Query(None)
 ):
-    global owner_id
+    global owner_id,business_owner_id
 
     user_info = await get_current_user(token, user_type)
     if not user_info:
         await websocket.close(code=1008, reason="Unauthorized")
         return
 
-    await manager.connect(websocket)
+    
     
     if isinstance(user_info, BusinessOwners):
         owner_id = id(websocket)
-
+        business_owner_id = user_info.id
+        await manager.connect(websocket)
+        
     if room_id:
         if room_id in active_room and active_room[room_id] == owner_id:
-            try:
-                # await manager.join_room(websocket, room_id)
-                await manager.update_active_room(websocket, room_id)
-                await websocket.send_text(f"You are now connected to room {room_id}.")
-            except Exception as e:
-                print("this is error")
             if isinstance(user_info, Students):
-                student_id = user_info.id
-                message = f"Student {user_info.first_name} {user_info.last_name} entered the room."
-                await manager.send_personal_message(message, owner_id, user_info, room_id)
+                if user_info.selected_institute_id==business_owner_id:
+                    await manager.connect(websocket)
+                    try:
+                # await manager.join_room(websocket, room_id)
+                            await manager.update_active_room(websocket, room_id)
+                            await websocket.send_text(f"You are now connected to room {room_id}.")
+                    except Exception as e:
+                        print("this is error")
+            
+                    student_id = user_info.id
+                    message = f"Student {user_info.first_name} {user_info.last_name} entered the room."
+                    await manager.send_personal_message(message, owner_id, user_info, room_id)
         else:
             await websocket.close(code=1008, reason="Invalid Room ID")
             return
@@ -672,7 +677,7 @@ async def room_connection(
                     await manager.broadcast_to_room(room_id, result_data)
                 else:
                     await manager.broadcast_to_room(room_id, "Failed to fetch exam results.")
-                await manager.remove_active_room(websocket, room_id)
+                # await manager.remove_active_room(websocket, room_id)
 
 
     except WebSocketDisconnect:

@@ -170,23 +170,28 @@ def select_lan(user, data):
 #----------------------------------------------USER PROFILE-------------------------------------------------#
 #-----------------------------------------------------------------------------------------------------------#
 
-
 def get_profile(user, query):
     try:
         student = Students.objects.get(id=user.id)
+        
         if not query.month:
             current_month = datetime.now().month
             print(current_month)
         else:
             print(query.month)
             current_month = query.month
+
         results = Results.objects.filter(student=user.id)
-        # results = results.filter(created_at__month=current_month)
-        total_exams = results.count()
-        passed_result = results.filter(result="pass")
-        passed_exams = passed_result.count()
-        failed_result = results.filter(result="fail")
-        failed_exams = failed_result.count()
+        
+        # Filter results by month if query.month is available
+        if query.month:
+            results = [result for result in results if result.created_at.month == current_month]
+
+        total_exams = len(results)
+        passed_result = [result for result in results if result.result == "pass"]
+        passed_exams = len(passed_result)
+        failed_result = [result for result in results if result.result == "fail"]
+        failed_exams = len(failed_result)
         
         print(total_exams, passed_exams, failed_exams)
         months = [
@@ -201,7 +206,10 @@ def get_profile(user, query):
             contact_no=student.contact_no,
             profile_image=student.profile_image.url if student.profile_image else None,
             selected_language=student.selected_language,
-            months=months
+            months=months,
+            total_exams=total_exams,  # Added this line
+            passed_exams=passed_exams,  # Added this line
+            failed_exams=failed_exams 
         )
         response_data = {
             "result": True,
@@ -506,7 +514,7 @@ def get_exam_detail(user, exam_id):
     business_owner = BusinessOwners.objects.get(id=user.selected_institute.id)
     if business_owner.business_type == "competitive":
         exam = CompetitiveExams.objects.get(id=exam_id)
-  
+            
         try:
             result = Results.objects.get(competitive_exam=exam)
         except Results.DoesNotExist:
@@ -578,3 +586,88 @@ def get_exam_detail(user, exam_id):
             "mark": result.score if result else None
         }
         return exam_detail
+    
+
+
+def get_exam_detail_question(user, exam_id, subject_id):
+    if not subject_id:
+        return {"error": "Subject ID not provided"}
+    business_owner = BusinessOwners.objects.get(id=user.selected_institute.id)
+
+    if business_owner.business_type == "competitive":
+        try:
+            exam = CompetitiveExams.objects.get(id=exam_id)
+            questions = exam.question_set.filter(competitve_chapter__subject_name=subject_id)
+            easy_questions = []
+            medium_questions = []
+            hard_questions = []
+
+            for question in questions:
+                subject_name = str(question.competitve_chapter.subject_name)  # Convert to string
+                question_data = {
+                    "question_text": question.question,
+                    "subject_name": subject_name,
+                    "right_answer": question.answer,
+                    "options": {
+                        "option1": question.options.option1,
+                        "option2": question.options.option2,
+                        "option3": question.options.option3,
+                        "option4": question.options.option4,
+                    }
+                }
+
+                if question.question_category == "easy":
+                    easy_questions.append(question_data)
+                elif question.question_category == "medium":
+                    medium_questions.append(question_data)
+                elif question.question_category == "hard":
+                    hard_questions.append(question_data)
+
+                selected_answer = StudentAnswers.objects.filter(competitive_question=question, student=user).values_list('selected_answer', flat=True).first()
+                question_data["selected_answer"] = selected_answer if selected_answer else None
+
+        except CompetitiveExams.DoesNotExist:
+            return {"error": "Competitive Exam not found"}
+
+    elif business_owner.business_type == "academic":
+        try:
+            exam = AcademicExams.objects.get(id=exam_id)
+            questions = exam.question_set.filter(academic_chapter__subject_name=subject_id)
+            easy_questions = []
+            medium_questions = []
+            hard_questions = []
+
+            for question in questions:
+                subject_name = str(question.academic_chapter.subject_name)  # Convert to string
+                question_data = {
+                    "question_text": question.question,
+                    "subject_name": subject_name,
+                    "right_answer": question.answer,
+                    "options": {
+                        "option1": question.options.option1,
+                        "option2": question.options.option2,
+                        "option3": question.options.option3,
+                        "option4": question.options.option4,
+                    }
+                }
+
+                if question.question_category == "easy":
+                    easy_questions.append(question_data)
+                elif question.question_category == "medium":
+                    medium_questions.append(question_data)
+                elif question.question_category == "hard":
+                    hard_questions.append(question_data)
+
+                selected_answer = StudentAnswers.objects.filter(academic_question=question, student=user).values_list('selected_answer', flat=True).first()
+                question_data["selected_answer"] = selected_answer if selected_answer else None
+
+        except AcademicExams.DoesNotExist:
+            return {"error": "Academic Exam not found"}
+
+    exam_detail = {
+        "easy_questions": easy_questions,
+        "medium_questions": medium_questions,
+        "hard_questions": hard_questions
+    }
+
+    return exam_detail

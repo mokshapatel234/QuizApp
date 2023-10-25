@@ -103,3 +103,11 @@ def get_examlist(request, query:ExamFilter = Query(...)):
 @verify_token
 def get_exam(request, exam_id ):
     return get_exam_detail(request.user, exam_id)
+
+
+@router.get("/examDetailQuestion/{exam_id}", response={200: ExamDetailModel, 400: dict, 401: dict})
+@verify_token
+def get_exam(request, exam_id, subject_id=None): 
+    if not subject_id:
+        return {"error": "Subject ID is required"} 
+    return get_exam_detail_question(request.user, exam_id, subject_id)
