@@ -2234,7 +2234,7 @@ def start_comp_CompExam(user, data):
             hard=subject_data.hard_question
             subject_id = subject_data.subject_id
             subject_instance = CompetitiveSubjects.objects.get(id=subject_id)
-            chapter_instance = CompetitiveChapters.objects.filter(id__in=subject_data.chapters)
+            chapter_instance = CompetitiveChapters.objects.filter(id__in=subject_data.chapter)
             chapters = list(chapter_instance)
         # Create a new exam object with the provided data
         exam = CompetitiveExams.objects.create(
@@ -5087,12 +5087,12 @@ def create_academic_exam(user, data):
             # Include other relevant data if needed
         })
 
-            chapter_instance = AcademicChapters.objects.filter(id__in=subject_data.chapters)
+            chapter_instance = AcademicChapters.objects.filter(id__in=subject_data.chapter)
             chapters = list(chapter_instance)
             chapter_ids = [f"{item.id}," for item in chapters]
             chapters = " ".join(chapter_ids)
             question_data = AcademicQuestions.objects.filter(academic_chapter__subject_name=subject_instance)
-            question_data = question_data.filter(academic_chapter__id__in=subject_data.chapters)
+            question_data = question_data.filter(academic_chapter__id__in=subject_data.chapter)
             question_data_list = list(question_data)
             
             selected_questions_set1 = []

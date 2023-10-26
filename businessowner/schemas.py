@@ -477,6 +477,14 @@ class subjectinfo(Schema):
     subject_time: int
     subject_marks: int
 
+
+class CompExamData(Schema):
+    subject_id: UUID
+    chapter: List[UUID]
+    easy_question: int
+    medium_question: int
+    hard_question: int
+
 class CompCreatestartExam(Schema):
     exam_title: str
     batch_id: UUID
@@ -487,7 +495,7 @@ class CompCreatestartExam(Schema):
     total_marks: int
     option_e: bool
     question:List[UUID]
-    exam_data: List[AcadExamData]
+    exam_data: List[CompExamData]
     subject_data: List[subjectinfo]
     
 
@@ -1006,7 +1014,7 @@ class AcadExam(Schema):
 
 class AcadExamData(Schema):
     subject_id: UUID
-    chapters: List[UUID]
+    chapter: List[UUID]
     easy_question: int
     medium_question: int
     hard_question: int
