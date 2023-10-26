@@ -1,6 +1,6 @@
 from ninja import Schema
 from datetime import datetime
-from typing import Optional,List
+from typing import Optional,List,Dict, Union
 from uuid import UUID
 
 class LoginIn(Schema):
@@ -67,7 +67,10 @@ class Profile(Schema):
     profile_image: Optional[str]
     months: List[str]
     selected_language: str
-
+    total_exams:int
+    passed_exams:int
+    failed_exams:int
+    
 class ProfileOut(Schema):
     result: bool
     data: Profile
@@ -107,3 +110,43 @@ class TermsOut(Schema):
     result: bool
     data: Terms
     message: str
+
+class MonthFilter(Schema):
+    month: Optional[int]
+
+class ExamFilter(Schema):
+    subject_id: Optional[str]
+    month: Optional[int]
+    year: Optional[int]
+    search: Optional[str]
+
+class ExamData(Schema):
+    subject_id: Optional[str]
+    subject: Optional[str]
+    
+class ExamDetail(Schema):
+    id: Optional[str]
+    exam_title: Optional[str]
+    total_marks: Optional[int]
+    start_date: Optional[str]
+    exam_datas: List[ExamData]
+    result: Optional[str]
+
+
+class OptionModel(Schema):
+    option1: str
+    option2: str
+    option3: str
+    option4: str
+
+class QuestionModel(Schema):
+    question_text: str
+    subject_name: str
+    right_answer: str
+    options: OptionModel
+    selected_answer: str
+
+class ExamDetailModel(Schema):
+    easy_questions: List[QuestionModel]
+    medium_questions: List[QuestionModel]
+    hard_questions: List[QuestionModel]

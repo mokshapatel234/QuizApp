@@ -384,7 +384,7 @@ class CompExamOut(Schema):
     batch_name: str
     total_question:int
     time_duration: float
-    negative_marks:float
+    negative_marks: str
     total_marks:int
     exam_datas: List[Exammm]
     

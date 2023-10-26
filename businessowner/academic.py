@@ -294,3 +294,10 @@ def start_academic_exam(request,data:AcadExamQuestion):
 @verify_token
 def start_CSExam(request, data:AcadeCreatestartExam):
     return start_acad_CSExam(request.user,data)
+
+
+@router.get("/result/{exam_id}", response={200:dict, 401:dict,400:dict})
+@verify_token
+def get_result(request,exam_id):
+    result = get_exam_result(request.user,exam_id)
+    return result

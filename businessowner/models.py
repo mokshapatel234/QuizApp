@@ -81,7 +81,7 @@ class BusinessOwners(models.Model):
     address = models.TextField(verbose_name='Address*')
     logo = models.ImageField(blank=True, upload_to="owner", validators=[FileExtensionValidator(['jpg','jpeg','png'])], height_field=None, width_field=None, max_length=None, null=True)
     tuition_tagline = models.CharField(max_length=50, null=True, verbose_name='Tuition Tagline', blank=True) 
-    is_reset = models.BooleanField(default=False, blank=True)  # # # # # have to add editable=False # # # # #
+    is_reset = models.BooleanField(default=False, blank=True, editable=False)
     status = models.CharField(("status"),choices=CHOICES, max_length=50,default='active')
     is_plan_purchase = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -642,3 +642,9 @@ class TermsandPolicy(models.Model):
     
     class Meta:
         verbose_name_plural = "6. Terms And Policy"
+
+
+class WebsocketRooms(models.Model):
+    room_id = models.CharField(max_length=10)
+    academic_exam = models.ForeignKey(AcademicExams, on_delete=models.CASCADE, related_name="academic_room")
+    competitive_exam = models.ForeignKey(CompetitiveExams, on_delete=models.CASCADE, related_name="competitive_room")

@@ -14,18 +14,16 @@ import json
 from rest_framework import exceptions
 from fastapi import HTTPException
 from starlette.websockets import WebSocketState
-from django.db import transaction
 from asgiref.sync import sync_to_async
 dotenv.load_dotenv()
 import os
 from django import setup
-from django.utils import timezone
 from django.db.models import Q
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "quizapp.settings")  
 
 setup()
-from businessowner.models import Results, StudentAnswers, StudentMarks, BusinessOwners, Students, CompetitiveExams, AcademicExams, CompetitiveQuestions, AcademicQuestions, Options
+from businessowner.models import Results, StudentAnswers, StudentMarks, BusinessOwners, Students, CompetitiveExams, AcademicExams, CompetitiveQuestions, AcademicQuestions, Options, WebsocketRooms
 
 app = FastAPI()
 
@@ -64,31 +62,48 @@ class ConnectionManager(Singleton):
         self.room_clients = {}
 
     async def connect(self, websocket: WebSocket):
-        await websocket.accept()  
-        self.active_connections.append(websocket)
-    async def disconnect(self, websocket: WebSocket):
-        self.active_connections.remove(websocket)
+        try:
+            await websocket.accept()  
+            # self.active_connections.append(websocket)
+        except Exception as e:
+            print(e)
+
+    async def disconnect(self, websocket: WebSocket, room_id):
+        self.room_clients[room_id].remove(websocket)
         print(f"Client #{id(websocket)} left the chat")
+
+    async def save_active_room(self, websocket: WebSocket, room_id):
+        self.room_clients[room_id] = [websocket]
+        print(self.room_clients)
+    
+    async def update_active_room(self, websocket: WebSocket, room_id):
+        self.room_clients[room_id].append(websocket)
+        print(self.room_clients)
+
+    async def remove_active_room(self, websocket: WebSocket, room_id):
+        self.room_clients[room_id].pop(websocket)
+        print(self.room_clients)
 
     async def send_message(self, message: str, websocket: WebSocket):
         if websocket.application_state == WebSocketState.CONNECTED:
             await websocket.send_text(message)
 
-    async def send_personal_message(self, message: str, receiver_id: int,user_info):
-        for connection in self.active_connections:
+    async def send_personal_message(self, message: str, receiver_id: int, user_info, room_id):
+        for connection in self.room_clients[room_id]:
             if id(connection) == receiver_id:
                 image_url = user_info.profile_image.url if user_info.profile_image else None
                 combined_message = f"{message} Image URL: {image_url}"
                 await connection.send_text(combined_message)
 
-    async def join_room(self, websocket: WebSocket, room_id: str):
-        self.room_clients[room_id] = websocket
+    # async def join_room(self, websocket: WebSocket, room_id: str):
+    #     self.room_clients[room_id] = self.active_connections
+    #     print(self.room_clients)
 
-    async def leave_room(self, room_id: str):
-        del self.room_clients[room_id]
+    # async def leave_room(self, room_id: str):
+    #     del self.room_clients[room_id]
 
     async def broadcast_to_room(self, room_id: str, message: str):
-        for websocket in self.active_connections:
+        for websocket in self.room_clients[room_id]:
             try:
                 await websocket.send_json(message)
             except Exception as e:
@@ -188,7 +203,6 @@ def save_student_answer(academic_question, competitive_question, selected_answer
     student_answer.save()
 
 
-
 # @sync_to_async
 # def save_student_mark(student_instance, competitive_exam, academic_exam, academic_question, competitive_question, selected_answer):
 #     try:
@@ -237,6 +251,81 @@ def save_student_result(academic_exam, competitive_exam, student, score, result)
         result=result
     )
     result_instance.save()
+
+
+@sync_to_async
+def get_competitive_room(room_id):
+    try:
+        existing_room = WebsocketRooms.objects.get(room_id=room_id)
+        if existing_room.competitive_exam:
+            id = existing_room.competitive_exam.id
+        return id
+    except Exception as e:
+        print(e)
+
+@sync_to_async
+def get_academic_room(room_id):
+    try:
+        existing_room = WebsocketRooms.objects.get(room_id=room_id)
+        if existing_room.academic_exam:
+            id = existing_room.academic_exam.id
+        return id
+    except Exception as e:
+        print(e)
+
+@sync_to_async
+def get_existing_room(exam_id, business_type):
+    try:
+        if business_type == "competitive":
+            existing_room = WebsocketRooms.objects.get(competitive_exam_id=exam_id)
+        if business_type == "academic":
+            existing_room = WebsocketRooms.objects.get(academic_exam_id=exam_id)
+        return existing_room
+    except WebsocketRooms.DoesNotExist:
+        return None
+
+@sync_to_async
+def update_room(existing_room, new_room_id):
+    try:
+        existing_room.room_id = new_room_id
+        existing_room.save()
+        return existing_room
+    except Exception as e:
+        print(f"Error updating room: {e}")
+        return None
+
+
+@sync_to_async
+def save_room(room_id, competitive_exam, academic_exam):
+    try:
+        room_save = WebsocketRooms(
+            room_id = room_id,
+            competitive_exam = competitive_exam,
+            academic_exam = academic_exam
+        )
+        room_save.save()
+    except Exception as e:
+        print(e)
+  
+
+@sync_to_async
+def get_selected_institute(id):
+    try:
+        return AcademicExams.objects.get(id=id)
+    except:
+        return CompetitiveExams.objects.get(id=id)
+
+
+# @sync_to_async
+# def student_verify(exam_id, institute):
+#     try:
+#         if institute.id == exam_id:
+#             return True
+#         return False
+#     except Exception as e:
+#         print()
+        
+
 
 
 @sync_to_async
@@ -321,12 +410,14 @@ def get_question_set(exam):
         return None
 
 
-async def fetch_questions_from_database(exam_id, business_type):
+async def fetch_questions_from_database(room_id, business_type):
     questions_list = []
     
     if business_type == 'competitive':
-        exam = await get_competitive_exam(exam_id)
+        existing_id = await get_competitive_room(room_id)
+        exam = await get_competitive_exam(existing_id)
         question_ids = get_question_set(exam)
+        print(question_ids)
 
         for index, question_id in enumerate(question_ids):
             question = await get_competitive_question(question_id)
@@ -344,7 +435,8 @@ async def fetch_questions_from_database(exam_id, business_type):
                 questions_list.append(question_data)
 
     elif business_type == 'academic':
-        exam = await get_academic_exam(exam_id)
+        existing_id = await get_academic_room(room_id)
+        exam = await get_academic_exam(existing_id)
         question_ids = get_question_set(exam)
         print(question_ids)
         for index, question_id in enumerate(question_ids):
@@ -364,17 +456,20 @@ async def fetch_questions_from_database(exam_id, business_type):
 
     return questions_list
 
-async def process_selected_answer(exam_id, user_info, selected_answer, current_question_id, student_id):
+async def process_selected_answer(room_id, user_info, selected_answer, current_question_id, student_id):
     exam = None
     question = None
     student_instance = None
     student_score = 0
 
     if user_info.batch_id:
-        exam = await get_competitive_exam(exam_id)
+        existing_id = await get_competitive_room(room_id)
+        exam = await get_competitive_exam(existing_id)
     elif user_info.standard_id:
-        exam = await get_academic_exam(exam_id)
+        existing_id = await get_academic_room(room_id)
+        exam = await get_academic_exam(existing_id)
     question_ids = get_question_set(exam)
+    print(question_ids)
     if 0 <= current_question_id < len(question_ids):
         if user_info.batch_id:
             question = await get_competitive_question(question_ids[current_question_id])
@@ -401,17 +496,19 @@ async def process_selected_answer(exam_id, user_info, selected_answer, current_q
     return student_score
 
 
-async def save_results(exam_id, student_id, score, user_info):
+async def save_results(room_id, student_id, score, user_info):
     try:
         if user_info.batch_id:
-            competitive_exam = await get_competitive_exam(exam_id)
+            existing_id = await get_competitive_room(room_id)
+            competitive_exam = await get_competitive_exam(existing_id)
             academic_exam = None
             if score >= competitive_exam.passing_marks:
                 result = "pass"
             else:
                 result = "fail"
         elif user_info.standard_id:
-            academic_exam = await get_academic_exam(exam_id)
+            existing_id = await get_academic_room(room_id)
+            academic_exam = await get_academic_exam(existing_id)
             competitive_exam = None
             if score >= academic_exam.passing_marks:
                 result = "pass"
@@ -428,7 +525,7 @@ async def save_results(exam_id, student_id, score, user_info):
         print(f"Error saving results: {e}")
    
 
-async def   get_exam_results(exam_id):
+async def get_exam_results(exam_id):
     try:
         results = await get_results(exam_id)         
         results_data = []
@@ -441,7 +538,8 @@ async def   get_exam_results(exam_id):
                     "first_name": student.first_name if student.first_name else "N/A",
                     "last_name": student.last_name if student.last_name else "N/A",
                     "score": result.score,
-                    "result": result.result
+                    "result": result.result,
+                    "profile_image": student.profile_image.url if student.profile_image else None
                 }
                 results_data.append(result_data)
         sorted_results_data = sorted(results_data, key=lambda x: x['score'], reverse=True)
@@ -466,38 +564,55 @@ async def room_connection(
     user_type: str = Query(None),
     exam_id: str = Query(None)
 ):
-    global owner_id
+    global owner_id,business_owner_id
 
     user_info = await get_current_user(token, user_type)
     if not user_info:
         await websocket.close(code=1008, reason="Unauthorized")
         return
 
-    await manager.connect(websocket)
     
-    if isinstance(user_info,BusinessOwners):
+    
+    if isinstance(user_info, BusinessOwners):
         owner_id = id(websocket)
-
+        business_owner_id = user_info.id
+        await manager.connect(websocket)
+        
     if room_id:
         if room_id in active_room and active_room[room_id] == owner_id:
-            try:
-                await manager.join_room(websocket, room_id)
-                await websocket.send_text(f"You are now connected to room {room_id}.")
-            except Exception as e:
-                print("this is error")
             if isinstance(user_info, Students):
-                student_id = user_info.id
-                message = f"Student {user_info.first_name} {user_info.last_name} entered the room."
-                # print(message)
-                # print(owner_id)
-                await manager.send_personal_message(message, owner_id,user_info)
+                if user_info.selected_institute_id==business_owner_id:
+                    await manager.connect(websocket)
+                    try:
+                # await manager.join_room(websocket, room_id)
+                            await manager.update_active_room(websocket, room_id)
+                            await websocket.send_text(f"You are now connected to room {room_id}.")
+                    except Exception as e:
+                        print("this is error")
+            
+                    student_id = user_info.id
+                    message = f"Student {user_info.first_name} {user_info.last_name} entered the room."
+                    await manager.send_personal_message(message, owner_id, user_info, room_id)
         else:
             await websocket.close(code=1008, reason="Invalid Room ID")
             return
     else:
         room_id = generate_unique_room_id()
+        await manager.save_active_room(websocket, room_id)
+        existing_record = await get_existing_room(exam_id, user_info.business_type)
+        if existing_record:
+            await update_room(existing_record, room_id)
+        else:
+            if user_info.business_type == "competitive":
+                competitive_exam = await get_competitive_exam(exam_id)
+                academic_exam = None
+            elif user_info.business_type == "academic":
+                academic_exam = await get_academic_exam(exam_id)
+                competitive_exam = None
+            await save_room(room_id, competitive_exam, academic_exam)
+
         active_room[room_id] = owner_id
-        await manager.join_room(websocket, room_id)
+        # await manager.join_room(websocket, room_id)
         await websocket.send_text(f"Room ID: {room_id}")
         await websocket.send_text("You are now connected to the room.")
 
@@ -508,7 +623,7 @@ async def room_connection(
 
             if message.startswith("start"):
                 question_id = int(message.split(" ")[1])
-                questions = await fetch_questions_from_database(exam_id, user_info.business_type)
+                questions = await fetch_questions_from_database(room_id, user_info.business_type)
                 if 0 <= question_id < len(questions):
                     question_data = questions[question_id]
                     await manager.broadcast_to_room(room_id, question_data)
@@ -518,7 +633,7 @@ async def room_connection(
 
             elif message.startswith("next"):
                 question_id += 1
-                questions = await fetch_questions_from_database(exam_id, user_info.business_type)
+                questions = await fetch_questions_from_database(room_id, user_info.business_type)
                 if 0 <= question_id < len(questions):
                     question_data = questions[question_id]
                     await manager.broadcast_to_room(room_id, question_data)
@@ -530,16 +645,15 @@ async def room_connection(
                     parts = message.split(" ")
                     if len(parts) >= 3:
                         selected_answer = parts[1]
-                        print(type(selected_answer))
                         current_question_id = int(parts[2])
 
-                        student_score += await process_selected_answer(exam_id, user_info, selected_answer, current_question_id, student_id)
+                        student_score += await process_selected_answer(room_id, user_info, selected_answer, current_question_id, student_id)
                         print(student_score, "SCORE")
                 except Exception as e:
                     print(f"Error processing selected answer: {e}")
                    
             elif message == "finish":
-                await save_results(exam_id, student_id, student_score, user_info)
+                await save_results(room_id, student_id, student_score, user_info)
                 break
 
             elif message.startswith("get_result"):
@@ -563,10 +677,11 @@ async def room_connection(
                     await manager.broadcast_to_room(room_id, result_data)
                 else:
                     await manager.broadcast_to_room(room_id, "Failed to fetch exam results.")
+                # await manager.remove_active_room(websocket, room_id)
 
 
     except WebSocketDisconnect:
-        await manager.disconnect(websocket)
+        await manager.disconnect(websocket, room_id)
 
 
 if __name__ == '__main__':

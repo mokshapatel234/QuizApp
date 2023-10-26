@@ -2364,10 +2364,7 @@ def get_comp_examlist(user, query):
                 search_query |= (
                      Q(exam_title__icontains=term)
                     | Q(status__icontains=term)
-                    
                 )
-       
-        
         for exam in exams:
             exam_data_list = []
             for exam_data in exam.exam_data.all():
@@ -2395,8 +2392,7 @@ def get_comp_examlist(user, query):
                 "negative_marks":exam.negative_marks,
                 "total_marks":exam.total_marks,
                 "start_date":exam.start_date,
-                "exam_datas": exam_data_list, 
-               
+                "exam_datas": exam_data_list
             }
             exam_list.append(exam_detail)
 
@@ -6004,3 +6000,85 @@ def start_acad_CSExam(user, data):
             "message": str(e)
         }
         return JsonResponse(response_data, status=400)
+
+
+def get_results(exam_id):
+    try:
+        results = Results.objects.filter(Q(competitive_exam=exam_id) | Q(academic_exam=exam_id))
+        return list(results)
+    except Results.DoesNotExist:
+        return None
+    
+def get_student(student_id):
+    try:
+        return Students.objects.get(id=student_id)
+    except Students.DoesNotExist:
+        return None
+    
+def get_competitive_exam(exam_id):
+    try:
+        return CompetitiveExams.objects.get(id=exam_id)
+    except CompetitiveExams.DoesNotExist:
+        return None
+    except Exception as e:
+        print(e)
+
+def get_academic_exam(exam_id):
+    try:
+        return AcademicExams.objects.get(id=exam_id)
+    except AcademicExams.DoesNotExist:
+        return None
+    
+def get_exam_result(user,exam_id):
+    try:
+        print(user)
+        # Get user business type from user
+        business_type = user.business_type
+
+        # Get exam details based on business type
+        if business_type == "competitive":
+            exam = get_competitive_exam(exam_id)
+        elif business_type == 'academic':
+            exam = get_academic_exam(exam_id)
+
+        if not exam:
+            return {"error": "Failed to fetch exam details."}
+
+        exam_data = {
+            "title": exam.exam_title,
+            "passing_marks": exam.passing_marks,
+            "total_marks": exam.total_marks,
+            "time_duration": exam.time_duration,
+            "total_questions": exam.total_questions
+        }
+
+        # Get exam results
+        results_data = []
+
+        for result in get_results(exam_id):
+            student = get_student(result.student_id)
+            if student:
+                result_data = {
+                    "rank": None,
+                    "first_name": student.first_name or "N/A",
+                    "last_name": student.last_name or "N/A",
+                    "score": result.score,
+                    "result": result.result,
+                    "profile_image": student.profile_image.url if student.profile_image else None
+                }
+                results_data.append(result_data)
+
+        sorted_results_data = sorted(results_data, key=lambda x: x['score'], reverse=True)
+        for i, result in enumerate(sorted_results_data, start=1):
+            result['rank'] = i
+
+        result_data = {
+            "exam_data": exam_data,
+            "exam_results": sorted_results_data
+        }
+
+        return result_data
+
+    except Exception as e:
+        print(f"Error fetching results: {e}")
+        return {"error": "An error occurred while fetching results."}
