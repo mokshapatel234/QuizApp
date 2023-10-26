@@ -306,10 +306,10 @@ def create_competitive_exam(request, data: CompExamIn):
     return create_comp_exam(request.user, data)
 
 
-@router.post("/competitive/startExam/{exam_id}", response={200: DeleteOut, 400: dict, 401: dict})
+@router.post("/competitive/startExam", response={200: DeleteOut, 400: dict, 401: dict})
 @verify_token
-def start_competitive_exam(request, exam_id, data:CompExamQuestion):
-    return start_comp_exam(exam_id, data)
+def start_competitive_exam(request, data:CompExamQuestion):
+    return start_comp_exam(data)
 
 
 @router.get("/competitive/exam", response={200: List[CompExamOut], 400: dict, 401: dict})
@@ -318,6 +318,11 @@ def start_competitive_exam(request, exam_id, data:CompExamQuestion):
 def get_competitive_examlist(request, query:CompExamFilter = Query(...)):
     return get_comp_examlist(request.user, query)
 
+
+@router.post("/competitive/CreateExam", response={200: AcadeCreatestartExamOut, 400: dict, 401: dict})
+@verify_token
+def start_CompExam(request, data:CompCreatestartExam):
+    return start_comp_CompExam(request.user,data)
 
 #-----------------------------------------------------------------------------------------------------------#
 #------------------------------------------------STUDENT----------------------------------------------------#
@@ -330,11 +335,18 @@ def add_student(request, data: StudentIn):
     return create_student(data, request.user)
 
 
-@router.post("/student/upload", response={200: DeleteOut, 400: dict, 401: dict})
+@router.post("/student/import-data", response={200: DeleteOut, 400: dict, 401: dict})
 @verify_token
 def upload_studentfile(request, xl_file: UploadedFile = File(...)):
     return upload_student(xl_file, request.user)
- 
+
+@router.post("/student/download-data-format", response={200: dict, 400: dict, 401: dict})
+@verify_token
+def download_student_file(request,flag: str = Query(...),related_id: StudentdData = Query(...)):
+    if flag not in ["standard","batch"]:
+        return JSONResponse(content={"message": "Invalid flag."}, status_code=400)
+    result = create_excel_with_column_names_student("output.xlsx",flag,related_id)
+    return result
 
 @router.get("/student", response={200: List[Student], 400: dict, 401: dict})
 @verify_token

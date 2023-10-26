@@ -7,6 +7,11 @@ from .authentication import verify_token
 from typing import List
 from.paginator import CustomPagination
 from ninja.pagination import paginate, PaginationBase
+from ninja.files import UploadedFile
+from fastapi.responses import JSONResponse
+from pathlib import Path
+from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse
 router = Router()
 
 
@@ -28,6 +33,9 @@ def add_boards(request,data: BoardSchema):
     result = add_baord(request.user,data)
     return result
 
+
+ 
+
 @router.get("/academic/board/{board_id}", response={200:AcademicBoardOut, 401:dict, 400:dict})
 @verify_token
 def get_academic_board(request,board_id):
@@ -48,7 +56,21 @@ def delete_board(request, board_id):
     result = delete_board_data(request.user,board_id)
     return result
 
+@router.post("/import-data", response={200: DeleteOut, 400: dict, 401: dict})
+@verify_token
+def upload_file(request, xl_file: UploadedFile = File(...),flag: str = Query(...),param_prompt: UploadData = Query(...)):
+    if flag not in ["board", "medium","standard","subject","chapter","question","batch","competitive_subject","competitive_chapter","competitive_question"]:
+        return JSONResponse(content={"message": "Invalid flag."}, status_code=400)
+    return upload_from_xl(xl_file, request.user,flag,param_prompt)
 
+
+@router.post("/download-data-format", response={200: dict, 400: dict, 401: dict})
+@verify_token
+def download_file(request,flag: str = Query(...),related_id_name: DownloadData = Query(...)):
+    if flag not in ["board", "medium","standard","subject","chapter","question","batch","competitive_subject","competitive_chapter","competitive_question"]:
+        return JSONResponse(content={"message": "Invalid flag."}, status_code=400)
+    result = create_excel_with_column_names("output.xlsx",flag,related_id_name)
+    return result
 #-----------------------------------------------------------------------------------------------------------#
 #-------------------------------------------------MEDIUM----------------------------------------------------#
 #-----------------------------------------------------------------------------------------------------------#
@@ -255,7 +277,7 @@ def update_question(request, question_id: UUID, data: UpdateQuestionIn):
 def create_acad_exam(request, data: AcademicExamIn):
     return create_academic_exam(request.user, data)
 
-@router.get("/academic/exam", response={200: List[dict], 400: dict, 401: dict})
+@router.get("/academic/exam", response={200: List[AcadExamOut], 400: dict, 401: dict})
 @verify_token
 @paginate(CustomPagination)
 def get_academic_examlist(request, query:AcadExamFilter = Query(...)):

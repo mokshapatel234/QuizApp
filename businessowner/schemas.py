@@ -334,14 +334,14 @@ class CompQuestionOut(Schema):
 
 class CompExamData(Schema):
     subject_id: UUID
-    chapters: List[UUID]
+    chapter: List[UUID]
     easy_question: int
     medium_question: int
     hard_question: int
 
 class CompExamIn(Schema):
     exam_title: str
-    batch: UUID
+    batch_id: UUID
     total_questions: int
     time_duration: float
     negative_marks: str
@@ -349,6 +349,7 @@ class CompExamIn(Schema):
     total_marks: int
     option_e: bool
     exam_data: List[CompExamData]
+
 
 class CompExamFilter(Schema):
     batch_id: Optional[str]
@@ -367,8 +368,7 @@ class CompExam(Schema):
     subject: str
 
 class CompExamQuestion(Schema):
-    question:List[UUID]
-
+    exam_id: UUID
 
 class CompExamChapter(Schema):
     # id: UUID
@@ -380,7 +380,7 @@ class Exammm(Schema):
 class CompExamOut(Schema):
     id:str
     exam_title: str
-    batch: str
+    batch: str  
     batch_name: str
     total_question:int
     time_duration: float
@@ -460,22 +460,44 @@ class StudentOut(Schema):
 
 
 
+class AcadeCreatestartExamOut(Schema):
+    result: bool
+    message: str
+    exam_id : UUID
+
+class AcadExamData(Schema):
+    subject_id: UUID
+    chapters: List[UUID]
+    easy_question: int
+    medium_question: int
+    hard_question: int
+
+class subjectinfo(Schema):
+    subject_id: UUID
+    subject_time: int
+    subject_marks: int
 
 
+class CompExamData(Schema):
+    subject_id: UUID
+    chapter: List[UUID]
+    easy_question: int
+    medium_question: int
+    hard_question: int
 
-
-
-
-
-
-
-
-
-
-
-
-
-
+class CompCreatestartExam(Schema):
+    exam_title: str
+    batch_id: UUID
+    total_questions: int
+    time_duration: float
+    negative_marks: str
+    passing_marks: int
+    total_marks: int
+    option_e: bool
+    question:List[UUID]
+    exam_data: List[CompExamData]
+    subject_data: List[subjectinfo]
+    
 
 
 
@@ -992,7 +1014,7 @@ class AcadExam(Schema):
 
 class AcadExamData(Schema):
     subject_id: UUID
-    chapters: List[UUID]
+    chapter: List[UUID]
     easy_question: int
     medium_question: int
     hard_question: int
@@ -1070,3 +1092,52 @@ class AcadeCreatestartExamOut(Schema):
     result: bool
     message: str
     exam_id : UUID
+
+class UploadData(Schema):
+     board_id: Optional[UUID] = None
+     medium_id: Optional[UUID]
+     standard_id: Optional[UUID]
+     subject_id: Optional[UUID]
+     chapter_id: Optional[UUID]
+     competitive_subject_id: Optional[UUID]
+     competitive_chapter_id: Optional[UUID]
+
+
+class DownloadData(Schema):
+     board_id: Optional[str] = None
+     medium_id: Optional[str]
+     standard_id: Optional[str]
+     subject_id: Optional[str]
+     subject_ids: Optional[str]
+     chapter_id: Optional[str]
+     competitive_subject_id: Optional[str]
+     competitive_chapter_id: Optional[str]
+     batch_ids: Optional[str]
+
+
+
+class StudentdData(Schema):
+     batch_id: Optional[str]
+     standard_id: Optional[str]
+
+
+
+class Exammm(Schema):
+    subject: str
+    chapters: str
+
+class AcadExamOut(Schema):
+    id:str
+    exam_title: str
+    board_id: str
+    board_name: str
+    medium_id:str
+    medium_name: str
+    standard_id: str
+    standard_name: str
+    total_question:int
+    time_duration: float
+    negative_marks: str
+    total_marks:int
+    exam_data: List[Exammm]
+    
