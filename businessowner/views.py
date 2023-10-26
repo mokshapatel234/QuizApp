@@ -306,10 +306,10 @@ def create_competitive_exam(request, data: CompExamIn):
     return create_comp_exam(request.user, data)
 
 
-@router.post("/competitive/startExam/{exam_id}", response={200: DeleteOut, 400: dict, 401: dict})
+@router.post("/competitive/startExam", response={200: DeleteOut, 400: dict, 401: dict})
 @verify_token
-def start_competitive_exam(request, exam_id, data:CompExamQuestion):
-    return start_comp_exam(exam_id, data)
+def start_competitive_exam(request, data:CompExamQuestion):
+    return start_comp_exam(data)
 
 
 @router.get("/competitive/exam", response={200: List[CompExamOut], 400: dict, 401: dict})
@@ -318,6 +318,11 @@ def start_competitive_exam(request, exam_id, data:CompExamQuestion):
 def get_competitive_examlist(request, query:CompExamFilter = Query(...)):
     return get_comp_examlist(request.user, query)
 
+
+@router.post("/competitive/CreateExam", response={200: AcadeCreatestartExamOut, 400: dict, 401: dict})
+@verify_token
+def start_CompExam(request, data:CompCreatestartExam):
+    return start_comp_CompExam(request.user,data)
 
 #-----------------------------------------------------------------------------------------------------------#
 #------------------------------------------------STUDENT----------------------------------------------------#
