@@ -67,9 +67,9 @@ class Profile(Schema):
     profile_image: Optional[str]
     months: List[str]
     selected_language: str
-    total_exams:int
-    passed_exams:int
-    failed_exams:int
+    total_exams:Optional[int]
+    passed_exams:Optional[int]
+    failed_exams:Optional[int]
     
 class ProfileOut(Schema):
     result: bool
@@ -129,7 +129,7 @@ class ExamDetail(Schema):
     exam_title: Optional[str]
     total_marks: Optional[int]
     start_date: Optional[str]
-    exam_datas: List[ExamData]
+    exam_datas: Optional[List[ExamData]]
     result: Optional[str]
 
 

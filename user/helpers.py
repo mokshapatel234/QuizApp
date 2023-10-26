@@ -207,9 +207,9 @@ def get_profile(user, query):
             profile_image=student.profile_image.url if student.profile_image else None,
             selected_language=student.selected_language,
             months=months,
-            total_exams=total_exams,  # Added this line
-            passed_exams=passed_exams,  # Added this line
-            failed_exams=failed_exams 
+            total_exams=total_exams if total_exams else None,  # Added this line
+            passed_exams=passed_exams if passed_exams else None,  # Added this line
+            failed_exams=failed_exams if failed_exams else None 
         )
         response_data = {
             "result": True,
@@ -425,6 +425,7 @@ def get_exam_history(user, query):
         business_owner = BusinessOwners.objects.get(id=user.selected_institute.id)
         if business_owner.business_type == "competitive":        
             exams = CompetitiveExams.objects.filter(business_owner=business_owner, start_date__isnull=False).order_by('-created_at')
+            print(exams)
             exam_list = []
             
             if query.subject_id:
@@ -505,7 +506,7 @@ def get_exam_history(user, query):
     except Exception as e:
         response_data = {
                     "result": False,
-                    "message": "Something went wrong"
+                    "message": str(e)
                 }
         return JsonResponse(response_data, status=400)
     
@@ -544,6 +545,7 @@ def get_exam_detail(user, exam_id):
             "batch": str(exam.batch.id),
             "batch_name": exam.batch.batch_name,
             "total_marks": exam.total_marks,
+            "passing marks": exam.passing_marks,
             "start_date": exam.start_date,
             "exam_datas": exam_data_list,
             "mark": result.score if result else None
@@ -581,6 +583,7 @@ def get_exam_detail(user, exam_id):
             "time_duration": exam.time_duration,
             "negative_marks": exam.negative_marks,
             "total_marks": exam.total_marks,
+            "passing marks": exam.passing_marks,
             "start_date": exam.start_date,
             "exam_data": exam_data_list,
             "mark": result.score if result else None
