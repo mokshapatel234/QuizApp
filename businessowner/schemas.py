@@ -1092,3 +1092,52 @@ class AcadeCreatestartExamOut(Schema):
     result: bool
     message: str
     exam_id : UUID
+
+class UploadData(Schema):
+     board_id: Optional[UUID] = None
+     medium_id: Optional[UUID]
+     standard_id: Optional[UUID]
+     subject_id: Optional[UUID]
+     chapter_id: Optional[UUID]
+     competitive_subject_id: Optional[UUID]
+     competitive_chapter_id: Optional[UUID]
+
+
+class DownloadData(Schema):
+     board_id: Optional[str] = None
+     medium_id: Optional[str]
+     standard_id: Optional[str]
+     subject_id: Optional[str]
+     subject_ids: Optional[str]
+     chapter_id: Optional[str]
+     competitive_subject_id: Optional[str]
+     competitive_chapter_id: Optional[str]
+     batch_ids: Optional[str]
+
+
+
+class StudentdData(Schema):
+     batch_id: Optional[str]
+     standard_id: Optional[str]
+
+
+
+class Exammm(Schema):
+    subject: str
+    chapters: str
+
+class AcadExamOut(Schema):
+    id:str
+    exam_title: str
+    board_id: str
+    board_name: str
+    medium_id:str
+    medium_name: str
+    standard_id: str
+    standard_name: str
+    total_question:int
+    time_duration: float
+    negative_marks: str
+    total_marks:int
+    exam_data: List[Exammm]
+    

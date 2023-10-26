@@ -335,11 +335,18 @@ def add_student(request, data: StudentIn):
     return create_student(data, request.user)
 
 
-@router.post("/student/upload", response={200: DeleteOut, 400: dict, 401: dict})
+@router.post("/student/import-data", response={200: DeleteOut, 400: dict, 401: dict})
 @verify_token
 def upload_studentfile(request, xl_file: UploadedFile = File(...)):
     return upload_student(xl_file, request.user)
- 
+
+@router.post("/student/download-data-format", response={200: dict, 400: dict, 401: dict})
+@verify_token
+def download_student_file(request,flag: str = Query(...),related_id: StudentdData = Query(...)):
+    if flag not in ["standard","batch"]:
+        return JSONResponse(content={"message": "Invalid flag."}, status_code=400)
+    result = create_excel_with_column_names_student("output.xlsx",flag,related_id)
+    return result
 
 @router.get("/student", response={200: List[Student], 400: dict, 401: dict})
 @verify_token

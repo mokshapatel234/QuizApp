@@ -2517,24 +2517,16 @@ def upload_student(xl_file, user):
                 "address": row["address"],
             }
 
-            batch_name = row.get("batch")
-            if batch_name:
-                batch_instance, _ = CompetitiveBatches.objects.get_or_create(batch_name=batch_name)
+            standard_id = row.get("standard_id")  # Change to "standard_id"
+            if standard_id:
+                standard_instance = AcademicStandards.objects.get(id=standard_id)  # Use standard_id
+                student_info["standard"] = standard_instance
+
+            batch_id = row.get("batch_id")  # Change to "batch_id"
+            if batch_id:
+                batch_instance = CompetitiveBatches.objects.get(id=batch_id)  # Use batch_id
                 student_info["batch"] = batch_instance
             
-            board_name = row.get("board")
-            if board_name:
-                board_instance = AcademicBoards.objects.get(board_name=board_name)  
-
-                medium_name = row.get("medium")
-                if medium_name:
-                    medium_instance = AcademicMediums.objects.get(board_name=board_instance, medium_name=medium_name)
-                 
-                    standard_id = row.get("standard")
-                    if standard_id:
-                        standard_instance = AcademicStandards.objects.get(medium_name=medium_instance, standard=standard_id)
-                        student_info["standard"] = standard_instance
-
             existing_student = Students.objects.filter(business_owner=user, contact_no=student_info["contact_no"]).first()
             if existing_student:
                 return JsonResponse({
@@ -2554,11 +2546,62 @@ def upload_student(xl_file, user):
 
     except Exception as e:
         response_data = {
-                    "result": False,
-                    "message": "Something went wrong"
-                }
+            "result": False,
+            "message": "Something went wrong"
+        }
         return JsonResponse(response_data, status=400)
 
+
+def create_excel_with_column_names_student(file_path,flag,related_id, sheet_name="Sheet1"):
+
+    try:
+        
+        if flag == "standard":
+            column_names = ["standard_id","first_name","last_name","email","contact_no","parent_name","parent_contact_no","address"] if related_id.standard_id else ["standard_name"]
+    
+        elif flag == "batch":
+            column_names = ["batch_id","first_name","last_name","email","contact_no","parent_name","parent_contact_no","address"] if related_id.batch_id else ["batch_name"]
+    
+        # Create a new workbook
+
+       
+        file_path = f"format_{flag}.xlsx"
+
+        workbook = xlsxwriter.Workbook(file_path)
+        worksheet = workbook.add_worksheet(sheet_name)
+
+        for col_num, header in enumerate(column_names):
+            worksheet.set_column(col_num, col_num, len(header) + 30)
+        # Write column headers
+        for col_num, header in enumerate(column_names):
+            worksheet.write(0, col_num, header)
+        
+        if related_id.standard_id:
+            for row_num in range(1, 30):  # Assuming 1000 rows for example
+                worksheet.write(row_num, 0, related_id.standard_id)
+
+        elif related_id.batch_id:
+            for row_num in range(1, 30):  # Assuming 1000 rows for example
+                worksheet.write(row_num, 0, related_id.batch_id)
+
+        # Close the workbook
+        workbook.close()
+
+        with open(file_path, "rb") as file:
+            file_content = file.read()
+        
+        response = HttpResponse(file_content, content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+        response['Content-Disposition'] = f'attachment; filename={file_path}'
+        return response
+       
+    except Exception as e:
+        response_data = {
+            "result": False,
+            "message": str(e)
+        }
+        
+        return response_data
+# Example usage
 
 
 def student_list(user, query):
@@ -3493,6 +3536,465 @@ def add_baord(user, data):
         return JsonResponse(response_data, status=400)
 
 
+def create_board(board_name, user):
+    board_instance, created = AcademicBoards.objects.get_or_create(
+        board_name=board_name,
+        business_owner=user,
+    )
+    return board_instance, created
+
+
+def create_medium(medium_name, board_id):
+    board = AcademicBoards.objects.get(pk=board_id)
+    medium_instance, created = AcademicMediums.objects.get_or_create(
+        medium_name=medium_name,
+        board_name=board,
+    )
+    return medium_instance, created
+
+def create_standard(standard_name, medium_id):
+    medium = AcademicMediums.objects.get(pk=medium_id)
+    standard_instance, created = AcademicStandards.objects.get_or_create(
+        standard=standard_name,
+        medium_name=medium,
+    )
+    return standard_instance, created
+
+def create_subject(subject_name, standard_id):
+    standard = AcademicStandards.objects.get(pk=standard_id)
+    subject_instance, created = AcademicSubjects.objects.get_or_create(
+        subject_name=subject_name,
+        standard=standard,
+    )
+    return subject_instance, created
+
+def create_chapter(chapter_name, subject_id):
+    print(f"Creating chapter: {chapter_name} for subject ID: {subject_id}")
+    subject = AcademicSubjects.objects.get(pk=subject_id)
+    chapter_instance, created = AcademicChapters.objects.get_or_create(
+        chapter_name=chapter_name,
+        subject_name=subject,
+    )
+    return chapter_instance, created
+
+def create_question(academic_chapter, question, options, answer, question_category, marks, time_duration, business_owner):
+    question_instance, created = AcademicQuestions.objects.get_or_create(
+        academic_chapter=academic_chapter,
+        question=question,
+        options=options,
+        answer=answer,
+        question_category=question_category,
+        marks=marks,
+        time_duration=time_duration,
+        business_owner=business_owner,
+    )
+    return question_instance, created
+
+def create_batch(batch_name, user):
+    batch_instance, created = CompetitiveBatches.objects.get_or_create(
+        batch_name=batch_name,
+        business_owner=user,
+    )
+    return batch_instance, created
+
+def create_competitive_subject(subject_name, user):
+    subject_instance, created = CompetitiveSubjects.objects.get_or_create(
+        subject_name=subject_name,
+        business_owner=user
+    )
+    return subject_instance, created
+
+def create_competitive_chapter(chapter_name, subject_instance, batch_ids):
+    print(batch_ids)
+    print(subject_instance)
+
+    competitive_chapter_instance, created = CompetitiveChapters.objects.get_or_create(
+        chapter_name=chapter_name,
+        subject_name=subject_instance
+    )
+    
+    for batch_id in batch_ids:
+        batch_instance = CompetitiveBatches.objects.get(id=batch_id)
+        competitive_chapter_instance.batches.add(batch_instance)
+
+    return competitive_chapter_instance, created
+
+def create_competitive_question(competitive_chapter, question, options, answer, question_category, marks, time_duration, business_owner):
+    question_instance, created = CompetitiveQuestions.objects.get_or_create(
+        competitve_chapter=competitive_chapter,
+        question=question,
+        options=options,
+        answer=answer,
+        question_category=question_category,
+        marks=marks,
+        time_duration=time_duration,
+        business_owner=business_owner,
+    )
+    return question_instance, created
+
+def upload_from_xl(xl_file, user, flag,param_prompt):
+    try:
+        xl_data = pd.read_excel(xl_file.file)
+        created_boards = []
+        existing_boards = []
+        created_mediums = []
+        existing_mediums = []
+        created_standards = []
+        existing_standards = []
+        created_subjects = []
+        existing_subjects = []
+        created_chapters = []
+        existing_chapters = []
+        created_questions = []
+        existing_questions = []
+        created_batches = []  
+        existing_batches = []
+        created_competitive_subjects = []  
+        existing_competitive_subjects = [] 
+        created_competitive_chapters= []  
+        existing_competitive_chapters = [] 
+        created_competitive_questions = []
+        existing_competitive_questions = []
+        for _, row in xl_data.iterrows():
+            if flag == "board":
+                board_name = row.get("board_name")
+                if board_name:
+                    existing_board = AcademicBoards.objects.filter(board_name=board_name).first()
+                    if existing_board:
+                        existing_boards.append(board_name)
+                    else:
+                        board_instance, created = create_board(board_name, user)
+                        if created:
+                            created_boards.append(board_instance)
+
+            
+
+            elif flag == "medium":
+                medium_name = row.get("medium_name")
+                board_id = row.get("board_id")
+                if medium_name:
+                    existing_medium = AcademicMediums.objects.filter(medium_name=medium_name).first()
+                    if existing_medium:
+                        existing_mediums.append(medium_name)
+                    else:
+                        medium_instance, created = create_medium(medium_name, board_id)
+                        if created:
+                            created_mediums.append(medium_instance)
+
+            elif flag == "standard":
+                standard_name = row.get("standard_name")
+                medium_id = row.get("medium_id")
+                if standard_name :
+                    existing_standard = AcademicStandards.objects.filter(standard=standard_name).first()
+                    if existing_standard:
+                        existing_standards.append(standard_name)
+                    else:
+                        standard_instance, created = create_standard(standard_name,medium_id)
+                        if created:
+                            created_standards.append(standard_instance)
+
+            elif flag == "subject":
+                subject_name = row.get("subject_name")
+                standard_id = row.get ("standard_id")
+                if subject_name:
+                    existing_subject = AcademicSubjects.objects.filter(subject_name=subject_name).first()
+                    if existing_subject:
+                        existing_subjects.append(subject_name)
+                    else:
+                        subject_instance, created = create_subject(subject_name,standard_id)
+                        if created:
+                            created_subjects.append(subject_instance)
+                        
+
+            elif flag == "chapter":
+                chapter_name = row.get("chapter_name")
+                subject_id = row.get("subject_id")
+                if chapter_name:
+                    existing_chapter = AcademicChapters.objects.filter(chapter_name=chapter_name).first()
+                    if existing_chapter:
+                        existing_chapters.append(chapter_name)
+                    else:
+                        chapter_instance, created = create_chapter(chapter_name,subject_id)
+                        if created:
+                            created_chapters.append(chapter_instance)
+
+            elif flag == "question":
+                chapter_id = row.get("chapter_id")
+                question_text = row.get("question")
+                option1 = row.get("option1")
+                option2 = row.get("option2")
+                option3 = row.get("option3")
+                option4 = row.get("option4")
+                answer = row.get("answer")
+                question_category = row.get("question_category")
+                marks = row.get("marks")
+                time_duration = row.get("time_duration")
+
+                if question_text and option1 and option2 and option3 and option4 and answer and question_category and marks and time_duration :
+                    academic_chapter_id = chapter_id
+                    academic_chapter = AcademicChapters.objects.get(id=academic_chapter_id)
+
+                    existing_question = AcademicQuestions.objects.filter(
+                        question=question_text,
+                    ).first()
+
+                    if existing_question:
+                        existing_questions.append(question_text)
+                    else:
+                        # Create options instance
+                        options_instance = Options.objects.create(
+                            option1=option1,
+                            option2=option2,
+                            option3=option3,
+                            option4=option4
+                        )
+
+                        # Create question instance
+                        question_instance, created = create_question(
+                            academic_chapter, question_text, options_instance, answer, question_category, marks, time_duration, user
+                        )
+
+                        if created:
+                            created_questions.append(question_instance)
+
+            elif flag == "batch":
+                batch_name = row.get("batch_name")
+
+                if batch_name:
+                    existing_batch = CompetitiveBatches.objects.filter(batch_name=batch_name).first()
+                    if existing_batch:
+                        existing_batches.append(batch_name)
+                    else:
+                        batch_instance, created = create_batch(batch_name, user)
+                        if created:
+                            created_batches.append(batch_instance)
+
+
+            elif flag == "competitive_subject":
+                subject_name = row.get("subject_name")
+        
+                if subject_name:
+                    existing_subject = CompetitiveSubjects.objects.filter(subject_name=subject_name).first()
+                    if existing_subject:
+                        existing_competitive_subjects.append(subject_name)
+                    else:
+                        subject_instance, created = create_competitive_subject(subject_name, user)
+                        if created:
+                            created_competitive_subjects.append(subject_instance)   
+
+            elif flag == "competitive_chapter":
+                chapter_name = row.get("chapter_name")
+                subject_id = row.get("subject_ids")  # Assuming you have a field for subject_id in your Excel file
+                batch_ids = row.get("batch_ids")    # Assuming you have a field for batch_ids in your Excel file
+
+                if chapter_name and subject_id and batch_ids:
+                    existing_chapter = CompetitiveChapters.objects.filter(
+                        chapter_name=chapter_name,
+                    ).first()
+
+                    if existing_chapter:
+                        existing_competitive_chapters.append(chapter_name)
+                    else:
+                        # Create a list to hold batch instances
+                        batch_instances = []
+
+                        for batch_id in batch_ids.split(','):
+                            batch_instances.append(batch_id)
+
+                        try:
+                            subject_instance = CompetitiveSubjects.objects.get(id=subject_id)
+                            print(subject_instance)
+                            # print(f"subject_id type: {type(subject_id)}, subject_id value: {subject_id}")
+
+                        except Exception as e:
+                            # Handle other exceptions
+                            print(f"Error: {e}")
+
+                        # Create competitive chapter instance
+                        competitive_chapter_instance, created = create_competitive_chapter(
+                            chapter_name, subject_instance, batch_instances
+                        )
+
+                        if created:
+                            created_competitive_chapters.append(competitive_chapter_instance)
+
+
+            elif flag == "competitive_question":
+                chapter_id = row.get("chapter_id")
+                question_text = row.get("question")
+                option1 = row.get("option1")
+                option2 = row.get("option2")
+                option3 = row.get("option3")
+                option4 = row.get("option4")
+                answer = row.get("answer")
+                question_category = row.get("question_category")
+                marks = row.get("marks")
+                time_duration = row.get("time_duration")
+
+                if question_text and option1 and option2 and option3 and option4 and answer and question_category and marks and time_duration:
+                    competitive_chapter_id = chapter_id
+                    competitive_chapter = CompetitiveChapters.objects.get(id=competitive_chapter_id)
+
+                    existing_question = CompetitiveQuestions.objects.filter(
+                        competitve_chapter=competitive_chapter,
+                        question=question_text,
+                    ).first()
+
+                    if existing_question:
+                        existing_competitive_questions.append(question_text)
+                    else:
+                        # Create options instance
+                        options_instance = Options.objects.create(
+                            option1=option1,
+                            option2=option2,
+                            option3=option3,
+                            option4=option4
+                        )
+
+                        # Create question instance
+                        question_instance, created = create_competitive_question(
+                            competitive_chapter, question_text, options_instance, answer, question_category, marks, time_duration, user
+                        )
+
+                        if created:
+                            created_competitive_questions.append(question_instance)
+            
+            
+                            
+        response_data = {
+            "result": True,
+            "message": "Data uploaded successfully.",
+     
+        }
+
+        if existing_boards:
+            response_data["message"] = "Some boards already exist."
+
+        if existing_mediums:
+            response_data["message"] = "Some mediums already exist."
+
+        if existing_standards:
+            response_data["message"] = "Some standards already exist."
+        
+        if existing_subjects:
+            response_data["message"] = "Some subjects already exist."
+        
+        if existing_chapters:
+            response_data["message"] = "Some chapters already exist."
+        
+        if existing_questions:
+            response_data["message"] = "Some questions already exist."
+
+        if existing_batches:
+            response_data["message"] = "Some batches already exist."
+        
+        if existing_competitive_subjects:
+            response_data["message"] = "Some competitive subjects already exist."
+
+        if existing_competitive_chapters:
+            response_data["message"] = "Some competitive chapters already exist."
+
+        if existing_competitive_questions:
+            response_data["message"] = "Some questions already exist."
+        return response_data
+
+    except Exception as e:
+        response_data = {
+            "result": False,
+            "message": str(e)
+        }
+
+        return response_data
+        
+import xlsxwriter
+from fastapi.responses import JSONResponse
+from django.http import HttpResponse
+def create_excel_with_column_names(file_path,flag,related_id_name, sheet_name="Sheet1"):
+    try:
+        if flag == "board":
+            column_names = ["board_name"]
+        elif flag == "medium":
+            column_names = ["board_id", "medium_name"] if related_id_name.board_id else ["plase enter board_id in params"]
+        elif flag == "standard":
+            column_names = ["medium_id","standard_name"] if related_id_name.medium_id else ["plase enter medium_id in params"]
+        elif flag == "subject":
+            column_names = ["standard_id","subject_name"] if related_id_name.standard_id else ["plase enter standard_id in params"]
+        elif flag == "chapter":
+            column_names = ["subject_id","chapter_name"] if related_id_name.subject_id  else ["plase enter subject_id in params"]
+        elif flag == "question":
+            column_names = ["chapter_id","question","option1","option2","option3","option4","answer","question_category","marks","time_duration"] if related_id_name.chapter_id else ["plase enter chapter_id in params"]
+        elif flag == "batch":
+            column_names = ["batch_name"]
+        elif flag == "competitive_subject":
+            column_names = ["subject_name"]
+        elif flag == "competitive_chapter":
+            column_names = ["subject_id","batch_ids","chapter_name"] if related_id_name.subject_ids and related_id_name.batch_ids else ["plase enter subject_ids and batch_ids in params"]
+        elif flag == "competitive_question":
+            column_names = ["chapter_id","question","option1","option2","option3","option4","answer","question_category","marks","time_duration"] if related_id_name.chapter_id else ["plase enter chapter_id in params"]
+        # Create a new workbook
+
+       
+        file_path = f"format_{flag}.xlsx"
+
+        workbook = xlsxwriter.Workbook(file_path)
+        worksheet = workbook.add_worksheet(sheet_name)
+
+        for col_num, header in enumerate(column_names):
+            worksheet.set_column(col_num, col_num, len(header) + 30)
+
+        # Write column headers
+        for col_num, header in enumerate(column_names):
+            worksheet.write(0, col_num, header)
+        
+        if related_id_name.board_id:
+            for row_num in range(1, 30):  # Assuming 1000 rows for example
+                worksheet.write(row_num, 0, related_id_name.board_id)
+
+        elif related_id_name.medium_id:
+            for row_num in range(1, 30):  # Assuming 1000 rows for example
+                worksheet.write(row_num, 0, related_id_name.medium_id)
+        
+        elif related_id_name.standard_id:
+            for row_num in range(1, 30):  # Assuming 1000 rows for example
+                worksheet.write(row_num, 0, related_id_name.standard_id)
+
+        
+        elif related_id_name.subject_id:
+            for row_num in range(1, 30):  # Assuming 1000 rows for example
+                worksheet.write(row_num, 0, related_id_name.subject_id)
+
+        elif related_id_name.chapter_id:
+            for row_num in range(1, 30):  # Assuming 1000 rows for example
+                worksheet.write(row_num, 0, related_id_name.chapter_id)
+
+        elif related_id_name.subject_ids and related_id_name.batch_ids:
+            for row_num in range(1, 30):
+                worksheet.write(row_num, 0, related_id_name.subject_ids)
+                worksheet.write(row_num, 1, related_id_name.batch_ids)
+                print(f"Row {row_num}: Subject ID = {related_id_name.subject_id}, Batch IDs = {related_id_name.batch_ids}")
+        # Close the workbook
+        workbook.close()
+
+        with open(file_path, "rb") as file:
+            file_content = file.read()
+
+        # Return the Excel file as a response
+        response = HttpResponse(file_content, content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+        response['Content-Disposition'] = f'attachment; filename={file_path}'
+
+        return response
+       
+    except Exception as e:
+        response_data = {
+            "result": False,
+            "message": str(e)
+        }
+        
+        return response_data
+# Example usage
+
+
+    
 def update_board_data(user,data,board_id):
     try:
         # Check if the academic board exists
