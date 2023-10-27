@@ -295,6 +295,7 @@ class OptionUpdateSchema(Schema):
 
 class QuestionUpdate(Schema):
    question: Optional[str]
+   question_image: Optional[str]
    options: Optional[OptionUpdateSchema]
    answer: Optional[str] 
    chapter_id: Optional[str]
@@ -306,6 +307,7 @@ class QuestionUpdate(Schema):
 class CompetitiveQuestion(Schema):
     id: str
     question: str
+    question_image: Optional[str]
     options: Optionschema
     answer: str 
     chapter_id: str
@@ -360,6 +362,7 @@ class CompExamFilter(Schema):
 class CompExam(Schema):
     id: str
     question:str
+    question_image:Optional[str]
     question_category: str
     time: float
     mark: int
@@ -935,6 +938,7 @@ class updateChaptertIn(Schema):
 class Question(Schema):
     id : str
     question: str
+    question_image: Optional[str]
     options: Optionschema
     answer: str 
     board_id: str
@@ -962,6 +966,7 @@ class Optionschema(Schema):
 
 class QuestionIn(Schema):
    question: str
+   question_image: Optional[str]
    options: Optionschema
    answer: str 
    chapter_id: UUID
@@ -983,6 +988,7 @@ class QuestionListOut(Schema):
 
 class UpdateQuestionIn(Schema):
    question: Optional[str]
+   question_image: Optional[str]
    options: Optional[Optionschema]
    answer: Optional[str] 
    chapter_id: Optional[UUID]
@@ -1004,6 +1010,7 @@ class AcademicExamChapter(Schema):
 class AcadExam(Schema):
     id: str
     question:str
+    question_image: Optional[str]
     question_category: str
     time: float
     mark: int

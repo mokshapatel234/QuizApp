@@ -269,6 +269,7 @@ class CompetitiveQuestions(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     competitve_chapter = models.ForeignKey(CompetitiveChapters, on_delete=models.CASCADE, related_name="question_chapter")
     question = models.CharField(max_length=100)
+    competitive_question_image = models.ImageField(blank=True, upload_to="question_image", validators=[FileExtensionValidator(['jpg','jpeg','png'])], height_field=None, width_field=None, max_length=None, null=True)
     options = models.ForeignKey(Options, on_delete=models.CASCADE, related_name="competitive_options")
     answer = models.CharField(("Right Answer"),choices=ANSWER_CHOICES, max_length=50)
     question_category = models.CharField(("Question Category"),choices=QUESTION_CHOICES, max_length=50,default='easy')
@@ -281,6 +282,11 @@ class CompetitiveQuestions(models.Model):
     deleted_at = models.DateTimeField(blank=True, null=True, default=None, editable=False)
     objects = ParanoidModelManager()
     
+
+    def save(self, *args, **kwargs):
+        self.question_category = self.question_category.lower()
+        super(CompetitiveQuestions, self).save(*args, **kwargs)
+
     def delete(self, hard=False, **kwargs):
         if hard:
             super(CompetitiveQuestions, self).delete()
@@ -519,6 +525,7 @@ class AcademicQuestions(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     academic_chapter = models.ForeignKey(AcademicChapters, on_delete=models.CASCADE, related_name="academic_chapter")
     question = models.CharField(max_length=100) 
+    academic_question_image = models.ImageField(blank=True, upload_to="question_image", validators=[FileExtensionValidator(['jpg','jpeg','png'])], height_field=None, width_field=None, max_length=None, null=True)
     options = models.ForeignKey(Options, on_delete=models.CASCADE, related_name="academic_options")
     answer = models.CharField(max_length=100)
     question_category = models.CharField(("question_category"),choices=QUESTION_CHOICES, max_length=50,default='easy')
@@ -530,6 +537,10 @@ class AcademicQuestions(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
     deleted_at = models.DateTimeField(blank=True, null=True, default=None, editable=False)
     objects = ParanoidModelManager()
+
+    def save(self, *args, **kwargs):
+        self.question_category = self.question_category.lower()
+        super(AcademicQuestions, self).save(*args, **kwargs)
     
     def delete(self, hard=False, **kwargs):
         if hard:
