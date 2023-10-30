@@ -236,9 +236,10 @@ def get_profile(user, query):
 def update_profile(user, data):
     try: 
         student = Students.objects.get(id=user.id)
-        
+    
         if student:
             update_data = {field: value for field, value in data.dict().items() if value is not None}
+            
             if update_data:
                 for field, value in update_data.items():
                     
@@ -259,7 +260,7 @@ def update_profile(user, data):
                         timestamp = int(time.time())
                         unique_filename = f"profile_image_{timestamp}.png"
                         
-                        student.profile_image.save(unique_filename, ContentFile(image_data))
+                        # student.profile_image.save(unique_filename, ContentFile(image_data))
         
                     else:
                         setattr(student, field, value)
@@ -287,7 +288,9 @@ def update_profile(user, data):
                     },
                     "message": "Profile updated successfully"
                 }
+                print(response_data)
                 return response_data  
+                
             return None  
         
     except Students.DoesNotExist:
@@ -301,7 +304,7 @@ def update_profile(user, data):
         print(e)
         response_data = {
             "result": False,
-            "message": "Something went wrong",
+            "message": str(e)
         }
         return JsonResponse(response_data, status=400)
 
@@ -397,20 +400,21 @@ def get_news(user):
 def get_termsandcondtion(user):
     try:
         latest_terms = TermsandPolicy.objects.first()
-        data = {
-            "terms_and_condition": latest_terms.terms_and_condition,
-            "privacy_policy": latest_terms.privacy_policy,
-        }
 
-        response_data = {
-            "result": True,
-            "data": data,
-            "message": "data retrieved successfully"
-        }
-        return response_data
+        if latest_terms is not None:
+            data = {
+                "terms_and_condition": latest_terms.terms_and_condition,
+                "privacy_policy": latest_terms.privacy_policy,
+            }
 
-    except TermsandPolicy.DoesNotExist:
-        return {"result": False, "message": "Terms and conditions not found"}
+            response_data = {
+                "result": True,
+                "data": data,
+                "message": "Data retrieved successfully"
+            }
+            return response_data
+        else:
+            return {"result": False, "message": "Terms and conditions not found"}
 
     except Exception as e:
         return {"result": False, "message": "Something went wrong"}

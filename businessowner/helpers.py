@@ -118,7 +118,7 @@ def perform_login(data):
     except Exception as e:
         response_data = {
             "result": False,
-            "message": "Something went wrong"
+            "message": str(e)
         }
         return JsonResponse(response_data, status=401)
 
@@ -2236,6 +2236,8 @@ def start_comp_CompExam(user, data):
             subject_instance = CompetitiveSubjects.objects.get(id=subject_id)
             chapter_instance = CompetitiveChapters.objects.filter(id__in=subject_data.chapter)
             chapters = list(chapter_instance)
+            chapter_ids = [f"{item.id}," for item in chapters]
+            chapters = " ".join(chapter_ids)
         # Create a new exam object with the provided data
         exam = CompetitiveExams.objects.create(
             exam_title=data.exam_title,
@@ -3960,7 +3962,7 @@ def create_excel_with_column_names(file_path,flag,related_id_name, sheet_name="S
                 worksheet.write(row_num, 0, related_id_name.subject_id)
 
         elif related_id_name.chapter_id:
-            for row_num in range(1, 30):  # Assuming 1000 rows for example
+            for row_num in range(1, 200):  # Assuming 1000 rows for example
                 worksheet.write(row_num, 0, related_id_name.chapter_id)
 
         elif related_id_name.subject_ids and related_id_name.batch_ids:
@@ -5929,7 +5931,7 @@ def start_acad_CSExam(user, data):
             hard=subject_data.hard_question
             subject_id = subject_data.subject_id
             subject_instance = AcademicSubjects.objects.get(id=subject_id)
-            chapter_instance = AcademicChapters.objects.filter(id__in=subject_data.chapters)
+            chapter_instance = AcademicChapters.objects.filter(id__in=subject_data.chapter)
             chapters = list(chapter_instance)
         # Create a new exam object with the provided data
         exam = AcademicExams.objects.create(

@@ -161,10 +161,11 @@ AWS_S3_OBJECT_PARAMETERS = {
 }
 AWS_STATIC_LOCATION = 'static'
 AWS_LOCATION = 'static'
-STATICFILES_STORAGE = 'quizapp.storage.StaticStorage'
-STATIC_URL = "https://%s/%s/" % (AWS_S3_CUSTOM_DOMAIN, AWS_LOCATION)
+# STATICFILES_STORAGE = 'quizapp.storage.StaticStorage'
+STATIC_URL = '/static/'
+STATIC_ROOT = os.path.join(BASE_DIR,"static")
 
-DEFAULT_FILE_STORAGE = 'quizapp.storage.MediaStorage'
+# DEFAULT_FILE_STORAGE = 'quizapp.storage.MediaStorage'
 AWS_DEFAULT_ACL = None
 MEDIA_URL = f'https://{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com/'
 

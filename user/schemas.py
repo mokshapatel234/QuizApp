@@ -108,7 +108,7 @@ class Terms(Schema):
 
 class TermsOut(Schema):
     result: bool
-    data: Terms
+    data: Optional[Terms]
     message: str
 
 class MonthFilter(Schema):
