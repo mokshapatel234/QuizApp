@@ -141,10 +141,11 @@ class OptionModel(Schema):
 
 class QuestionModel(Schema):
     question_text: str
+    question_image:Optional[str]
     subject_name: str
     right_answer: str
     options: OptionModel
-    selected_answer: str
+    selected_answer: Optional[str]
 
 class ExamDetailModel(Schema):
     easy_questions: List[QuestionModel]

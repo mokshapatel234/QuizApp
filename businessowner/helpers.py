@@ -1629,9 +1629,18 @@ def add_comp_question(user,data):
         )
 
         competitive_chapter = CompetitiveChapters.objects.get(id= data.chapter_id)
+        if data.question_image:
+            # Handle the image data here
+            image_data = base64.b64decode(data.question_image)
+            timestamp = int(time.time())
+            unique_filename = f"question_{timestamp}.png"
+            competitive_question_image = ContentFile(image_data, name=unique_filename)
+        else:
+            competitive_question_image = None
         question = CompetitiveQuestions.objects.create(
             competitve_chapter=competitive_chapter,
             question=data.question,
+            competitive_question_image=competitive_question_image,
             options=options_instance,  
             answer=data.answer,
             question_category=data.question_category,
@@ -1643,6 +1652,7 @@ def add_comp_question(user,data):
         question_data = {
             "id": str(question.id),
             "question": question.question,
+            "question_image":question.competitive_question_image.url if question.competitive_question_image else None,
             "answer": question.answer,
             "options": options_data,  
             "chapter_id": str(question.competitve_chapter.id),
@@ -1748,6 +1758,7 @@ def get_comp_questionlist(user, query):
             question_data = {
                     "id": str(question.id),
                     "question": question.question,
+                    "question_image":question.competitive_question_image.url if question.competitive_question_image else None,
                     "answer": question.answer,
                     "options": options_dict,  
                     "chapter_id": str(question.competitve_chapter.id),
@@ -1793,6 +1804,7 @@ def get_comp_question(user, question_id):
         question_data = {
                 "id": str(question.id),
                 "question": question.question,
+                "question_image":question.competitive_question_image.url if question.competitive_question_image else None,
                 "answer": question.answer,
                 "options": options_dict, 
                 "chapter_id": str(question.competitve_chapter.id),
@@ -1852,6 +1864,15 @@ def update_comp_question(question_id, data):
                         setattr(options_data, field, value)
                 options_data.save()
 
+            if "question_image" in update_data and update_data["question_image"]:
+                # Handle the image data here
+                image_data = base64.b64decode(update_data["question_image"])
+                timestamp = int(time.time())
+                unique_filename = f"question_{timestamp}.png"
+                competitive_question_image = ContentFile(image_data, name=unique_filename)
+                question.competitive_question_image = competitive_question_image
+
+
             for field, value in update_data.items():
                 if field == "chapter_id":
                     chapter = CompetitiveChapters.objects.get(id=value)
@@ -1866,6 +1887,7 @@ def update_comp_question(question_id, data):
             question_data = {
                 "id": str(question.id),
                 "question": question.question,
+                "question_image":question.competitive_question_image.url if question.competitive_question_image else None,
                 "answer": question.answer,
                 "chapter_id": str(question.competitve_chapter.id),
                 "chapter_name": question.competitve_chapter.chapter_name,
@@ -2132,7 +2154,8 @@ def create_comp_exam(user, data):
                         question_category=question.question_category,
                         subject = str(question.competitve_chapter),
                         options = options_dict,
-                        answer = question.answer
+                        answer = question.answer,
+                        question_image = question.competitive_question_image.url if question.competitive_question_image else None,
                     )
                     selected_comp_questions_set1.append(comp_exam_instance)
 
@@ -2154,7 +2177,8 @@ def create_comp_exam(user, data):
                         question_category=question.question_category,
                         subject = str(question.competitve_chapter),
                         options = options_dict,
-                        answer = question.answer
+                        answer = question.answer,
+                        question_image = question.competitive_question_image.url if question.competitive_question_image else None
                     )
                     selected_comp_questions_set2.append(comp_exam_instance)
 
@@ -2175,7 +2199,8 @@ def create_comp_exam(user, data):
                         question_category=question.question_category,
                         subject = str(question.competitve_chapter),
                         options = options_dict,
-                        answer = question.answer
+                        answer = question.answer,
+                        question_image = question.competitive_question_image.url if question.competitive_question_image else None
                     )
                     selected_comp_questions_set3.append(comp_exam_instance)
 
@@ -5106,9 +5131,18 @@ def add_question_data(user,data):
         )
 
         academic_chapter = AcademicChapters.objects.get(id=data.chapter_id)
+        if data.question_image:
+            # Handle the image data here
+            image_data = base64.b64decode(data.question_image)
+            timestamp = int(time.time())
+            unique_filename = f"question_{timestamp}.png"
+            academic_question_image = ContentFile(image_data, name=unique_filename)
+        else:
+            academic_question_image = None
         question = AcademicQuestions.objects.create(
             academic_chapter=academic_chapter,
             question=data.question,
+            academic_question_image = academic_question_image,
             options=options_instance, 
             answer=data.answer,
             question_category=data.question_category,
@@ -5120,6 +5154,7 @@ def add_question_data(user,data):
         question_data = {
             "id": str(question.id),
             "question": question.question,
+            "question_image":question.academic_question_image.url if question.academic_question_image else None,
             "answer": question.answer,
             "options": options_data,  # Return the options data as-is
             "board_id": str(question.academic_chapter.subject_name.standard.medium_name.board_name.id),
@@ -5237,6 +5272,7 @@ def get_academic_question_list(user, filter_prompt):
             question_data = {
                     "id": str(question.id),
                     "question": question.question,
+                    "question_image":question.academic_question_image.url if question.academic_question_image else None,
                     "answer": question.answer,
                     "options": options_dict,  
                     "board_id": str(question.academic_chapter.subject_name.standard.medium_name.board_name.id),
@@ -5297,6 +5333,7 @@ def get_academic_question_data(question_id):
         question_data = {
                 "id": str(question.id),
                 "question": question.question,
+                "question_image":question.academic_question_image.url if question.academic_question_image else None,
                 "answer": question.answer,
                 "options": options_dict,  # Return the options data as-is
                 "board_id": str(question.academic_chapter.subject_name.standard.medium_name.board_name.id),
@@ -5400,7 +5437,7 @@ def update_question_data(data, question_id):
             options_data = None
 
         update_data = {field: value for field, value in data.dict().items() if value is not None}
-        
+        print(update_data,"sdfsfs")
         if update_data:
             if "options" in update_data and options_data:
                 new_options = update_data.pop("options")
@@ -5408,6 +5445,14 @@ def update_question_data(data, question_id):
                     if hasattr(options_data, field) and value is not None:
                         setattr(options_data, field, value)
                 options_data.save()
+
+            if "question_image" in update_data and update_data["question_image"]:
+                # Handle the image data here
+                image_data = base64.b64decode(update_data["question_image"])
+                timestamp = int(time.time())
+                unique_filename = f"question_{timestamp}.png"
+                academic_question_image = ContentFile(image_data, name=unique_filename)
+                question.academic_question_image = academic_question_image
 
             for field, value in update_data.items():
                 if field == "chapter_id":
@@ -5422,6 +5467,7 @@ def update_question_data(data, question_id):
             question_data = {
                 "id": str(question.id),
                 "question": question.question,
+                "question_image":question.academic_question_image.url if question.academic_question_image else None,
                 "answer": question.answer,
                 "board_id": str(question.academic_chapter.subject_name.standard.medium_name.board_name.id),
                 "board_name": str(question.academic_chapter.subject_name.standard.medium_name.board_name.board_name),
@@ -5484,7 +5530,7 @@ def update_question_data(data, question_id):
     except Exception as e:
         response_data = {
                     "result": False,
-                    "message": "Something went wrong"
+                    "message": str(e)
                 }
         return JsonResponse(response_data, status=400)
  
@@ -5597,7 +5643,7 @@ def create_academic_exam(user, data):
             
             selected_questions_set1 = []
             backtrack_result_set1 = backtrack(selected_questions_set1, subject_time, subject_marks, subject_data.easy_question, subject_data.medium_question, subject_data.hard_question, question_data_list)
-            
+        
             selected_questions_set2 = []
             backtrack_result_set2 = backtrack(selected_questions_set2, subject_time, subject_marks, subject_data.easy_question, subject_data.medium_question, subject_data.hard_question, question_data_list)
             
@@ -5661,7 +5707,8 @@ def create_academic_exam(user, data):
                         question_category=question.question_category,
                         subject = str(question.academic_chapter),
                         options = options_dict,
-                        answer = question.answer
+                        answer = question.answer,
+                        question_image=question.academic_question_image.url if question.academic_question_image else None,
                         
                     )
                     selected_acad_questions_set1.append(acad_exam_instance)

@@ -613,6 +613,7 @@ def get_exam_detail_question(user, exam_id, subject_id):
                 subject_name = str(question.competitve_chapter.subject_name)  # Convert to string
                 question_data = {
                     "question_text": question.question,
+                    "question_image":question.competitive_question_image.url if question.competitive_question_image else None,
                     "subject_name": subject_name,
                     "right_answer": question.answer,
                     "options": {
@@ -632,7 +633,7 @@ def get_exam_detail_question(user, exam_id, subject_id):
 
                 selected_answer = StudentAnswers.objects.filter(competitive_question=question, student=user).values_list('selected_answer', flat=True).first()
                 question_data["selected_answer"] = selected_answer if selected_answer else None
-
+                print(easy_questions,"sadasd")
         except CompetitiveExams.DoesNotExist:
             return {"error": "Competitive Exam not found"}
 
@@ -648,6 +649,7 @@ def get_exam_detail_question(user, exam_id, subject_id):
                 subject_name = str(question.academic_chapter.subject_name)  # Convert to string
                 question_data = {
                     "question_text": question.question,
+                    "question_image":question.academic_question_image.url if question.academic_question_image else None,
                     "subject_name": subject_name,
                     "right_answer": question.answer,
                     "options": {
