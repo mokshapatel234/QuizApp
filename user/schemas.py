@@ -108,7 +108,7 @@ class Terms(Schema):
 
 class TermsOut(Schema):
     result: bool
-    data: Terms
+    data: Optional[Terms]
     message: str
 
 class MonthFilter(Schema):
@@ -151,3 +151,9 @@ class ExamDetailModel(Schema):
     easy_questions: List[QuestionModel]
     medium_questions: List[QuestionModel]
     hard_questions: List[QuestionModel]
+
+
+
+class SubjectList(Schema):
+    id: Optional[str]
+    subject_name : Optional[str]

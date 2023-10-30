@@ -236,9 +236,10 @@ def get_profile(user, query):
 def update_profile(user, data):
     try: 
         student = Students.objects.get(id=user.id)
-        
+    
         if student:
             update_data = {field: value for field, value in data.dict().items() if value is not None}
+            
             if update_data:
                 for field, value in update_data.items():
                     
@@ -259,7 +260,7 @@ def update_profile(user, data):
                         timestamp = int(time.time())
                         unique_filename = f"profile_image_{timestamp}.png"
                         
-                        student.profile_image.save(unique_filename, ContentFile(image_data))
+                        # student.profile_image.save(unique_filename, ContentFile(image_data))
         
                     else:
                         setattr(student, field, value)
@@ -287,7 +288,9 @@ def update_profile(user, data):
                     },
                     "message": "Profile updated successfully"
                 }
+                print(response_data)
                 return response_data  
+                
             return None  
         
     except Students.DoesNotExist:
@@ -301,7 +304,7 @@ def update_profile(user, data):
         print(e)
         response_data = {
             "result": False,
-            "message": "Something went wrong",
+            "message": str(e)
         }
         return JsonResponse(response_data, status=400)
 
@@ -397,20 +400,21 @@ def get_news(user):
 def get_termsandcondtion(user):
     try:
         latest_terms = TermsandPolicy.objects.first()
-        data = {
-            "terms_and_condition": latest_terms.terms_and_condition,
-            "privacy_policy": latest_terms.privacy_policy,
-        }
 
-        response_data = {
-            "result": True,
-            "data": data,
-            "message": "data retrieved successfully"
-        }
-        return response_data
+        if latest_terms is not None:
+            data = {
+                "terms_and_condition": latest_terms.terms_and_condition,
+                "privacy_policy": latest_terms.privacy_policy,
+            }
 
-    except TermsandPolicy.DoesNotExist:
-        return {"result": False, "message": "Terms and conditions not found"}
+            response_data = {
+                "result": True,
+                "data": data,
+                "message": "Data retrieved successfully"
+            }
+            return response_data
+        else:
+            return {"result": False, "message": "Terms and conditions not found"}
 
     except Exception as e:
         return {"result": False, "message": "Something went wrong"}
@@ -423,6 +427,7 @@ def get_termsandcondtion(user):
 def get_exam_history(user, query):
     try:
         business_owner = BusinessOwners.objects.get(id=user.selected_institute.id)
+       
         if business_owner.business_type == "competitive":        
             exams = CompetitiveExams.objects.filter(business_owner=business_owner, start_date__isnull=False).order_by('-created_at')
             print(exams)
@@ -443,6 +448,7 @@ def get_exam_history(user, query):
             for exam in exams:
                 try:
                     result = Results.objects.get(competitive_exam=exam)
+    
                 except Results.DoesNotExist:
                     result = None
 
@@ -470,7 +476,7 @@ def get_exam_history(user, query):
 
         if business_owner.business_type == "academic":
             exams = AcademicExams.objects.filter(business_owner=business_owner, start_date__isnull=False).order_by('-created_at')
-
+            
         if query.subject:
             exams = exams.filter(exam_data__subject=query.subject)
 
@@ -676,3 +682,51 @@ def get_exam_detail_question(user, exam_id, subject_id):
     }
 
     return exam_detail
+
+
+def get_subject_list(user):
+    try:
+        business_owner = BusinessOwners.objects.get(id=user.selected_institute.id)
+        if business_owner.business_type == "competitive":
+            comp_subjects = CompetitiveSubjects.objects.filter(business_owner=business_owner)
+            comp_subject_list = [
+                {
+                    "id": str(subject.id),
+                    "subject_name": subject.subject_name,
+                }
+                for subject in comp_subjects
+            ]
+            return comp_subject_list
+        elif business_owner.business_type == "academic":
+            academic_subjects = AcademicSubjects.objects.filter(standard__medium_name__board_name__business_owner=business_owner)
+            user_standard = user.standard
+            print(user_standard)
+            academic_subjects = academic_subjects.filter(standard=user_standard)
+            academic_subject_list = [
+                {
+                    "id": str(subject.id),
+                    "subject_name": subject.subject_name,
+                }
+                for subject in academic_subjects
+            ]
+            return academic_subject_list
+        else:
+            response_data = {
+                "result": False,
+                "message": "Invalid business type"
+            }
+            return JsonResponse(response_data, status=400)
+
+    except BusinessOwners.DoesNotExist:
+        response_data = {
+            "result": False,
+            "message": "Business owner not found"
+        }
+        return JsonResponse(response_data, status=400)
+
+    except Exception as e:
+        response_data = {
+            "result": False,
+            "message": "Something went wrong"
+        }
+        return JsonResponse(response_data, status=400)
