@@ -165,7 +165,7 @@ AWS_LOCATION = 'static'
 STATIC_URL = '/static/'
 STATIC_ROOT = os.path.join(BASE_DIR,"static")
 
-# DEFAULT_FILE_STORAGE = 'quizapp.storage.MediaStorage'
+DEFAULT_FILE_STORAGE = 'quizapp.storage.MediaStorage'
 AWS_DEFAULT_ACL = None
 MEDIA_URL = f'https://{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com/'
 

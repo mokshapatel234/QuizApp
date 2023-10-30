@@ -111,3 +111,11 @@ def get_exam(request, exam_id, subject_id=None):
     if not subject_id:
         return {"error": "Subject ID is required"} 
     return get_exam_detail_question(request.user, exam_id, subject_id)
+
+
+@router.get("/examHistory/subject", response={200:List[SubjectList], 401:dict, 400:dict})
+@verify_token
+@paginate(CustomPagination)
+def get_academic_subjects(request):
+    result = get_subject_list(request.user)
+    return result

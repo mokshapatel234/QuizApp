@@ -427,6 +427,7 @@ def get_termsandcondtion(user):
 def get_exam_history(user, query):
     try:
         business_owner = BusinessOwners.objects.get(id=user.selected_institute.id)
+       
         if business_owner.business_type == "competitive":        
             exams = CompetitiveExams.objects.filter(business_owner=business_owner, start_date__isnull=False).order_by('-created_at')
             print(exams)
@@ -447,6 +448,7 @@ def get_exam_history(user, query):
             for exam in exams:
                 try:
                     result = Results.objects.get(competitive_exam=exam)
+    
                 except Results.DoesNotExist:
                     result = None
 
@@ -474,7 +476,7 @@ def get_exam_history(user, query):
 
         if business_owner.business_type == "academic":
             exams = AcademicExams.objects.filter(business_owner=business_owner, start_date__isnull=False).order_by('-created_at')
-
+            
         if query.subject:
             exams = exams.filter(exam_data__subject=query.subject)
 
@@ -680,3 +682,51 @@ def get_exam_detail_question(user, exam_id, subject_id):
     }
 
     return exam_detail
+
+
+def get_subject_list(user):
+    try:
+        business_owner = BusinessOwners.objects.get(id=user.selected_institute.id)
+        if business_owner.business_type == "competitive":
+            comp_subjects = CompetitiveSubjects.objects.filter(business_owner=business_owner)
+            comp_subject_list = [
+                {
+                    "id": str(subject.id),
+                    "subject_name": subject.subject_name,
+                }
+                for subject in comp_subjects
+            ]
+            return comp_subject_list
+        elif business_owner.business_type == "academic":
+            academic_subjects = AcademicSubjects.objects.filter(standard__medium_name__board_name__business_owner=business_owner)
+            user_standard = user.standard
+            print(user_standard)
+            academic_subjects = academic_subjects.filter(standard=user_standard)
+            academic_subject_list = [
+                {
+                    "id": str(subject.id),
+                    "subject_name": subject.subject_name,
+                }
+                for subject in academic_subjects
+            ]
+            return academic_subject_list
+        else:
+            response_data = {
+                "result": False,
+                "message": "Invalid business type"
+            }
+            return JsonResponse(response_data, status=400)
+
+    except BusinessOwners.DoesNotExist:
+        response_data = {
+            "result": False,
+            "message": "Business owner not found"
+        }
+        return JsonResponse(response_data, status=400)
+
+    except Exception as e:
+        response_data = {
+            "result": False,
+            "message": "Something went wrong"
+        }
+        return JsonResponse(response_data, status=400)
