@@ -612,6 +612,7 @@ class Results(models.Model):
     student = models.ForeignKey(Students, on_delete=models.CASCADE, related_name="student_result")
     score = models.FloatField() 
     result = models.CharField(("result"),choices=CHOICES, max_length=50,default='pass')
+    time_duration = models.FloatField(null=True,blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     deleted_at = models.DateTimeField(blank=True, null=True, default=None, editable=False)
