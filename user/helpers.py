@@ -447,7 +447,7 @@ def get_exam_history(user, query):
                     )
             for exam in exams:
                 try:
-                    result = Results.objects.get(competitive_exam=exam)
+                    result = Results.objects.get(competitive_exam=exam,student=user)
     
                 except Results.DoesNotExist:
                     result = None
@@ -518,170 +518,192 @@ def get_exam_history(user, query):
     
 
 def get_exam_detail(user, exam_id):
-    business_owner = BusinessOwners.objects.get(id=user.selected_institute.id)
-    if business_owner.business_type == "competitive":
-        exam = CompetitiveExams.objects.get(id=exam_id)
+    try:
+        business_owner = BusinessOwners.objects.get(id=user.selected_institute.id)
+        if business_owner.business_type == "competitive":
+            exam = CompetitiveExams.objects.get(id=exam_id)
+                
+            try:
+                result = Results.objects.get(competitive_exam=exam, student=user)
+            except Results.DoesNotExist:
+                result = None
+
+            exam_data_list = []
+            for exam_data in exam.exam_data.all():
+                subject_name = exam_data.subject.subject_name
+                subject_id = exam_data.subject.id
             
-        try:
-            result = Results.objects.get(competitive_exam=exam)
-        except Results.DoesNotExist:
-            result = None
+                chapters = []
+                for chapter_id in exam_data.chapter.split(","):
+                    chapter_id = chapter_id.strip()  
 
-        exam_data_list = []
-        for exam_data in exam.exam_data.all():
-            subject_name = exam_data.subject.subject_name
+                    if chapter_id:  
+                        try:
+                            chapter = CompetitiveChapters.objects.get(id=chapter_id)
+                            chapters.append(chapter.chapter_name)
+                        except CompetitiveChapters.DoesNotExist:
+                            pass  
+                
+                exam_data_list.append({"subject_id": subject_id, "subject": subject_name, "chapters": chapters})
 
-        
-            chapters = []
-            for chapter_id in exam_data.chapter.split(","):
-                chapter_id = chapter_id.strip()  
+            exam_detail = {
+                "id": str(exam.id),
+                "exam_title": exam.exam_title,
+                "batch": str(exam.batch.id),
+                "batch_name": exam.batch.batch_name,
+                "total_marks": exam.total_marks,
+                "passing_marks": exam.passing_marks,
+                "start_date": exam.start_date,
+                "exam_datas": exam_data_list,
+                "mark": result.score if result else None
+            }
+            response = {
+                "result": True,
+                "data": exam_detail,
+                "message": "Exam detail retrieved successfully."
+            }
+            return response
 
-                if chapter_id:  
-                    try:
-                        chapter = CompetitiveChapters.objects.get(id=chapter_id)
-                        chapters.append(chapter.chapter_name)
-                    except CompetitiveChapters.DoesNotExist:
-                        pass  
-            
-            exam_data_list.append({"subject": subject_name, "chapters": chapters})
+        elif business_owner.business_type == "academic":
+            exam = AcademicExams.objects.get(id=exam_id)
+            try:
+                result = Results.objects.get(academic_exam=exam, student=user)
+            except Results.DoesNotExist:
+                result = None
 
-        exam_detail = {
-            "id": str(exam.id),
-            "exam_title": exam.exam_title,
-            "batch": str(exam.batch.id),
-            "batch_name": exam.batch.batch_name,
-            "total_marks": exam.total_marks,
-            "passing marks": exam.passing_marks,
-            "start_date": exam.start_date,
-            "exam_datas": exam_data_list,
-            "mark": result.score if result else None
+            exam_data_list = []
+            for exam_data in exam.exam_data.all():
+                subject_name = exam_data.subject.subject_name
+                subject_id = exam_data.subject.id
+                chapters = []
+                for chapter_id in exam_data.chapter.split(","):
+                    chapter_id = chapter_id.strip()  
+
+                    if chapter_id:  
+                        try:
+                            chapter = AcademicChapters.objects.get(id=chapter_id)
+                            chapters.append(chapter.chapter_name)
+                        except AcademicChapters.DoesNotExist:
+                            pass
+                
+                exam_data_list.append({"subject_id": subject_id, "subject": subject_name, "chapters": chapters})
+
+            exam_detail = {
+                "id": str(exam.id),
+                "exam_title": exam.exam_title,
+                "total_question": exam.total_questions,
+                "time_duration": exam.time_duration,
+                "negative_marks": exam.negative_marks,
+                "total_marks": exam.total_marks,
+                "passing_marks": exam.passing_marks,
+                "start_date": exam.start_date,
+                "exam_data": exam_data_list,
+                "mark": result.score if result else None
+            }
+            response = {
+                "result": True,
+                "data": exam_detail,
+                "message": "Exam detail retrieved successfully."
+            }
+            return response
+
+    except Exception as e:
+        response = {
+            "result": False,
+            "message": str(e)
         }
-        return exam_detail
+        return response
 
-    elif business_owner.business_type == "academic":
-        exam = AcademicExams.objects.get(id=exam_id)
-        try:
-            result = Results.objects.get(academic_exam=exam)
-        except Results.DoesNotExist:
-            result = None
-
-        exam_data_list = []
-        for exam_data in exam.exam_data.all():
-            subject_name = exam_data.subject.subject_name
-
-            chapters = []
-            for chapter_id in exam_data.chapter.split(","):
-                chapter_id = chapter_id.strip()  
-
-                if chapter_id:  
-                    try:
-                        chapter = AcademicChapters.objects.get(id=chapter_id)
-                        chapters.append(chapter.chapter_name)
-                    except AcademicChapters.DoesNotExist:
-                        pass
-            
-            exam_data_list.append({"subject": subject_name, "chapters": chapters})
-
-        exam_detail = {
-            "id": str(exam.id),
-            "exam_title": exam.exam_title,
-            "total_question": exam.total_questions,
-            "time_duration": exam.time_duration,
-            "negative_marks": exam.negative_marks,
-            "total_marks": exam.total_marks,
-            "passing marks": exam.passing_marks,
-            "start_date": exam.start_date,
-            "exam_data": exam_data_list,
-            "mark": result.score if result else None
-        }
-        return exam_detail
     
 
 
 def get_exam_detail_question(user, exam_id, subject_id):
-    if not subject_id:
-        return {"error": "Subject ID not provided"}
-    business_owner = BusinessOwners.objects.get(id=user.selected_institute.id)
+    try:
+        if not subject_id:
+            return {"result": False, "message": "Subject ID not provided"}
+        business_owner = BusinessOwners.objects.get(id=user.selected_institute.id)
 
-    if business_owner.business_type == "competitive":
-        try:
-            exam = CompetitiveExams.objects.get(id=exam_id)
-            questions = exam.question_set.filter(competitve_chapter__subject_name=subject_id)
-            easy_questions = []
-            medium_questions = []
-            hard_questions = []
+        if business_owner.business_type == "competitive":
+            try:
+                exam = CompetitiveExams.objects.get(id=exam_id)
+                questions = exam.question_set.filter(competitve_chapter__subject_name=subject_id)
+                easy_questions = []
+                medium_questions = []
+                hard_questions = []
 
-            for question in questions:
-                subject_name = str(question.competitve_chapter.subject_name)  # Convert to string
-                question_data = {
-                    "question_text": question.question,
-                    "question_image":question.competitive_question_image.url if question.competitive_question_image else None,
-                    "subject_name": subject_name,
-                    "right_answer": question.answer,
-                    "options": {
-                        "option1": question.options.option1,
-                        "option2": question.options.option2,
-                        "option3": question.options.option3,
-                        "option4": question.options.option4,
+                for question in questions:
+                    subject_name = str(question.competitve_chapter.subject_name)  # Convert to string
+                    question_data = {
+                        "question_text": question.question,
+                        "question_image": question.competitive_question_image.url if question.competitive_question_image else None,
+                        "subject_name": subject_name,
+                        "right_answer": question.answer,
+                        "options": {
+                            "option1": question.options.option1,
+                            "option2": question.options.option2,
+                            "option3": question.options.option3,
+                            "option4": question.options.option4,
+                        }
                     }
-                }
 
-                if question.question_category == "easy":
-                    easy_questions.append(question_data)
-                elif question.question_category == "medium":
-                    medium_questions.append(question_data)
-                elif question.question_category == "hard":
-                    hard_questions.append(question_data)
+                    if question.question_category == "easy":
+                        easy_questions.append(question_data)
+                    elif question.question_category == "medium":
+                        medium_questions.append(question_data)
+                    elif question.question_category == "hard":
+                        hard_questions.append(question_data)
 
-                selected_answer = StudentAnswers.objects.filter(competitive_question=question, student=user).values_list('selected_answer', flat=True).first()
-                question_data["selected_answer"] = selected_answer if selected_answer else None
-                print(easy_questions,"sadasd")
-        except CompetitiveExams.DoesNotExist:
-            return {"error": "Competitive Exam not found"}
+                    selected_answer = StudentAnswers.objects.filter(competitive_question=question, student=user).values_list('selected_answer', flat=True).first()
+                    question_data["selected_answer"] = selected_answer if selected_answer else None
+            except CompetitiveExams.DoesNotExist:
+                return {"result": False, "message": "Competitive Exam not found"}
 
-    elif business_owner.business_type == "academic":
-        try:
-            exam = AcademicExams.objects.get(id=exam_id)
-            questions = exam.question_set.filter(academic_chapter__subject_name=subject_id)
-            easy_questions = []
-            medium_questions = []
-            hard_questions = []
+        elif business_owner.business_type == "academic":
+            try:
+                exam = AcademicExams.objects.get(id=exam_id)
+                questions = exam.question_set.filter(academic_chapter__subject_name=subject_id)
+                easy_questions = []
+                medium_questions = []
+                hard_questions = []
 
-            for question in questions:
-                subject_name = str(question.academic_chapter.subject_name)  # Convert to string
-                question_data = {
-                    "question_text": question.question,
-                    "question_image":question.academic_question_image.url if question.academic_question_image else None,
-                    "subject_name": subject_name,
-                    "right_answer": question.answer,
-                    "options": {
-                        "option1": question.options.option1,
-                        "option2": question.options.option2,
-                        "option3": question.options.option3,
-                        "option4": question.options.option4,
+                for question in questions:
+                    subject_name = str(question.academic_chapter.subject_name)  # Convert to string
+                    question_data = {
+                        "question_text": question.question,
+                        "question_image": question.academic_question_image.url if question.academic_question_image else None,
+                        "subject_name": subject_name,
+                        "right_answer": question.answer,
+                        "options": {
+                            "option1": question.options.option1,
+                            "option2": question.options.option2,
+                            "option3": question.options.option3,
+                            "option4": question.options.option4,
+                        }
                     }
-                }
 
-                if question.question_category == "easy":
-                    easy_questions.append(question_data)
-                elif question.question_category == "medium":
-                    medium_questions.append(question_data)
-                elif question.question_category == "hard":
-                    hard_questions.append(question_data)
+                    if question.question_category == "easy":
+                        easy_questions.append(question_data)
+                    elif question.question_category == "medium":
+                        medium_questions.append(question_data)
+                    elif question.question_category == "hard":
+                        hard_questions.append(question_data)
 
-                selected_answer = StudentAnswers.objects.filter(academic_question=question, student=user).values_list('selected_answer', flat=True).first()
-                question_data["selected_answer"] = selected_answer if selected_answer else None
+                    selected_answer = StudentAnswers.objects.filter(academic_question=question, student=user).values_list('selected_answer', flat=True).first()
+                    question_data["selected_answer"] = selected_answer if selected_answer else None
 
-        except AcademicExams.DoesNotExist:
-            return {"error": "Academic Exam not found"}
+            except AcademicExams.DoesNotExist:
+                return {"result": False, "message": "Academic Exam not found"}
 
-    exam_detail = {
-        "easy_questions": easy_questions,
-        "medium_questions": medium_questions,
-        "hard_questions": hard_questions
-    }
+        exam_detail = {
+            "easy_questions": easy_questions,
+            "medium_questions": medium_questions,
+            "hard_questions": hard_questions
+        }
 
-    return exam_detail
+        return {"result": True, "data": exam_detail, "message": "Exam detail retrieved successfully."}
+
+    except Exception as e:
+        return {"result": False, "message": str(e)}
 
 
 def get_subject_list(user):

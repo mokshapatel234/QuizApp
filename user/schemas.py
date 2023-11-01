@@ -152,7 +152,10 @@ class ExamDetailModel(Schema):
     medium_questions: List[QuestionModel]
     hard_questions: List[QuestionModel]
 
-
+class ExamDetailModelResponse(Schema):
+    result: bool
+    data: Optional[ExamDetailModel]
+    message: str
 
 class SubjectList(Schema):
     id: Optional[str]
