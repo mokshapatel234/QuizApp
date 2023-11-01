@@ -21,6 +21,8 @@ import base64
 from urllib.request import urlopen
 from django.core.files.base import ContentFile  # Import ContentFile
 import os
+from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
+from django.db.models import F
 
 
 def perform_login(data):
@@ -1697,91 +1699,145 @@ def add_comp_question(user,data):
         return JsonResponse(response_data, status=400)
  
 
-def get_comp_questionlist(user, query):
+def get_comp_questionlist(request, query):
     try:
-        questions = CompetitiveQuestions.objects.filter(business_owner=user).order_by('-created_at')
-        if query.status:
-            questions = questions.filter(status=query.status)
-            
-        elif query.batch_id and query.chapter_id:
-            questions = questions.filter(competitve_chapter=query.chapter_id)
-
-        elif query.subject_id and query.chapter_id:
-            questions = questions.filter(competitve_chapter=query.chapter_id)
-
-        elif query.chapter_id:
-            questions = questions.filter(competitve_chapter=query.chapter_id)
-
-        elif query.subject_id:
-            questions = questions.filter(competitve_chapter__subject_name=query.subject_id)
-
-        elif query.batch_id:
-            batch_id = query.batch_id
-            questions = [question for question in questions if str(batch_id) in [str(batch.id) for batch in question.competitve_chapter.batches.all()]]
-
-        elif query.question_category:
-            questions = questions.filter(question_category=query.question_category)
-
-        elif query.search:
-            search_terms = query.search.strip().split()
-            search_query = Q()
-
-            for term in search_terms:
+        base_query = CompetitiveQuestions.objects.filter(business_owner=request.user).order_by('-created_at')
+        search_query = Q()
+        if query:
+            if query.search:
                 search_query |= (
-                    Q(question__icontains=term)
-                    | Q(answer__icontains=term)
-                    | Q(competitve_chapter__chapter_name__icontains=term)
-                    | Q(competitve_chapter__subject_name__subject_name__icontains=term)
-                    | Q(competitve_chapter__batches__batch_name__icontains=term)
-                    | Q(question_category__icontains=term)
-                    | Q(marks__icontains=term)
-                    | Q(time_duration__icontains=term)
-                    | Q(status__icontains=term)
-                )
+                    Q(question__icontains=query.search)
+                    | Q(answer__icontains=query.search)
+                    | Q(competitve_chapter__chapter_name__icontains=query.search)
+                    | Q(competitve_chapter__subject_name__subject_name__icontains=query.search)
+                    | Q(competitve_chapter__batches__batch_name__icontains=query.search)
+                    | Q(question_category__icontains=query.search)
+                    | Q(marks__icontains=query.search)
+                    | Q(time_duration__icontains=query.search)
+                    | Q(status__icontains=query.search)
+                    )
+            elif query.status:
+                search_query &= Q(status=query.status)
+                
+            elif query.batch_id and query.chapter_id:
+                search_query &= Q(competitve_chapter=query.chapter_id)
 
-            questions = questions.filter(search_query)
+            elif query.subject_id and query.chapter_id:
+                search_query &= Q(competitve_chapter=query.chapter_id)
 
-        question_list = []
+            elif query.chapter_id:
+                search_query &= Q(competitve_chapter=query.chapter_id)
+
+            elif query.subject_id:
+                search_query &= Q(competitve_chapter__subject_name=query.subject_id)
+
+            # elif query.batch_id:
+            #     batch_id = query.batch_id
+            #     questions = [question for question in questions if str(batch_id) in [str(batch.id) for batch in question.competitve_chapter.batches.all()]]
+
+            elif query.question_category:
+                search_query &= Q(question_category=query.question_category)
+            
+        batch_ids = [] 
+        questions = base_query.filter(search_query)
         for question in questions:
-            try:
-                options_data = Options.objects.get(id=question.options_id)
-            except Options.DoesNotExist:
-                options_data = None  
-            
-            options_dict = {
-                "option1": options_data.option1 if options_data else None,
-                "option2": options_data.option2 if options_data else None,
-                "option3": options_data.option3 if options_data else None,
-                "option4": options_data.option4 if options_data else None,
+            batch_info = [{"id": str(batch.id)} for batch in question.competitve_chapter.batches.all()]
+            batch_id = [info['id'] for info in batch_info]
+            batch_ids.append(batch_id[0])
+
+        question_list = questions.values(
+            'id', 'question', 'competitive_question_image', 'answer', 'marks', 'time_duration', 'status', 'created_at', 'updated_at', 'options_id', 'question_category',
+            chapter_id=F('competitve_chapter__id'),
+            chapter_name=F('competitve_chapter__chapter_name'),
+            subject_id=F('competitve_chapter__subject_name__id'),
+            subject_name=F('competitve_chapter__subject_name__subject_name'),
+            batch_name=F('competitve_chapter__batches__batch_name')
+        )
+
+        for question, batch_id in zip(question_list, batch_ids):
+            question['batch_id'] = str(batch_id)
+        for question_data in question_list:
+    
+            options_data = Options.objects.filter(id=question_data['options_id']).values(
+                'option1', 'option2', 'option3', 'option4'
+            ).first()
+            question_data['options'] = {
+                'option1': options_data['option1'] if options_data else None,
+                'option2': options_data['option2'] if options_data else None,
+                'option3': options_data['option3'] if options_data else None,
+                'option4': options_data['option4'] if options_data else None,
             }
-            batch_info = [{"id": str(batch.id), "batch_name": batch.batch_name} for batch in question.competitve_chapter.batches.all()]
-            question_data = {
-                    "id": str(question.id),
-                    "question": question.question,
-                    "question_image":question.competitive_question_image.url if question.competitive_question_image else None,
-                    "answer": question.answer,
-                    "options": options_dict,  
-                    "chapter_id": str(question.competitve_chapter.id),
-                    "chapter_name": question.competitve_chapter.chapter_name,
-                    "subject_id": str(question.competitve_chapter.subject_name.id),
-                    "subject_name": question.competitve_chapter.subject_name.subject_name, 
-                    "batches": batch_info,
-                    "question_category": question.question_category,
-                    "marks": str(question.marks),
-                    "time": str(question.time_duration),
-                    "status": question.status,
-                    "created_at":question.created_at,
-                    "updated_at":question.updated_at
-                }
-            question_list.append(question_data)
+            page = request.GET.get('page', 1)
+            items_per_page = request.GET.get('per_page', 5)
+            paginator = Paginator(question_list, items_per_page)
+
+            try:
+                question_list = paginator.page(page)
+            except PageNotAnInteger:
+                question_list = paginator.page(1)
+            except EmptyPage:
+                question_list = paginator.page(paginator.num_pages)
+
+            return  {
+                "result": True,
+                "data": list(question_list),
+                "message":"Data retrieved successfully",
+                "pagination": {
+                    "page": question_list.number,
+                    "total_docs": paginator.count,
+                    "total_pages": paginator.num_pages,
+                    "per_page": items_per_page
+                },
+            } 
             
-       
-        return question_list
+            # options_dict = {
+            #     "option1": options_data.option1 if options_data else None,
+            #     "option2": options_data.option2 if options_data else None,
+            #     "option3": options_data.option3 if options_data else None,
+            #     "option4": options_data.option4 if options_data else None,
+            # }
+            # batch_info = [{"id": str(batch.id), "batch_name": batch.batch_name} for batch in question.competitve_chapter.batches.all()]
+            # question_data = {
+            #         # "id": str(question.id),
+            #         # "question": question.question,
+            #         # "question_image":question.competitive_question_image.url if question.competitive_question_image else None,
+            #         # "answer": question.answer,
+            #         # "options": options_dict,  
+            #         "chapter_id": str(question.competitve_chapter.id),
+            #         "chapter_name": question.competitve_chapter.chapter_name,
+            #         "subject_id": str(question.competitve_chapter.subject_name.id),
+            #         "subject_name": question.competitve_chapter.subject_name.subject_name, 
+            #         "batches": batch_info,
+            #         # "question_category": question.question_category,
+            #         # "marks": str(question.marks),
+            #         # "time": str(question.time_duration),
+            #         # "status": question.status,
+            #         # "created_at":question.created_at,
+            #         # "updated_at":question.updated_at
+            #     }
+            # question_list.append(question_data)
+   
+            
+
+    except CompetitiveChapters.DoesNotExist:
+        response_data = {
+            "result": False,
+            "message": "Chapter not found"
+        }
+        return JsonResponse(response_data, status=400)
+    
+    except CompetitiveQuestions.DoesNotExist:
+        response_data = {
+            "result": False,
+            "message": "Question not found"
+        }
+        return JsonResponse(response_data, status=400)
 
     except Exception as e:
+        print(e)
         response_data = {
                     "result": False,
-                    "message": "Something went wrong"
+                    "message": str(e)
                 }
         return JsonResponse(response_data, status=400)
 
@@ -5204,98 +5260,93 @@ def add_question_data(user,data):
     
 
 
-def get_academic_question_list(user, filter_prompt):
+def get_academic_question_list(request, filter_prompt):
     try:
 
-        questions = AcademicQuestions.objects.filter(business_owner=user).order_by('-created_at')
+      # Your base queryset
+        base_query = AcademicQuestions.objects.filter(business_owner=request.user).order_by('-created_at')
+
+        # Apply filters based on filter_prompt
         q_objects = Q()
-        if filter_prompt.search:
-            q_objects = (
-                    Q(question__icontains=filter_prompt.search)
-                    | Q(answer__icontains=filter_prompt.search)
-                    | Q(academic_chapter__chapter_name__icontains=filter_prompt.search)
-                    | Q(academic_chapter__subject_name__subject_name__icontains=filter_prompt.search)
-                    | Q(question_category__icontains=filter_prompt.search)
-                    | Q(marks__icontains=filter_prompt.search)
-                    | Q(time_duration__icontains=filter_prompt.search)
-                    | Q(status__icontains=filter_prompt.search)
-            )
-            questions = questions.filter(q_objects)
-            
-        elif filter_prompt.status:
-            q_objects &= Q(status=filter_prompt.status)
-        
-        elif filter_prompt.medium_id and filter_prompt.board_id and filter_prompt.standard_id and filter_prompt.subject_id and filter_prompt.chapter_id:
-            q_objects &= Q(academic_chapter__id=filter_prompt.chapter_id)
+        if filter_prompt:
+            if filter_prompt.search:
+                q_objects |= (
+                    Q(question__icontains=filter_prompt.search) |
+                    Q(answer__icontains=filter_prompt.search) |
+                    Q(academic_chapter__chapter_name__icontains=filter_prompt.search) |
+                    Q(academic_chapter__subject_name__subject_name__icontains=filter_prompt.search) |
+                    Q(question_category__icontains=filter_prompt.search) |
+                    Q(marks__icontains=filter_prompt.search) |
+                    Q(time_duration__icontains=filter_prompt.search) |
+                    Q(status__icontains=filter_prompt.search)
+                )
+            elif filter_prompt.status:
+                q_objects &= Q(status=filter_prompt.status)
+            elif filter_prompt.chapter_id:
+                q_objects &= Q(academic_chapter__id=filter_prompt.chapter_id)
+            elif filter_prompt.subject_id:
+                q_objects &= Q(academic_chapter__subject_name=filter_prompt.subject_id)
+            elif filter_prompt.standard_id:
+                q_objects &= Q(academic_chapter__subject_name__standard__id=filter_prompt.standard_id)
+            elif filter_prompt.medium_id:
+                q_objects &= Q(academic_chapter__subject_name__standard__medium_name__id=filter_prompt.medium_id)
+            elif filter_prompt.board_id:
+                q_objects &= Q(academic_chapter__subject_name__standard__medium_name__board_name__id=filter_prompt.board_id)
 
-        elif filter_prompt.medium_id and filter_prompt.board_id and filter_prompt.standard_id and filter_prompt.subject_id:
-            q_objects &= Q(academic_chapter__subject_name=filter_prompt.subject_id)
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     
-        elif filter_prompt.medium_id and filter_prompt.board_id and filter_prompt.standard_id:
-            q_objects &= (
-                Q(academic_chapter__subject_name__standard__medium_name__id=filter_prompt.medium_id) &
-                Q(academic_chapter__subject_name__standard__medium_name__board_name__id=filter_prompt.board_id) &
-                Q(academic_chapter__subject_name__standard__id=filter_prompt.standard_id)
-            )
-        elif filter_prompt.medium_id and filter_prompt.board_id:
-            q_objects &= (
-                Q(academic_chapter__subject_name__standard__medium_name__id=filter_prompt.medium_id) &
-                Q(academic_chapter__subject_name__standard__medium_name__board_name__id=filter_prompt.board_id)
-            )
-        elif filter_prompt.medium_id:
-            q_objects &= Q(academic_chapter__subject_name__standard__medium_name__id=filter_prompt.medium_id)
-        elif filter_prompt.board_id:
-            q_objects &= Q(academic_chapter__subject_name__standard__medium_name__board_name__id=filter_prompt.board_id)
-        elif filter_prompt.standard_id:
-            q_objects &= Q(academic_chapter__subject_name__standard__id=filter_prompt.standard_id)
+        # Apply filters to the base query
+        questions = base_query.filter(q_objects)
 
-        elif filter_prompt.subject_id:
-            q_objects &= Q(academic_chapter__subject_name=filter_prompt.subject_id)
+        # Use values to fetch only necessary fields
+        question_list = questions.values(
+            'id', 'question', 'academic_question_image', 'answer', 'marks', 'time_duration', 'status', 'created_at', 'updated_at', 'options_id', 'question_category',
+            board_id=F('academic_chapter__subject_name__standard__medium_name__board_name__id'),
+            board_name=F('academic_chapter__subject_name__standard__medium_name__board_name__board_name'),
+            medium_id=F('academic_chapter__subject_name__standard__medium_name__id'),
+            medium_name=F('academic_chapter__subject_name__standard__medium_name__medium_name'),
+            standard_id=F('academic_chapter__subject_name__standard__id'),
+            standard_name=F('academic_chapter__subject_name__standard__standard'),
+            subject_id=F('academic_chapter__subject_name__id'),
+            subject_name=F('academic_chapter__subject_name__subject_name'),
+            chapter_id=F('academic_chapter__id'),
+            chapter_name=F('academic_chapter__chapter_name'),
+            # question_category=F('question_category'),
+        )
 
-        elif filter_prompt.chapter_id:
-            q_objects &= Q(academic_chapter__id=filter_prompt.chapter_id)
-
-        questions = questions.filter(q_objects)
-        question_list = []
-        for question in questions:
-            try:
-                options_data = Options.objects.get(id=question.options_id)
-            except Options.DoesNotExist:
-                options_data = None 
-            
-            options_dict = {
-                "option1": options_data.option1 if options_data else None,
-                "option2": options_data.option2 if options_data else None,
-                "option3": options_data.option3 if options_data else None,
-                "option4": options_data.option4 if options_data else None,
+        # Add options to the question_list
+        for question_data in question_list:
+            options_data = Options.objects.filter(id=question_data['options_id']).values(
+                'option1', 'option2', 'option3', 'option4'
+            ).first()
+            question_data['options'] = {
+                'option1': options_data['option1'] if options_data else None,
+                'option2': options_data['option2'] if options_data else None,
+                'option3': options_data['option3'] if options_data else None,
+                'option4': options_data['option4'] if options_data else None,
             }
-            question_data = {
-                    "id": str(question.id),
-                    "question": question.question,
-                    "question_image":question.academic_question_image.url if question.academic_question_image else None,
-                    "answer": question.answer,
-                    "options": options_dict,  
-                    "board_id": str(question.academic_chapter.subject_name.standard.medium_name.board_name.id),
-                    "board_name": str(question.academic_chapter.subject_name.standard.medium_name.board_name.board_name),
-                    "medium_id": str(question.academic_chapter.subject_name.standard.medium_name.id),
-                    "medium_name": str(question.academic_chapter.subject_name.standard.medium_name.medium_name),
-                    "standard_id": str(question.academic_chapter.subject_name.standard.id),
-                    "standard_name": str(question.academic_chapter.subject_name.standard.standard),
-                    "subject_id": str(question.academic_chapter.subject_name.id),
-                    "subject_name": question.academic_chapter.subject_name.subject_name, 
-                    "chapter_id": str(question.academic_chapter.id),
-                    "chapter_name": question.academic_chapter.chapter_name, 
-                    "question_category": question.question_category,
-                    "marks": str(question.marks),
-                    "time": str(question.time_duration),
-                    "status": question.status,
-                    "created_at":question.created_at,
-                    "updated_at":question.updated_at
-                }
-            question_list.append(question_data)
-            
-        
-        return question_list
+
+        # Pagination
+        page = request.GET.get('page', 1)
+        items_per_page = request.GET.get('per_page', 5)
+        paginator = Paginator(question_list, items_per_page)
+
+        try:
+            question_list = paginator.page(page)
+        except PageNotAnInteger:
+            question_list = paginator.page(1)
+        except EmptyPage:
+            question_list = paginator.page(paginator.num_pages)
+
+        return  {
+            "result": False,
+            "data": list(question_list),
+            "message":"Data retrieved successfully",
+            "pagination": {
+                "page": question_list.number,
+                "total_docs": paginator.count,
+                "total_pages": paginator.num_pages,
+                "per_page": items_per_page
+            },
+        } 
     
     except AcademicChapters.DoesNotExist:
         response_data = {

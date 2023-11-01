@@ -238,11 +238,11 @@ def add_question(request,data: QuestionIn):
     return result
 
 
-@router.get("/academic/question", response={200:List[Question], 401:dict, 400:dict})
+@router.get("/academic/question", response={200:dict, 401:dict, 400:dict})
 @verify_token
-@paginate(CustomPagination)
+# @paginate(CustomPagination)
 def get_academic_question(request, filter_prompt: AcademicFilter = Query(...)):
-    result = get_academic_question_list(request.user, filter_prompt)
+    result = get_academic_question_list(request, filter_prompt)
     return result
 
 

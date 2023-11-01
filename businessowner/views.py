@@ -270,11 +270,11 @@ def add_competitive_question(request, data: QuestionIn):
     return add_comp_question(request.user,data)
     
 
-@router.get("/competitive/question", response={200: List[CompetitiveQuestion], 400: dict, 401: dict})
+@router.get("/competitive/question", response={200: dict, 400: dict, 401: dict})
 @verify_token
-@paginate(CustomPagination)
+# @paginate(CustomPagination)
 def get_competitive_questionlist(request, query:CompQuestionFilter = Query(...)):
-    return get_comp_questionlist(request.user, query)
+    return get_comp_questionlist(request, query)
 
 
 @router.get("/competitive/question/{question_id}", response={200: CompQuestionOut, 400: dict, 401: dict})
