@@ -3,6 +3,11 @@ from datetime import datetime
 from typing import Optional,List,Dict
 from uuid import UUID
 
+class PaginationInfo(Schema):
+    page: int
+    total_docs: int
+    total_pages: int
+    per_page: int
 
 class CitySchema(Schema):
     city_id: str
@@ -10,10 +15,21 @@ class CitySchema(Schema):
     state_id: str
     state_name: str
 
+class CitySchemaResponse(Schema):
+    result: bool
+    data: List[CitySchema]
+    message: str
+    pagination: PaginationInfo
+
 class StateSchema(Schema):
     state_id: str
     state_name: str
 
+class StateSchemaResponse(Schema):
+    result: bool
+    data: List[StateSchema]
+    message: str
+    pagination: PaginationInfo
 
 class LoginIn(Schema):
     email: str
@@ -63,8 +79,15 @@ class PlanSchema(Schema):
     description: str
     price: float
     validity: int
-    image: str
+    image: Optional[str]
     status: str
+
+
+class PlanSchemaResponse(Schema):
+    result: bool
+    data: List[PlanSchema]
+    message: str
+    pagination: PaginationInfo
 
 class PurchasePlanIn(Schema):
     id: str
@@ -75,6 +98,13 @@ class PurchaseHistoryOut(Schema):
     order_id: str
     status: str
     purchase_date: datetime
+
+
+class PurchaseHistoryOutResponse(Schema):
+    result: bool
+    data: List[PurchaseHistoryOut]
+    message: str
+    pagination: PaginationInfo
 
 class BusinessOwnerIn(Schema):
     business_name: Optional[str]
@@ -134,7 +164,12 @@ class News(Schema):
     standard : Optional[UUID]
     batch : Optional[UUID]
     status: str
-  
+
+class NewsResponse(Schema):
+    result: bool
+    data: List[News]
+    message: str
+    pagination: PaginationInfo
 
 class NewsOut(Schema):
     result: bool
@@ -172,7 +207,13 @@ class Batch(Schema):
     business_owner_name: str 
     status: str 
     created_at: datetime  
-    updated_at: datetime 
+    updated_at: datetime
+
+class BatchResponse(Schema):
+    result: bool
+    data: List[Batch]
+    message: str
+    pagination: PaginationInfo
 
 class BatchOut(Schema):
     result: bool
@@ -207,6 +248,11 @@ class CompSubject(Schema):
     created_at: datetime  
     updated_at: datetime 
 
+class CompSubjectResponse(Schema):
+    result: bool
+    data: List[CompSubject]
+    message: str
+    pagination: PaginationInfo
 
 class CompSubjectOut(Schema):
     result: bool
@@ -252,6 +298,11 @@ class CompChapter(Schema):
     created_at: datetime  
     updated_at: datetime 
 
+class CompChapterResponse(Schema):
+    result: bool
+    data: List[CompChapter]
+    message: str
+    pagination: PaginationInfo
 
 class CompChapterOut(Schema):
     result: bool
@@ -389,7 +440,15 @@ class CompExamOut(Schema):
     time_duration: float
     negative_marks: str
     total_marks:int
+    start_date: datetime
     exam_datas: List[Exammm]
+
+
+class CompExamOutResponse(Schema):
+    result: bool
+    data: List[CompExamOut]
+    message: str
+    pagination: PaginationInfo
     
 
 #-----------------------------------------------------------------------------------------------------------#
@@ -455,6 +514,11 @@ class Student(Schema):
     competitive: Optional[Competitive] 
     academic: Optional[Academic] 
 
+class StudentResponse(Schema):
+    result: bool
+    data: List[Student]
+    message: str
+    pagination: PaginationInfo
 
 class StudentOut(Schema):
     result: bool
@@ -749,6 +813,12 @@ class AcademicBoardSchema(Schema):
     created_at: datetime
     updated_at: datetime
 
+class BoardsListResponse(Schema):
+    result: bool
+    data: List[AcademicBoardSchema]
+    message: str
+    pagination: PaginationInfo
+
 class BoardSchema(Schema):
     board_name: str
 
@@ -797,6 +867,13 @@ class AcademicMedium(Schema):
     created_at: datetime  = None
     updated_at: datetime = None
 
+
+class AcademicMediumResponse(Schema):
+    result: bool
+    data: List[AcademicMedium]
+    message: str
+    pagination: PaginationInfo
+
 class AddAcademicMediumIn(Schema):
     medium_name: str
     board_id: str
@@ -833,6 +910,12 @@ class AcademicStandard(Schema):
     created_at : Optional[datetime]
     updated_at : Optional[datetime]
 
+class AcademicStandardResponse(Schema):
+    result: bool
+    data: List[AcademicStandard]
+    message: str
+    pagination: PaginationInfo
+
 class AcademicStandardOut(Schema):
     result : bool
     data : AcademicStandard
@@ -866,6 +949,12 @@ class AcademicSubject(Schema):
     status : Optional[str]
     created_at : Optional[datetime]
     updated_at : Optional[datetime]
+
+class AcademicSubjectResponse(Schema):
+    result: bool
+    data: List[AcademicSubject]
+    message: str
+    pagination: PaginationInfo
 
 class AcademicSubjectList(Schema):
     result : bool
@@ -907,6 +996,13 @@ class AcademicChapter(Schema):
     status : Optional[str]
     created_at : Optional[datetime]
     updated_at : Optional[datetime]
+
+
+class AcademicChapterResponse(Schema):
+    result: bool
+    data: List[AcademicChapter]
+    message: str
+    pagination: PaginationInfo
 
 class AcademicChapterList(Schema):
     result : bool
@@ -1147,4 +1243,9 @@ class AcadExamOut(Schema):
     negative_marks: str
     total_marks:int
     exam_data: List[Exammm]
-    
+
+class AcadExamOutResponse(Schema):
+    result: bool
+    data: List[AcadExamOut]
+    message: str
+    pagination: PaginationInfo

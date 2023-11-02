@@ -6,7 +6,7 @@ from django.shortcuts import redirect
 from ninja import File
 from django.db.models import Q
 from ninja.errors import HttpError
-from .utils import generate_token
+from .utils import generate_token,paginate_data
 import pandas as pd
 from datetime import timedelta, timezone
 import random
@@ -21,6 +21,8 @@ import base64
 from urllib.request import urlopen
 from django.core.files.base import ContentFile  # Import ContentFile
 import os
+from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
+from django.db.models import F
 
 
 def perform_login(data):
@@ -69,36 +71,36 @@ def perform_login(data):
                     user.is_plan_purchase = False
                     user.save()
 
-                    city = Cities.objects.get(id=user.city_id)
-                    state = States.objects.get(id=city.state_id)
-                    response_data = {
-                        "result": True,
-                        "data": {
-                            "id": str(user.id),
-                            "business_name": user.business_name,
-                            "business_type": user.business_type,
-                            "first_name": user.first_name,
-                            "last_name": user.last_name,
-                            "email": user.email,
-                            "contact_no": user.contact_no,
-                            "address": user.address,
-                            "logo": user.logo.url if user.logo else None,
-                            "tuition_tagline": user.tuition_tagline if user.tuition_tagline else None,
-                            "status": user.status,
-                            "is_reset":user.is_reset,
-                            "is_plan_purchased":user.is_plan_purchase,
-                            "city": {
-                                "city_id": str(city.id),
-                                "city_name": city.name,
-                                "state_id": str(city.state_id),
-                                "state_name": state.name,
-                            },
-                            "token": token
-                            },
-                        "message": "Login successful",
-                
-                    }
-                return response_data
+                city = Cities.objects.get(id=user.city_id)
+                state = States.objects.get(id=city.state_id)
+                response_data = {
+                    "result": True,
+                    "data": {
+                        "id": str(user.id),
+                        "business_name": user.business_name,
+                        "business_type": user.business_type,
+                        "first_name": user.first_name,
+                        "last_name": user.last_name,
+                        "email": user.email,
+                        "contact_no": user.contact_no,
+                        "address": user.address,
+                        "logo": user.logo.url if user.logo else None,
+                        "tuition_tagline": user.tuition_tagline if user.tuition_tagline else None,
+                        "status": user.status,
+                        "is_reset":user.is_reset,
+                        "is_plan_purchased":user.is_plan_purchase,
+                        "city": {
+                            "city_id": str(city.id),
+                            "city_name": city.name,
+                            "state_id": str(city.state_id),
+                            "state_name": state.name,
+                        },
+                        "token": token
+                        },
+                    "message": "Login successful",
+            
+                }
+            return response_data
 
         else:
             response_data = {
@@ -237,7 +239,7 @@ def perform_reset_password(data):
 #-----------------------------------------------------------------------------------------------------------#
 
 
-def get_citylist():
+def get_citylist(request):
     try:
         city_list = [] 
         cities = Cities.objects.all()
@@ -249,8 +251,21 @@ def get_citylist():
                 "state_name": city.state.name
             }
             city_list.append(city_dict)  
-            
-        return city_list
+        
+        paginated_city_data, items_per_page = paginate_data(request, city_list)
+
+        return {
+            "result": True,
+            "data": list(paginated_city_data),
+            "message": "Data retrieved successfully",   
+            "pagination": {
+                "page": paginated_city_data.number,
+                "total_docs": paginated_city_data.paginator.count,
+                "total_pages": paginated_city_data.paginator.num_pages,
+                "per_page": items_per_page,
+            },
+        }  
+
     except Exception as e:
         response_data = {
                     "result": False,
@@ -258,7 +273,7 @@ def get_citylist():
                 }
         return JsonResponse(response_data, status=400)
 
-def get_statelist():
+def get_statelist(request):
     try:
         state_list =[]
         states = States.objects.all()
@@ -268,8 +283,21 @@ def get_statelist():
                 "state_name": state.name
             }
             state_list.append(state_dict)
-            
-        return state_list
+
+        paginated_state_data, items_per_page = paginate_data(request, state_list)
+
+        return {
+            "result": True,
+            "data": list(paginated_state_data),
+            "message": "Data retrieved successfully",   
+            "pagination": {
+                "page": paginated_state_data.number,
+                "total_docs": paginated_state_data.paginator.count,
+                "total_pages": paginated_state_data.paginator.num_pages,
+                "per_page": items_per_page,
+            },
+        }
+    
     except Exception as e:
         response_data = {
                     "result": False,
@@ -283,7 +311,7 @@ def get_statelist():
 #-----------------------------------------------------------------------------------------------------------#
 
 
-def get_plan_list():
+def get_plan_list(request):
     try:
         plans = Plans.objects.all()
 
@@ -298,7 +326,20 @@ def get_plan_list():
             "status":plan.status
         } for plan in plans]
 
-        return plan_schema_list
+        paginated_plan_data, items_per_page = paginate_data(request, plan_schema_list)
+
+        return {
+            "result": True,
+            "data": list(paginated_plan_data),
+            "message": "Data retrieved successfully",   
+            "pagination": {
+                "page": paginated_plan_data.number,
+                "total_docs": paginated_plan_data.paginator.count,
+                "total_pages": paginated_plan_data.paginator.num_pages,
+                "per_page": items_per_page,
+            },
+        }
+
     except Plans.DoesNotExist:
         response_data = {"result": False, "message": "Plans not found"}
         return JsonResponse(response_data, status=400)
@@ -399,9 +440,9 @@ def verify_plan_payment(data, user):
         return JsonResponse(response_data, status=400)
 
 
-def get_purchase_history(user):
+def get_purchase_history(request):
     try:
-        purchase_history = PurchaseHistory.objects.filter(business_owner=user, status__in=[True])
+        purchase_history = PurchaseHistory.objects.filter(business_owner=request.user, status__in=[True])
 
         purchase_history_list = [
             {
@@ -413,8 +454,19 @@ def get_purchase_history(user):
             }
             for purchase in purchase_history
         ]
+        paginated_plan_purchase, items_per_page = paginate_data(request, purchase_history_list)
 
-        return purchase_history_list
+        return {
+            "result": True,
+            "data": list(paginated_plan_purchase),
+            "message": "Data retrieved successfully",   
+            "pagination": {
+                "page": paginated_plan_purchase.number,
+                "total_docs": paginated_plan_purchase.paginator.count,
+                "total_pages": paginated_plan_purchase.paginator.num_pages,
+                "per_page": items_per_page,
+            },
+        }
     
     except Exception as e:
         response_data = {
@@ -735,9 +787,9 @@ def add_news(data, user):
         return JsonResponse(response_data, status=500)
     
 
-def get_news_list(user):
+def get_news_list(request):
     try:
-        newses = BusinessNewses.objects.filter(business_owner=user, status="active").order_by('-created_at')
+        newses = BusinessNewses.objects.filter(business_owner=request.user, status="active").order_by('-created_at')
         newses_list = [
             {
                 "id": str(news.id),
@@ -749,7 +801,20 @@ def get_news_list(user):
             }
             for news in newses
         ]
-        return newses_list
+        paginated_news, items_per_page = paginate_data(request, newses_list)
+
+        return {
+            "result": True,
+            "data": list(paginated_news),
+            "message": "Data retrieved successfully",   
+            "pagination": {
+                "page": paginated_news.number,
+                "total_docs": paginated_news.paginator.count,
+                "total_pages": paginated_news.paginator.num_pages,
+                "per_page": items_per_page,
+            },
+        }
+
 
     except Exception as e:
         response_data = {
@@ -965,11 +1030,11 @@ def add_batch(data, user):
         return JsonResponse(response_data, status=400)
 
 
-def get_batchlist(user, query):
+def get_batchlist(request, query):
     try:
 
-        batches = CompetitiveBatches.objects.filter(business_owner=user).order_by('-created_at')
-        chapters = CompetitiveChapters.objects.filter(subject_name__business_owner=user)
+        batches = CompetitiveBatches.objects.filter(business_owner=request.user).order_by('-created_at')
+        chapters = CompetitiveChapters.objects.filter(subject_name__business_owner=request.user)
 
         if query.chapter_id:
             chapters = chapters.filter(id=query.chapter_id)
@@ -985,7 +1050,7 @@ def get_batchlist(user, query):
                 search_query |= Q(batch_name__icontains=term) | Q(status__icontains=term) 
 
             batches = batches.filter(search_query)
-        business_owner = BusinessOwners.objects.get(id=user.id)
+        business_owner = BusinessOwners.objects.get(id=request.user.id)
     
         batches_list = [
             {
@@ -999,8 +1064,20 @@ def get_batchlist(user, query):
             }
             for batch in batches
         ]
+        paginated_batches, items_per_page = paginate_data(request, batches_list)
 
-        return batches_list
+        return {
+            "result": True,
+            "data": list(paginated_batches),
+            "message": "Data retrieved successfully",   
+            "pagination": {
+                "page": paginated_batches.number,
+                "total_docs": paginated_batches.paginator.count,
+                "total_pages": paginated_batches.paginator.num_pages,
+                "per_page": items_per_page,
+            },
+        }
+
     
     except Exception as e:
         response_data = {
@@ -1164,9 +1241,9 @@ def add_comp_subect(data, user):
         return JsonResponse(response_data, status=400)
     
 
-def get_comp_subjectlist(user, query):
+def get_comp_subjectlist(request, query):
     try:
-        subjects = CompetitiveSubjects.objects.filter(business_owner=user).order_by('-created_at')
+        subjects = CompetitiveSubjects.objects.filter(business_owner=request.user).order_by('-created_at')
         if query.status:
             subjects = subjects.filter(status=query.status)
         if query.search:
@@ -1176,7 +1253,7 @@ def get_comp_subjectlist(user, query):
                 search_query |= Q(subject_name__icontains=term)  | Q(status__icontains=term)
 
             subjects = subjects.filter(search_query)
-        business_owner = BusinessOwners.objects.get(id=user.id)
+        business_owner = BusinessOwners.objects.get(id=request.user.id)
         subject_list = [
             {
                 "id": str(subject.id),
@@ -1189,8 +1266,20 @@ def get_comp_subjectlist(user, query):
             }
             for subject in subjects
         ]
+        paginated_comp_subjects, items_per_page = paginate_data(request, subject_list)
 
-        return subject_list
+        return {
+            "result": True,
+            "data": list(paginated_comp_subjects),
+            "message": "Data retrieved successfully",   
+            "pagination": {
+                "page": paginated_comp_subjects.number,
+                "total_docs": paginated_comp_subjects.paginator.count,
+                "total_pages": paginated_comp_subjects.paginator.num_pages,
+                "per_page": items_per_page,
+            },
+        }
+
     
     except CompetitiveSubjects.DoesNotExist:
         response_data = {
@@ -1384,9 +1473,9 @@ def add_comp_chapter(data, user):
         return JsonResponse(response_data, status=200)
 
 
-def get_comp_chapterlist(user, query):
+def get_comp_chapterlist(request, query):
     try:
-        chapters = CompetitiveChapters.objects.filter(subject_name__business_owner=user).order_by('-created_at')
+        chapters = CompetitiveChapters.objects.filter(subject_name__business_owner=request.user).order_by('-created_at')
 
         if query.status:
             chapters = chapters.filter(status=query.status)
@@ -1422,12 +1511,14 @@ def get_comp_chapterlist(user, query):
                     ]
                 }
                 chapters_list.append(subject_info)
+                
             return chapters_list
         else:
             for chapter in chapters:
                 subject_id = CompetitiveSubjects.objects.get(id=chapter.subject_name_id)
                 batch_info = [{"id": str(batch.id), "batch_name": batch.batch_name} for batch in chapter.batches.all()]
-                chapter_data = {
+                chapter_data = [
+                    {
                     "id": str(chapter.id),
                     "chapter_name": chapter.chapter_name,
                     "subject_id": str(subject_id.id),
@@ -1437,9 +1528,21 @@ def get_comp_chapterlist(user, query):
                     "created_at": chapter.created_at,
                     "updated_at": chapter.updated_at,
                 }
+                ]
                 chapters_list.append(chapter_data)
+            paginated_comp_chapters, items_per_page = paginate_data(request, chapter_data)
 
-            return chapters_list
+            return {
+                "result": True,
+                "data": list(paginated_comp_chapters),
+                "message": "Data retrieved successfully",   
+                "pagination": {
+                    "page": paginated_comp_chapters.number,
+                    "total_docs": paginated_comp_chapters.paginator.count,
+                    "total_pages": paginated_comp_chapters.paginator.num_pages,
+                    "per_page": items_per_page,
+                },
+            }
     
     except CompetitiveChapters.DoesNotExist:
         response_data = {
@@ -1456,7 +1559,7 @@ def get_comp_chapterlist(user, query):
     except Exception as e:
         response_data = {
                     "result": False,
-                    "message": "Something went wrong"
+                    "message": str(e)
                 }
         return JsonResponse(response_data, status=400)
 
@@ -1697,91 +1800,145 @@ def add_comp_question(user,data):
         return JsonResponse(response_data, status=400)
  
 
-def get_comp_questionlist(user, query):
+def get_comp_questionlist(request, query):
     try:
-        questions = CompetitiveQuestions.objects.filter(business_owner=user).order_by('-created_at')
-        if query.status:
-            questions = questions.filter(status=query.status)
-            
-        elif query.batch_id and query.chapter_id:
-            questions = questions.filter(competitve_chapter=query.chapter_id)
-
-        elif query.subject_id and query.chapter_id:
-            questions = questions.filter(competitve_chapter=query.chapter_id)
-
-        elif query.chapter_id:
-            questions = questions.filter(competitve_chapter=query.chapter_id)
-
-        elif query.subject_id:
-            questions = questions.filter(competitve_chapter__subject_name=query.subject_id)
-
-        elif query.batch_id:
-            batch_id = query.batch_id
-            questions = [question for question in questions if str(batch_id) in [str(batch.id) for batch in question.competitve_chapter.batches.all()]]
-
-        elif query.question_category:
-            questions = questions.filter(question_category=query.question_category)
-
-        elif query.search:
-            search_terms = query.search.strip().split()
-            search_query = Q()
-
-            for term in search_terms:
+        base_query = CompetitiveQuestions.objects.filter(business_owner=request.user).order_by('-created_at')
+        search_query = Q()
+        if query:
+            if query.search:
                 search_query |= (
-                    Q(question__icontains=term)
-                    | Q(answer__icontains=term)
-                    | Q(competitve_chapter__chapter_name__icontains=term)
-                    | Q(competitve_chapter__subject_name__subject_name__icontains=term)
-                    | Q(competitve_chapter__batches__batch_name__icontains=term)
-                    | Q(question_category__icontains=term)
-                    | Q(marks__icontains=term)
-                    | Q(time_duration__icontains=term)
-                    | Q(status__icontains=term)
-                )
+                    Q(question__icontains=query.search)
+                    | Q(answer__icontains=query.search)
+                    | Q(competitve_chapter__chapter_name__icontains=query.search)
+                    | Q(competitve_chapter__subject_name__subject_name__icontains=query.search)
+                    | Q(competitve_chapter__batches__batch_name__icontains=query.search)
+                    | Q(question_category__icontains=query.search)
+                    | Q(marks__icontains=query.search)
+                    | Q(time_duration__icontains=query.search)
+                    | Q(status__icontains=query.search)
+                    )
+            elif query.status:
+                search_query &= Q(status=query.status)
+                
+            elif query.batch_id and query.chapter_id:
+                search_query &= Q(competitve_chapter=query.chapter_id)
 
-            questions = questions.filter(search_query)
+            elif query.subject_id and query.chapter_id:
+                search_query &= Q(competitve_chapter=query.chapter_id)
 
-        question_list = []
+            elif query.chapter_id:
+                search_query &= Q(competitve_chapter=query.chapter_id)
+
+            elif query.subject_id:
+                search_query &= Q(competitve_chapter__subject_name=query.subject_id)
+
+            # elif query.batch_id:
+            #     batch_id = query.batch_id
+            #     questions = [question for question in questions if str(batch_id) in [str(batch.id) for batch in question.competitve_chapter.batches.all()]]
+
+            elif query.question_category:
+                search_query &= Q(question_category=query.question_category)
+            
+        batch_ids = [] 
+        questions = base_query.filter(search_query)
         for question in questions:
-            try:
-                options_data = Options.objects.get(id=question.options_id)
-            except Options.DoesNotExist:
-                options_data = None  
-            
-            options_dict = {
-                "option1": options_data.option1 if options_data else None,
-                "option2": options_data.option2 if options_data else None,
-                "option3": options_data.option3 if options_data else None,
-                "option4": options_data.option4 if options_data else None,
+            batch_info = [{"id": str(batch.id)} for batch in question.competitve_chapter.batches.all()]
+            batch_id = [info['id'] for info in batch_info]
+            batch_ids.append(batch_id[0])
+
+        question_list = questions.values(
+            'id', 'question', 'competitive_question_image', 'answer', 'marks', 'time_duration', 'status', 'created_at', 'updated_at', 'options_id', 'question_category',
+            chapter_id=F('competitve_chapter__id'),
+            chapter_name=F('competitve_chapter__chapter_name'),
+            subject_id=F('competitve_chapter__subject_name__id'),
+            subject_name=F('competitve_chapter__subject_name__subject_name'),
+            batch_name=F('competitve_chapter__batches__batch_name')
+        )
+
+        for question, batch_id in zip(question_list, batch_ids):
+            question['batch_id'] = str(batch_id)
+        for question_data in question_list:
+    
+            options_data = Options.objects.filter(id=question_data['options_id']).values(
+                'option1', 'option2', 'option3', 'option4'
+            ).first()
+            question_data['options'] = {
+                'option1': options_data['option1'] if options_data else None,
+                'option2': options_data['option2'] if options_data else None,
+                'option3': options_data['option3'] if options_data else None,
+                'option4': options_data['option4'] if options_data else None,
             }
-            batch_info = [{"id": str(batch.id), "batch_name": batch.batch_name} for batch in question.competitve_chapter.batches.all()]
-            question_data = {
-                    "id": str(question.id),
-                    "question": question.question,
-                    "question_image":question.competitive_question_image.url if question.competitive_question_image else None,
-                    "answer": question.answer,
-                    "options": options_dict,  
-                    "chapter_id": str(question.competitve_chapter.id),
-                    "chapter_name": question.competitve_chapter.chapter_name,
-                    "subject_id": str(question.competitve_chapter.subject_name.id),
-                    "subject_name": question.competitve_chapter.subject_name.subject_name, 
-                    "batches": batch_info,
-                    "question_category": question.question_category,
-                    "marks": str(question.marks),
-                    "time": str(question.time_duration),
-                    "status": question.status,
-                    "created_at":question.created_at,
-                    "updated_at":question.updated_at
-                }
-            question_list.append(question_data)
+            page = request.GET.get('page', 1)
+            items_per_page = request.GET.get('per_page', 5)
+            paginator = Paginator(question_list, items_per_page)
+
+            try:
+                question_list = paginator.page(page)
+            except PageNotAnInteger:
+                question_list = paginator.page(1)
+            except EmptyPage:
+                question_list = paginator.page(paginator.num_pages)
+
+            return  {
+                "result": True,
+                "data": list(question_list),
+                "message":"Data retrieved successfully",
+                "pagination": {
+                    "page": question_list.number,
+                    "total_docs": paginator.count,
+                    "total_pages": paginator.num_pages,
+                    "per_page": items_per_page
+                },
+            } 
             
-       
-        return question_list
+            # options_dict = {
+            #     "option1": options_data.option1 if options_data else None,
+            #     "option2": options_data.option2 if options_data else None,
+            #     "option3": options_data.option3 if options_data else None,
+            #     "option4": options_data.option4 if options_data else None,
+            # }
+            # batch_info = [{"id": str(batch.id), "batch_name": batch.batch_name} for batch in question.competitve_chapter.batches.all()]
+            # question_data = {
+            #         # "id": str(question.id),
+            #         # "question": question.question,
+            #         # "question_image":question.competitive_question_image.url if question.competitive_question_image else None,
+            #         # "answer": question.answer,
+            #         # "options": options_dict,  
+            #         "chapter_id": str(question.competitve_chapter.id),
+            #         "chapter_name": question.competitve_chapter.chapter_name,
+            #         "subject_id": str(question.competitve_chapter.subject_name.id),
+            #         "subject_name": question.competitve_chapter.subject_name.subject_name, 
+            #         "batches": batch_info,
+            #         # "question_category": question.question_category,
+            #         # "marks": str(question.marks),
+            #         # "time": str(question.time_duration),
+            #         # "status": question.status,
+            #         # "created_at":question.created_at,
+            #         # "updated_at":question.updated_at
+            #     }
+            # question_list.append(question_data)
+   
+            
+
+    except CompetitiveChapters.DoesNotExist:
+        response_data = {
+            "result": False,
+            "message": "Chapter not found"
+        }
+        return JsonResponse(response_data, status=400)
+    
+    except CompetitiveQuestions.DoesNotExist:
+        response_data = {
+            "result": False,
+            "message": "Question not found"
+        }
+        return JsonResponse(response_data, status=400)
 
     except Exception as e:
+        print(e)
         response_data = {
                     "result": False,
-                    "message": "Something went wrong"
+                    "message": str(e)
                 }
         return JsonResponse(response_data, status=400)
 
@@ -2370,9 +2527,9 @@ def start_comp_exam(data):
         return JsonResponse(response_data, status=400)
 
 
-def get_comp_examlist(user, query):
+def get_comp_examlist(request, query):
     try: 
-        exams = CompetitiveExams.objects.filter(business_owner=user, start_date__isnull=False).order_by('-created_at')
+        exams = CompetitiveExams.objects.filter(business_owner=request.user, start_date__isnull=False).order_by('-created_at')
         exam_list = []
         
         if query.batch_id:
@@ -2409,7 +2566,8 @@ def get_comp_examlist(user, query):
                 #         })
                 exam_data_list.append({"subject": subject_name, "chapters": chapter})
 
-            exam_detail = {
+            exam_detail = [
+                {
                 "id":str(exam.id),
                 "exam_title": exam.exam_title,
                 "batch": str(exam.batch.id),
@@ -2421,9 +2579,21 @@ def get_comp_examlist(user, query):
                 "start_date":exam.start_date,
                 "exam_datas": exam_data_list
             }
+            ]
             exam_list.append(exam_detail)
+        paginated_comp_exam_data, items_per_page = paginate_data(request, exam_detail)
 
-        return exam_list
+        return {
+            "result": True,
+            "data": list(paginated_comp_exam_data),
+            "message": "Data retrieved successfully",   
+            "pagination": {
+                "page": paginated_comp_exam_data.number,
+                "total_docs": paginated_comp_exam_data.paginator.count,
+                "total_pages": paginated_comp_exam_data.paginator.num_pages,
+                "per_page": items_per_page,
+            },
+        }
     
     except Exception as e:
         response_data = {
@@ -2627,9 +2797,9 @@ def create_excel_with_column_names_student(file_path,flag,related_id, sheet_name
 # Example usage
 
 
-def student_list(user, query):
+def student_list(request, query):
     try:
-        students = Students.objects.filter(business_owner=user).order_by('-created_at')
+        students = Students.objects.filter(business_owner=request.user).order_by('-created_at')
         if query.status:
             students = students.filter(status=query.status)
         elif query.board_id and query.medium_id and query.standard_id:
@@ -2664,7 +2834,7 @@ def student_list(user, query):
 
             students = students.filter(search_query)
         else:
-            students = Students.objects.filter(business_owner=user).order_by('-created_at')
+            students = Students.objects.filter(business_owner=request.user).order_by('-created_at')
         student_list = []
         for student in students:
             
@@ -2694,8 +2864,19 @@ def student_list(user, query):
             }
             student_list.append(student_data)
 
-        
-        return student_list
+        paginated_comp_exam_data, items_per_page = paginate_data(request, student_list)
+
+        return {
+            "result": True,
+            "data": list(paginated_comp_exam_data),
+            "message": "Data retrieved successfully",   
+            "pagination": {
+                "page": paginated_comp_exam_data.number,
+                "total_docs": paginated_comp_exam_data.paginator.count,
+                "total_pages": paginated_comp_exam_data.paginator.num_pages,
+                "per_page": items_per_page,
+            },
+        }
     except Exception as e:
         response_data = {
                     "result": False,
@@ -3446,9 +3627,9 @@ def remove_student(student_id):
 ####################################################################################
 
 
-def get_boards_list(user,filter_prompt):
+def get_boards_list(request,filter_prompt):
     try:
-        academic_boards = AcademicBoards.objects.filter(business_owner=user).order_by('-created_at')
+        academic_boards = AcademicBoards.objects.filter(business_owner=request.user).order_by('-created_at')
 
         if filter_prompt.search:
             q_objects = Q(board_name__icontains=filter_prompt.search) | Q(business_owner__business_name__icontains=filter_prompt.search)
@@ -3458,7 +3639,7 @@ def get_boards_list(user,filter_prompt):
             academic_boards = academic_boards.filter(status=filter_prompt.status)
         # else:
         #     academic_boards = AcademicBoards.objects.all()
-
+        
         academic_list = [
             {
                 "id": str(board.id),
@@ -3470,9 +3651,19 @@ def get_boards_list(user,filter_prompt):
             }
             for board in academic_boards
         ]
-        
+        paginated_boards, items_per_page = paginate_data(request, academic_list)
 
-        return academic_list
+        return {
+            "result": True,
+            "data": list(paginated_boards),
+            "message": "Data retrieved successfully",   
+            "pagination": {
+                "page": paginated_boards.number,
+                "total_docs": paginated_boards.paginator.count,
+                "total_pages": paginated_boards.paginator.num_pages,
+                "per_page": items_per_page,
+            },
+        }
     
 
     except AcademicBoards.DoesNotExist:
@@ -3485,7 +3676,7 @@ def get_boards_list(user,filter_prompt):
     except Exception as e:
         response_data = {
                     "result": False,
-                    "message": "Something went wrong"
+                    "message": str(e)
                 }
         return JsonResponse(response_data, status=400)
     
@@ -4097,9 +4288,9 @@ def delete_board_data(user,board_id):
 #-----------------------------------------------------------------------------------------------------------#
    
 
-def get_academic_mediums_list(user, filter_prompt):
+def get_academic_mediums_list(request, filter_prompt):
     try:
-        academic_mediums = AcademicMediums.objects.filter(board_name__business_owner=user).order_by('-created_at')
+        academic_mediums = AcademicMediums.objects.filter(board_name__business_owner=request.user).order_by('-created_at')
 
         if filter_prompt.search:
             q_objects = Q(medium_name__icontains=filter_prompt.search) | Q(board_name__board_name__icontains=filter_prompt.search)
@@ -4144,8 +4335,19 @@ def get_academic_mediums_list(user, filter_prompt):
             }
             for medium in academic_mediums
         ]
+        paginated_mediums, items_per_page = paginate_data(request, academic_medium_list)
 
-        return academic_medium_list
+        return {
+            "result": True,
+            "data": list(paginated_mediums),
+            "message": "Data retrieved successfully",   
+            "pagination": {
+                "page": paginated_mediums.number,
+                "total_docs": paginated_mediums.paginator.count,
+                "total_pages": paginated_mediums.paginator.num_pages,
+                "per_page": items_per_page,
+            },
+        }
     
     except AcademicMediums.DoesNotExist:
         response_data = {
@@ -4343,9 +4545,9 @@ def delete_medium_data(user,medium_id):
 #-----------------------------------------------------------------------------------------------------------#
     
 
-def get_academic_standard_list(user, filter_prompt):
+def get_academic_standard_list(request, filter_prompt):
     try:
-        academic_standards = AcademicStandards.objects.filter(medium_name__board_name__business_owner=user).order_by('-created_at')
+        academic_standards = AcademicStandards.objects.filter(medium_name__board_name__business_owner=request.user).order_by('-created_at')
         
 
         if filter_prompt.search:
@@ -4367,7 +4569,7 @@ def get_academic_standard_list(user, filter_prompt):
             academic_standards = academic_standards.filter(id=filter_prompt.standard_id)
 
         else:
-            academic_standards = AcademicStandards.objects.filter(medium_name__board_name__business_owner=user)
+            academic_standards = AcademicStandards.objects.filter(medium_name__board_name__business_owner=request.user)
         academic_standard_list = [
             {
                 "id": str(standards.id),
@@ -4383,8 +4585,20 @@ def get_academic_standard_list(user, filter_prompt):
             for standards in academic_standards
         ]
         
-        
-        return academic_standard_list
+        paginated_standards, items_per_page = paginate_data(request, academic_standard_list)
+
+        return {
+            "result": True,
+            "data": list(paginated_standards),
+            "message": "Data retrieved successfully",   
+            "pagination": {
+                "page": paginated_standards.number,
+                "total_docs": paginated_standards.paginator.count,
+                "total_pages": paginated_standards.paginator.num_pages,
+                "per_page": items_per_page,
+            },
+        }
+    
     
     except AcademicStandards.DoesNotExist:
         response_data = {
@@ -4579,9 +4793,9 @@ def update_standard_data(user,data,standard_id):
 #-----------------------------------------------------------------------------------------------------------#
 
 
-def get_academic_subject_list(user, filter_prompt):
+def get_academic_subject_list(request, filter_prompt):
     try:
-        academic_subjects = AcademicSubjects.objects.filter(standard__medium_name__board_name__business_owner=user).order_by('-created_at')
+        academic_subjects = AcademicSubjects.objects.filter(standard__medium_name__board_name__business_owner=request.user).order_by('-created_at')
         print(academic_subjects,'asdfaf')
         q_objects = Q()
         if filter_prompt.search:
@@ -4633,8 +4847,20 @@ def get_academic_subject_list(user, filter_prompt):
             }
             for subject in academic_subjects
         ]
+        paginated_subjects, items_per_page = paginate_data(request, academic_subject_list)
 
-        return academic_subject_list
+        return {
+            "result": True,
+            "data": list(paginated_subjects),
+            "message": "Data retrieved successfully",   
+            "pagination": {
+                "page": paginated_subjects.number,
+                "total_docs": paginated_subjects.paginator.count,
+                "total_pages": paginated_subjects.paginator.num_pages,
+                "per_page": items_per_page,
+            },
+        }
+    
 
     except AcademicSubjects.DoesNotExist:
         response_data = {
@@ -4839,9 +5065,9 @@ def update_subject_data(user,data,subject_id):
 #-----------------------------------------------------------------------------------------------------------#
 
 
-def get_academic_chapter_list(user, filter_prompt):
+def get_academic_chapter_list(request, filter_prompt):
     try:
-        academic_chapters = AcademicChapters.objects.filter(subject_name__standard__medium_name__board_name__business_owner=user).order_by('-created_at')
+        academic_chapters = AcademicChapters.objects.filter(subject_name__standard__medium_name__board_name__business_owner=request.user).order_by('-created_at')
         
 
         if filter_prompt.search:
@@ -4915,8 +5141,21 @@ def get_academic_chapter_list(user, filter_prompt):
                 }
                 for chapter in academic_chapters
             ]
+            paginated_chapters, items_per_page = paginate_data(request, academic_chapters_list)
 
-        return academic_chapters_list
+            return {
+                "result": True,
+                "data": list(paginated_chapters),
+                "message": "Data retrieved successfully",   
+                "pagination": {
+                    "page": paginated_chapters.number,
+                    "total_docs": paginated_chapters.paginator.count,
+                    "total_pages": paginated_chapters.paginator.num_pages,
+                    "per_page": items_per_page,
+                },
+            }
+
+      
     
     except AcademicChapters.DoesNotExist:
         response_data = {
@@ -5204,98 +5443,83 @@ def add_question_data(user,data):
     
 
 
-def get_academic_question_list(user, filter_prompt):
+def get_academic_question_list(request, filter_prompt):
     try:
 
-        questions = AcademicQuestions.objects.filter(business_owner=user).order_by('-created_at')
+      # Your base queryset
+        base_query = AcademicQuestions.objects.filter(business_owner=request.user).order_by('-created_at')
+
+        # Apply filters based on filter_prompt
         q_objects = Q()
-        if filter_prompt.search:
-            q_objects = (
-                    Q(question__icontains=filter_prompt.search)
-                    | Q(answer__icontains=filter_prompt.search)
-                    | Q(academic_chapter__chapter_name__icontains=filter_prompt.search)
-                    | Q(academic_chapter__subject_name__subject_name__icontains=filter_prompt.search)
-                    | Q(question_category__icontains=filter_prompt.search)
-                    | Q(marks__icontains=filter_prompt.search)
-                    | Q(time_duration__icontains=filter_prompt.search)
-                    | Q(status__icontains=filter_prompt.search)
-            )
-            questions = questions.filter(q_objects)
-            
-        elif filter_prompt.status:
-            q_objects &= Q(status=filter_prompt.status)
-        
-        elif filter_prompt.medium_id and filter_prompt.board_id and filter_prompt.standard_id and filter_prompt.subject_id and filter_prompt.chapter_id:
-            q_objects &= Q(academic_chapter__id=filter_prompt.chapter_id)
+        if filter_prompt:
+            if filter_prompt.search:
+                q_objects |= (
+                    Q(question__icontains=filter_prompt.search) |
+                    Q(answer__icontains=filter_prompt.search) |
+                    Q(academic_chapter__chapter_name__icontains=filter_prompt.search) |
+                    Q(academic_chapter__subject_name__subject_name__icontains=filter_prompt.search) |
+                    Q(question_category__icontains=filter_prompt.search) |
+                    Q(marks__icontains=filter_prompt.search) |
+                    Q(time_duration__icontains=filter_prompt.search) |
+                    Q(status__icontains=filter_prompt.search)
+                )
+            elif filter_prompt.status:
+                q_objects &= Q(status=filter_prompt.status)
+            elif filter_prompt.chapter_id:
+                q_objects &= Q(academic_chapter__id=filter_prompt.chapter_id)
+            elif filter_prompt.subject_id:
+                q_objects &= Q(academic_chapter__subject_name=filter_prompt.subject_id)
+            elif filter_prompt.standard_id:
+                q_objects &= Q(academic_chapter__subject_name__standard__id=filter_prompt.standard_id)
+            elif filter_prompt.medium_id:
+                q_objects &= Q(academic_chapter__subject_name__standard__medium_name__id=filter_prompt.medium_id)
+            elif filter_prompt.board_id:
+                q_objects &= Q(academic_chapter__subject_name__standard__medium_name__board_name__id=filter_prompt.board_id)
 
-        elif filter_prompt.medium_id and filter_prompt.board_id and filter_prompt.standard_id and filter_prompt.subject_id:
-            q_objects &= Q(academic_chapter__subject_name=filter_prompt.subject_id)
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     
-        elif filter_prompt.medium_id and filter_prompt.board_id and filter_prompt.standard_id:
-            q_objects &= (
-                Q(academic_chapter__subject_name__standard__medium_name__id=filter_prompt.medium_id) &
-                Q(academic_chapter__subject_name__standard__medium_name__board_name__id=filter_prompt.board_id) &
-                Q(academic_chapter__subject_name__standard__id=filter_prompt.standard_id)
-            )
-        elif filter_prompt.medium_id and filter_prompt.board_id:
-            q_objects &= (
-                Q(academic_chapter__subject_name__standard__medium_name__id=filter_prompt.medium_id) &
-                Q(academic_chapter__subject_name__standard__medium_name__board_name__id=filter_prompt.board_id)
-            )
-        elif filter_prompt.medium_id:
-            q_objects &= Q(academic_chapter__subject_name__standard__medium_name__id=filter_prompt.medium_id)
-        elif filter_prompt.board_id:
-            q_objects &= Q(academic_chapter__subject_name__standard__medium_name__board_name__id=filter_prompt.board_id)
-        elif filter_prompt.standard_id:
-            q_objects &= Q(academic_chapter__subject_name__standard__id=filter_prompt.standard_id)
+        # Apply filters to the base query
+        questions = base_query.filter(q_objects)
 
-        elif filter_prompt.subject_id:
-            q_objects &= Q(academic_chapter__subject_name=filter_prompt.subject_id)
+        # Use values to fetch only necessary fields
+        question_list = questions.values(
+            'id', 'question', 'academic_question_image', 'answer', 'marks', 'time_duration', 'status', 'created_at', 'updated_at', 'options_id', 'question_category',
+            board_id=F('academic_chapter__subject_name__standard__medium_name__board_name__id'),
+            board_name=F('academic_chapter__subject_name__standard__medium_name__board_name__board_name'),
+            medium_id=F('academic_chapter__subject_name__standard__medium_name__id'),
+            medium_name=F('academic_chapter__subject_name__standard__medium_name__medium_name'),
+            standard_id=F('academic_chapter__subject_name__standard__id'),
+            standard_name=F('academic_chapter__subject_name__standard__standard'),
+            subject_id=F('academic_chapter__subject_name__id'),
+            subject_name=F('academic_chapter__subject_name__subject_name'),
+            chapter_id=F('academic_chapter__id'),
+            chapter_name=F('academic_chapter__chapter_name'),
+            # question_category=F('question_category'),
+        )
 
-        elif filter_prompt.chapter_id:
-            q_objects &= Q(academic_chapter__id=filter_prompt.chapter_id)
-
-        questions = questions.filter(q_objects)
-        question_list = []
-        for question in questions:
-            try:
-                options_data = Options.objects.get(id=question.options_id)
-            except Options.DoesNotExist:
-                options_data = None 
-            
-            options_dict = {
-                "option1": options_data.option1 if options_data else None,
-                "option2": options_data.option2 if options_data else None,
-                "option3": options_data.option3 if options_data else None,
-                "option4": options_data.option4 if options_data else None,
+        # Add options to the question_list
+        for question_data in question_list:
+            options_data = Options.objects.filter(id=question_data['options_id']).values(
+                'option1', 'option2', 'option3', 'option4'
+            ).first()
+            question_data['options'] = {
+                'option1': options_data['option1'] if options_data else None,
+                'option2': options_data['option2'] if options_data else None,
+                'option3': options_data['option3'] if options_data else None,
+                'option4': options_data['option4'] if options_data else None,
             }
-            question_data = {
-                    "id": str(question.id),
-                    "question": question.question,
-                    "question_image":question.academic_question_image.url if question.academic_question_image else None,
-                    "answer": question.answer,
-                    "options": options_dict,  
-                    "board_id": str(question.academic_chapter.subject_name.standard.medium_name.board_name.id),
-                    "board_name": str(question.academic_chapter.subject_name.standard.medium_name.board_name.board_name),
-                    "medium_id": str(question.academic_chapter.subject_name.standard.medium_name.id),
-                    "medium_name": str(question.academic_chapter.subject_name.standard.medium_name.medium_name),
-                    "standard_id": str(question.academic_chapter.subject_name.standard.id),
-                    "standard_name": str(question.academic_chapter.subject_name.standard.standard),
-                    "subject_id": str(question.academic_chapter.subject_name.id),
-                    "subject_name": question.academic_chapter.subject_name.subject_name, 
-                    "chapter_id": str(question.academic_chapter.id),
-                    "chapter_name": question.academic_chapter.chapter_name, 
-                    "question_category": question.question_category,
-                    "marks": str(question.marks),
-                    "time": str(question.time_duration),
-                    "status": question.status,
-                    "created_at":question.created_at,
-                    "updated_at":question.updated_at
-                }
-            question_list.append(question_data)
-            
-        
-        return question_list
+
+        paginated_question_list,items_per_page = paginate_data(request, question_list)
+        print(paginated_question_list)
+        return {
+            "result": True,
+            "data": list(paginated_question_list),
+            "message": "Data retrieved successfully",   
+            "pagination": {
+                "page": paginated_question_list.number,
+                "total_docs": paginated_question_list.paginator.count,
+                "total_pages": paginated_question_list.paginator.num_pages,
+                "per_page": int(items_per_page)
+            },
+        } 
     
     except AcademicChapters.DoesNotExist:
         response_data = {
@@ -5794,15 +6018,13 @@ def create_academic_exam(user, data):
     except Exception as e:
         response_data = {
                     "result": False,
-                    "message": "Something went wrong"
+                    "message": str(e)
                 }
         return JsonResponse(response_data, status=400)
 
-
-def get_acad_examlist(user, query):
+def get_acad_examlist(request, query):
     try: 
-        
-        exams = AcademicExams.objects.filter(business_owner=user, start_date__isnull=False).order_by('-created_at')
+        exams = AcademicExams.objects.filter(business_owner=request.user, start_date__isnull=False).order_by('-created_at')
        
         if query.standard:
             exams = exams.filter(standard=query.standard)
@@ -5820,7 +6042,6 @@ def get_acad_examlist(user, query):
                 search_query |= (
                      Q(exam_title__icontains=term)
                     | Q(status__icontains=term)
-                    
                 )
        
         exam_list = []
@@ -5833,7 +6054,7 @@ def get_acad_examlist(user, query):
                 exam_data_list.append({"subject": subject_name, "chapters": chapter})
 
             exam_detail = {
-                "id":str(exam.id),
+                "id": str(exam.id),
                 "exam_title": exam.exam_title,
                 "board_id": str(exam.standard.medium_name.board_name.id),
                 "board_name": exam.standard.medium_name.board_name.board_name,
@@ -5841,17 +6062,28 @@ def get_acad_examlist(user, query):
                 "medium_name": exam.standard.medium_name.medium_name,
                 "standard_id": str(exam.standard.id),
                 "standard_name": exam.standard.standard,
-                "total_question":exam.total_questions,
-                "time_duration":exam.time_duration,
-                "negative_marks":exam.negative_marks,
-                "total_marks":exam.total_marks,
-                "start_date":exam.start_date,
+                "total_question": exam.total_questions,
+                "time_duration": exam.time_duration,
+                "negative_marks": exam.negative_marks,
+                "total_marks": exam.total_marks,
+                "start_date": exam.start_date,
                 "exam_data": exam_data_list, 
-               
             }
             exam_list.append(exam_detail)
+            
+        paginated_examlist_data, items_per_page = paginate_data(request, exam_list)
 
-        return exam_list
+        return {
+            "result": True,
+            "data": list(paginated_examlist_data),
+            "message": "Data retrieved successfully",   
+            "pagination": {
+                "page": paginated_examlist_data.number,
+                "total_docs": paginated_examlist_data.paginator.count,
+                "total_pages": paginated_examlist_data.paginator.num_pages,
+                "per_page": items_per_page,
+            },
+        }
     
     except AcademicExams.DoesNotExist:
         response_data = {
@@ -5862,9 +6094,9 @@ def get_acad_examlist(user, query):
     
     except Exception as e:
         response_data = {
-                    "result": False,
-                    "message": "Something went wrong"
-                }
+            "result": False,
+            "message": str(e)
+        }
         return JsonResponse(response_data, status=400)
     
 
