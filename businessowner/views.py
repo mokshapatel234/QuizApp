@@ -43,18 +43,16 @@ def reset_password_link(request, data: ResetPasswordIn):
 #-----------------------------------------------------------------------------------------------------------#
 
 
-@router.get("/city", response={200: List[CitySchema], 400: dict, 401: dict})
+@router.get("/city", response={200: CitySchemaResponse, 400: dict, 401: dict})
 @verify_token
-@paginate(CustomPagination)
 def get_city(request):
-    return get_citylist() 
+    return get_citylist(request) 
 
 
-@router.get("/state", response={200: List[StateSchema], 400: dict, 401: dict})
+@router.get("/state", response={200: StateSchemaResponse, 400: dict, 401: dict})
 @verify_token
-@paginate(CustomPagination)
 def get_state(request):
-    return get_statelist() 
+    return get_statelist(request) 
 
 
 #-----------------------------------------------------------------------------------------------------------#
@@ -62,11 +60,11 @@ def get_state(request):
 #-----------------------------------------------------------------------------------------------------------#
 
 
-@router.get("/planPurchase", response={200: List[PlanSchema], 400: dict, 401: dict})
+@router.get("/planPurchase", response={200: PlanSchemaResponse, 400: dict, 401: dict})
 @verify_token
-@paginate(CustomPagination)
+# @paginate(CustomPagination)
 def get_plans(request):
-    return get_plan_list()
+    return get_plan_list(request)
 
 
 @router.post("/planPurchase", response={200: dict, 400: dict, 401: dict})
@@ -81,11 +79,11 @@ def verify_payment(request, data: PurchasePlanIn):
     return verify_plan_payment(data, request.user)
 
 
-@router.get("/purchaseHistory", response={200: List[PurchaseHistoryOut], 400: dict, 401: dict})
+@router.get("/purchaseHistory", response={200: PurchaseHistoryOutResponse, 400: dict, 401: dict})
 @verify_token
-@paginate(CustomPagination)
+# @paginate(CustomPagination)
 def purchase_history(request):
-    return get_purchase_history(request.user)
+    return get_purchase_history(request)
 
 
 #-----------------------------------------------------------------------------------------------------------#
@@ -126,11 +124,11 @@ def add_business_news(request, data: NewsIn):
     return add_news(data, request.user)
 
 
-@router.get("/news", response={200: List[News], 400: dict, 401: dict})
+@router.get("/news", response={200: NewsResponse, 400: dict, 401: dict})
 @verify_token
-@paginate(CustomPagination)
+# @paginate(CustomPagination)
 def get_business_news_list(request):
-    return get_news_list(request.user)
+    return get_news_list(request)
 
 
 @router.get("/news/{news_id}",  response={200: NewsOut, 400: dict, 401: dict})
@@ -162,11 +160,11 @@ def add_competitive_batch(request, data: BatchIn):
     return add_batch(data, request.user)
 
 
-@router.get("/competitive/batch",  response={200: List[Batch], 400: dict, 401: dict})
+@router.get("/competitive/batch",  response={200: BatchResponse, 400: dict, 401: dict})
 @verify_token
-@paginate(CustomPagination)
+# @paginate(CustomPagination)
 def get_competitive_batchlist(request, query:BatchFilter = Query(...)):
-    return get_batchlist(request.user, query)
+    return get_batchlist(request, query)
 
 
 @router.get("/competitive/batch/{batch_id}",  response={200: BatchOut, 400: dict, 401: dict})
@@ -198,11 +196,11 @@ def add_competitive_subject(request, data: CompSubjectIn):
     return add_comp_subect(data, request.user)
 
 
-@router.get("/competitive/subject",  response={200: List[CompSubject], 400: dict, 401: dict})
+@router.get("/competitive/subject",  response={200: CompSubjectResponse, 400: dict, 401: dict})
 @verify_token
-@paginate(CustomPagination)
+# @paginate(CustomPagination)
 def get_competitive_subjectlist(request, query:BatchFilter = Query(...)):
-    return get_comp_subjectlist(request.user, query)
+    return get_comp_subjectlist(request, query)
 
 
 @router.get("/competitive/subject/{subject_id}",  response={200: CompSubjectOut, 400: dict, 401: dict})
@@ -234,11 +232,11 @@ def add_competitive_chapter(request, data: CompChapterIn):
     return add_comp_chapter(data, request.user)
     
 
-@router.get("/competitive/chapter", response={200: List[dict], 400: dict, 401: dict})
+@router.get("/competitive/chapter", response={200:CompChapterResponse, 400: dict, 401: dict})
 @verify_token
-@paginate(CustomPagination)
+# @paginate(CustomPagination)
 def get_competitive_chapterlist(request, query:CompChapterFilter = Query(...)):
-    return get_comp_chapterlist(request.user, query)
+    return get_comp_chapterlist(request, query)
 
 
 @router.get("/competitive/chapter/{chapter_id}", response={200: CompChapterOut, 400: dict, 401: dict})
@@ -270,11 +268,11 @@ def add_competitive_question(request, data: QuestionIn):
     return add_comp_question(request.user,data)
     
 
-@router.get("/competitive/question", response={200: List[CompetitiveQuestion], 400: dict, 401: dict})
+@router.get("/competitive/question", response={200: dict, 400: dict, 401: dict})
 @verify_token
-@paginate(CustomPagination)
+# @paginate(CustomPagination)
 def get_competitive_questionlist(request, query:CompQuestionFilter = Query(...)):
-    return get_comp_questionlist(request.user, query)
+    return get_comp_questionlist(request, query)
 
 
 @router.get("/competitive/question/{question_id}", response={200: CompQuestionOut, 400: dict, 401: dict})
@@ -312,11 +310,11 @@ def start_competitive_exam(request, data:CompExamQuestion):
     return start_comp_exam(data)
 
 
-@router.get("/competitive/exam", response={200: List[CompExamOut], 400: dict, 401: dict})
+@router.get("/competitive/exam", response={200: CompExamOutResponse, 400: dict, 401: dict})
 @verify_token
-@paginate(CustomPagination)
+# @paginate(CustomPagination)
 def get_competitive_examlist(request, query:CompExamFilter = Query(...)):
-    return get_comp_examlist(request.user, query)
+    return get_comp_examlist(request, query)
 
 
 @router.post("/competitive/CreateExam", response={200: AcadeCreatestartExamOut, 400: dict, 401: dict})
@@ -348,11 +346,11 @@ def download_student_file(request,flag: str = Query(...),related_id: StudentdDat
     result = create_excel_with_column_names_student("output.xlsx",flag,related_id)
     return result
 
-@router.get("/student", response={200: List[Student], 400: dict, 401: dict})
+@router.get("/student", response={200: StudentResponse, 400: dict, 401: dict})
 @verify_token
-@paginate(CustomPagination)
+# @paginate(CustomPagination)
 def get_student_list(request, query: StudentFilter = Query(...)):
-    return student_list(request.user, query)
+    return student_list(request, query)
 
 
 @router.get("/student/{student_id}", response={200: StudentOut, 400: dict, 401: dict})
