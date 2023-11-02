@@ -63,7 +63,7 @@ class PlanSchema(Schema):
     description: str
     price: float
     validity: int
-    image: str
+    image: Optional[str]
     status: str
 
 class PurchasePlanIn(Schema):
@@ -452,6 +452,7 @@ class Student(Schema):
     parent_contact_no: str
     profile_image: str =None
     address: str =None
+    status: str
     competitive: Optional[Competitive] 
     academic: Optional[Academic] 
 

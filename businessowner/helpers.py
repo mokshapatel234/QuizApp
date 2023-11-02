@@ -69,36 +69,36 @@ def perform_login(data):
                     user.is_plan_purchase = False
                     user.save()
 
-                    city = Cities.objects.get(id=user.city_id)
-                    state = States.objects.get(id=city.state_id)
-                    response_data = {
-                        "result": True,
-                        "data": {
-                            "id": str(user.id),
-                            "business_name": user.business_name,
-                            "business_type": user.business_type,
-                            "first_name": user.first_name,
-                            "last_name": user.last_name,
-                            "email": user.email,
-                            "contact_no": user.contact_no,
-                            "address": user.address,
-                            "logo": user.logo.url if user.logo else None,
-                            "tuition_tagline": user.tuition_tagline if user.tuition_tagline else None,
-                            "status": user.status,
-                            "is_reset":user.is_reset,
-                            "is_plan_purchased":user.is_plan_purchase,
-                            "city": {
-                                "city_id": str(city.id),
-                                "city_name": city.name,
-                                "state_id": str(city.state_id),
-                                "state_name": state.name,
-                            },
-                            "token": token
-                            },
-                        "message": "Login successful",
-                
-                    }
-                return response_data
+                city = Cities.objects.get(id=user.city_id)
+                state = States.objects.get(id=city.state_id)
+                response_data = {
+                    "result": True,
+                    "data": {
+                        "id": str(user.id),
+                        "business_name": user.business_name,
+                        "business_type": user.business_type,
+                        "first_name": user.first_name,
+                        "last_name": user.last_name,
+                        "email": user.email,
+                        "contact_no": user.contact_no,
+                        "address": user.address,
+                        "logo": user.logo.url if user.logo else None,
+                        "tuition_tagline": user.tuition_tagline if user.tuition_tagline else None,
+                        "status": user.status,
+                        "is_reset":user.is_reset,
+                        "is_plan_purchased":user.is_plan_purchase,
+                        "city": {
+                            "city_id": str(city.id),
+                            "city_name": city.name,
+                            "state_id": str(city.state_id),
+                            "state_name": state.name,
+                        },
+                        "token": token
+                        },
+                    "message": "Login successful",
+            
+                }
+            return response_data
 
         else:
             response_data = {
@@ -314,6 +314,7 @@ def purchase_plan(data, user):
     try:  
         
         plan = Plans.objects.get(id=data.id)
+        business_user = BusinessOwners.objects.get(id=user.id)
         purchases = PurchaseHistory.objects.filter(plan=data.id, business_owner=user)
         for purchase in purchases:
             if purchase.expire_date > timezone.now():
@@ -342,7 +343,14 @@ def purchase_plan(data, user):
             "order_id": order_id,
             "price": plan.price,
             "validity":plan.validity,
-            "plan":purchase_history.plan.plan_name
+            "description":plan.description,
+            "plan":purchase_history.plan.plan_name,
+            "first_name":business_user.first_name,
+            "last_name":business_user.last_name,
+            "contact_no":business_user.contact_no,
+            "email":business_user.email
+
+
         }
         response_data = {
             "result": True,
@@ -2678,6 +2686,7 @@ def student_list(user, query):
                 "parent_contact_no": student.parent_contact_no,
                 "profile_image": student.profile_image.url if student.profile_image else None,
                 "address": student.address,
+                "status":student.status,
                 "competitive": {
                         "batch": str(student.batch.id) if student.batch else None,
                         "batch_name":student.batch.batch_name if student.batch else None

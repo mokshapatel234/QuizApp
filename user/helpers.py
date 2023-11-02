@@ -260,7 +260,7 @@ def update_profile(user, data):
                         timestamp = int(time.time())
                         unique_filename = f"profile_image_{timestamp}.png"
                         
-                        # student.profile_image.save(unique_filename, ContentFile(image_data))
+                        student.profile_image.save(unique_filename, ContentFile(image_data))
         
                     else:
                         setattr(student, field, value)
