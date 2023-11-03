@@ -256,11 +256,13 @@ def update_profile(user, data):
                             student.email = value
                     elif field == "profile_image":
                         # Handle the image data here
-                        image_data = base64.b64decode(value)
-                        timestamp = int(time.time())
-                        unique_filename = f"profile_image_{timestamp}.png"
-                        
-                        # student.profile_image.save(unique_filename, ContentFile(image_data))
+                        try:
+                            image_data = base64.b64decode(value)
+                            timestamp = int(time.time())
+                            unique_filename = f"profile_image_{timestamp}.png"
+                            student.profile_image.save(unique_filename, ContentFile(image_data))
+                        except Exception as e:
+                            print(e)
         
                     else:
                         setattr(student, field, value)
@@ -288,7 +290,6 @@ def update_profile(user, data):
                     },
                     "message": "Profile updated successfully"
                 }
-                print(response_data)
                 return response_data  
                 
             return None  
