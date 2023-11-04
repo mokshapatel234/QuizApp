@@ -23,6 +23,10 @@ from django.core.files.base import ContentFile  # Import ContentFile
 import os
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 from django.db.models import F
+from openpyxl import load_workbook
+from PIL import Image
+from io import BytesIO
+import openpyxl
 
 
 def perform_login(data):
@@ -1491,6 +1495,7 @@ def get_comp_chapterlist(request, query):
                 search_query |= Q(chapter_name__icontains=term) | Q(subject_name__subject_name__icontains=term) | Q(batches__batch_name__icontains=term) | Q(status__icontains=term)
 
             chapters = chapters.filter(search_query)
+        
 
         chapters_list = []
         if query.subject_ids:
@@ -1514,11 +1519,11 @@ def get_comp_chapterlist(request, query):
                 
             return chapters_list
         else:
+            chapters = CompetitiveChapters.objects.all().order_by('-created_at')
             for chapter in chapters:
                 subject_id = CompetitiveSubjects.objects.get(id=chapter.subject_name_id)
                 batch_info = [{"id": str(batch.id), "batch_name": batch.batch_name} for batch in chapter.batches.all()]
-                chapter_data = [
-                    {
+                chapter_data = {
                     "id": str(chapter.id),
                     "chapter_name": chapter.chapter_name,
                     "subject_id": str(subject_id.id),
@@ -1528,9 +1533,9 @@ def get_comp_chapterlist(request, query):
                     "created_at": chapter.created_at,
                     "updated_at": chapter.updated_at,
                 }
-                ]
+                
                 chapters_list.append(chapter_data)
-            paginated_comp_chapters, items_per_page = paginate_data(request, chapter_data)
+            paginated_comp_chapters, items_per_page = paginate_data(request, chapters_list)
 
             return {
                 "result": True,
@@ -3848,6 +3853,7 @@ def create_competitive_question(competitive_chapter, question, options, answer, 
 
 def upload_from_xl(xl_file, user, flag,param_prompt):
     try:
+        
         xl_data = pd.read_excel(xl_file.file)
         created_boards = []
         existing_boards = []
@@ -3869,6 +3875,8 @@ def upload_from_xl(xl_file, user, flag,param_prompt):
         existing_competitive_chapters = [] 
         created_competitive_questions = []
         existing_competitive_questions = []
+        error_messages = []
+        error_messages2 = []
         for _, row in xl_data.iterrows():
             if flag == "board":
                 board_name = row.get("board_name")
@@ -3932,8 +3940,12 @@ def upload_from_xl(xl_file, user, flag,param_prompt):
                         if created:
                             created_chapters.append(chapter_instance)
 
-            elif flag == "question":
-                chapter_id = row.get("chapter_id")
+            elif flag == "academic_question":
+                board_name = row.get("board_name")
+                medium_name = row.get("medium_name")
+                standard_name = row.get("standard_name")
+                subject_name = row.get("subject_name")
+                chapter_name = row.get("chapter_name")
                 question_text = row.get("question")
                 option1 = row.get("option1")
                 option2 = row.get("option2")
@@ -3944,32 +3956,51 @@ def upload_from_xl(xl_file, user, flag,param_prompt):
                 marks = row.get("marks")
                 time_duration = row.get("time_duration")
 
-                if question_text and option1 and option2 and option3 and option4 and answer and question_category and marks and time_duration :
-                    academic_chapter_id = chapter_id
-                    academic_chapter = AcademicChapters.objects.get(id=academic_chapter_id)
+                if (
+                    board_name and medium_name and standard_name and subject_name and
+                    chapter_name and question_text and option1 and option2 and option3 and
+                    option4 and answer and question_category and marks and time_duration
+                ):
+                    # Find all academic chapters that match the criteria
+                    academic_chapters = AcademicChapters.objects.filter(
+                        subject_name__subject_name=subject_name,
+                        subject_name__standard__standard=standard_name,
+                        subject_name__standard__medium_name__medium_name=medium_name,
+                        subject_name__standard__medium_name__board_name__board_name=board_name,
+                        chapter_name=chapter_name,
+                        subject_name__standard__medium_name__board_name__business_owner=user
+                    )
 
-                    existing_question = AcademicQuestions.objects.filter(
-                        question=question_text,
-                    ).first()
-
-                    if existing_question:
-                        existing_questions.append(question_text)
+                    if not academic_chapters:
+                        error_messages.append("No matching academic chapters found.")
                     else:
-                        # Create options instance
-                        options_instance = Options.objects.create(
-                            option1=option1,
-                            option2=option2,
-                            option3=option3,
-                            option4=option4
-                        )
+                        for academic_chapter in academic_chapters:
+                            existing_question = AcademicQuestions.objects.filter(
+                                question=question_text,
+                                academic_chapter=academic_chapter
+                            ).first()
 
-                        # Create question instance
-                        question_instance, created = create_question(
-                            academic_chapter, question_text, options_instance, answer, question_category, marks, time_duration, user
-                        )
+                            if existing_question:
+                                existing_questions.append(question_text)
+                            else:
+                                # Create options instance
+                                options_instance = Options.objects.create(
+                                    option1=option1,
+                                    option2=option2,
+                                    option3=option3,
+                                    option4=option4
+                                )
 
-                        if created:
-                            created_questions.append(question_instance)
+                                # Create question instance
+                                question_instance, created = create_question(
+                                    academic_chapter, question_text, options_instance, answer, question_category, marks, time_duration, user
+                                )
+
+                                if created:
+                                    created_questions.append(question_instance)
+                else:
+                    error_messages2.append("some fileds are missing.")
+
 
             elif flag == "batch":
                 batch_name = row.get("batch_name")
@@ -4034,7 +4065,9 @@ def upload_from_xl(xl_file, user, flag,param_prompt):
 
 
             elif flag == "competitive_question":
-                chapter_id = row.get("chapter_id")
+                batch_name = row.get("batch_name")
+                subject_name = row.get("subject_name")
+                chapter_name = row.get("chapter_name")
                 question_text = row.get("question")
                 option1 = row.get("option1")
                 option2 = row.get("option2")
@@ -4044,35 +4077,47 @@ def upload_from_xl(xl_file, user, flag,param_prompt):
                 question_category = row.get("question_category")
                 marks = row.get("marks")
                 time_duration = row.get("time_duration")
+                competitive_question_image_path = row.get("competitive_question_image")
 
-                if question_text and option1 and option2 and option3 and option4 and answer and question_category and marks and time_duration:
-                    competitive_chapter_id = chapter_id
-                    competitive_chapter = CompetitiveChapters.objects.get(id=competitive_chapter_id)
+                if (
+                    batch_name and subject_name and
+                    chapter_name and question_text and option1 and option2 and option3 and
+                    option4 and answer and question_category and marks and time_duration
+                ):
 
-                    existing_question = CompetitiveQuestions.objects.filter(
-                        competitve_chapter=competitive_chapter,
-                        question=question_text,
-                    ).first()
-
-                    if existing_question:
-                        existing_competitive_questions.append(question_text)
+                    competitive_chapters = CompetitiveChapters.objects.filter(
+                        chapter_name=chapter_name,
+                        subject_name__business_owner = user
+                    )
+                    if not competitive_chapters:
+                        error_messages.append("No matching academic chapters found.")
                     else:
-                        # Create options instance
-                        options_instance = Options.objects.create(
-                            option1=option1,
-                            option2=option2,
-                            option3=option3,
-                            option4=option4
-                        )
+                        for competitive_chapter in competitive_chapters:
+                                existing_question = CompetitiveQuestions.objects.filter(
+                                    question=question_text,
+                                    competitve_chapter=competitive_chapter
+                                ).first()
 
-                        # Create question instance
-                        question_instance, created = create_competitive_question(
-                            competitive_chapter, question_text, options_instance, answer, question_category, marks, time_duration, user
-                        )
+                        if existing_question:
+                            existing_competitive_questions.append(question_text)
+                        else:
+                            # Create options instance
+                            options_instance = Options.objects.create(
+                                option1=option1,
+                                option2=option2,
+                                option3=option3,
+                                option4=option4
+                            )
 
-                        if created:
-                            created_competitive_questions.append(question_instance)
-            
+                            # Create question instance
+                            question_instance, created = create_competitive_question(
+                                competitive_chapter, question_text, options_instance, answer, question_category, marks, time_duration,user
+                            )
+
+                            if created:
+                                created_competitive_questions.append(question_instance)
+                else:
+                    error_messages2.append("some fileds are missing.")
             
                             
         response_data = {
@@ -4110,6 +4155,12 @@ def upload_from_xl(xl_file, user, flag,param_prompt):
 
         if existing_competitive_questions:
             response_data["message"] = "Some questions already exist."
+
+        if error_messages:
+            response_data["message"] = "chapter not found for this user."
+        
+        if error_messages2:
+            response_data["message"] = "some fileds are missing."
         return response_data
 
     except Exception as e:
@@ -4146,8 +4197,26 @@ def create_excel_with_column_names(file_path,flag,related_id_name, sheet_name="S
         elif flag == "competitive_question":
             column_names = ["chapter_id","question","option1","option2","option3","option4","answer","question_category","marks","time_duration"] if related_id_name.chapter_id else ["plase enter chapter_id in params"]
         # Create a new workbook
-
-       
+        elif flag == "academic_subject":
+            if related_id_name.subject_id:
+                subject = AcademicSubjects.objects.get(id=related_id_name.subject_id)
+                chapters_related_to_subject = AcademicChapters.objects.filter(subject_name=related_id_name.subject_id)
+                subject_name = subject.subject_name
+                standard_name = subject.standard.standard
+                medium_name = subject.standard.medium_name.medium_name
+                board_name = subject.standard.medium_name.board_name.board_name
+            column_names = ["board_name","medium_name","standard_name","subject_name","chapter_name","question","option1","option2","option3","option4","answer","question_category","marks","time_duration"] if standard_name else ["plase enter standard_id in params"]
+        
+        elif flag == "competitve_subject":
+            if related_id_name.competitive_subject_id:
+                subject = CompetitiveSubjects.objects.get(id=related_id_name.competitive_subject_id)
+                chapters_related_to_subject = CompetitiveChapters.objects.filter(subject_name=related_id_name.competitive_subject_id)
+                if chapters_related_to_subject.exists():
+                    # Get all batch names for the chapters_related_to_subject
+                    batch_info = []
+                    for chapter in chapters_related_to_subject:
+                        batch_info.extend([{"batch_name": batch.batch_name} for batch in chapter.batches.all()])
+                column_names = ["batch_name","subject_name","chapter_name","question","competitive_question_image","option1","option2","option3","option4","answer","question_category","marks","time_duration"]
         file_path = f"format_{flag}.xlsx"
 
         workbook = xlsxwriter.Workbook(file_path)
@@ -4173,9 +4242,25 @@ def create_excel_with_column_names(file_path,flag,related_id_name, sheet_name="S
                 worksheet.write(row_num, 0, related_id_name.standard_id)
 
         
+        # elif related_id_name.subject_id:
+        #     for row_num in range(1, 30):  # Assuming 1000 rows for example
+        #         worksheet.write(row_num, 0, related_id_name.subject_id)
+
         elif related_id_name.subject_id:
-            for row_num in range(1, 30):  # Assuming 1000 rows for example
-                worksheet.write(row_num, 0, related_id_name.subject_id)
+            for row_num, chapter in enumerate(chapters_related_to_subject, start=1):
+                worksheet.write(row_num, 3, subject_name)
+                worksheet.write(row_num, 2, standard_name)
+                worksheet.write(row_num, 1, medium_name)
+                worksheet.write(row_num, 0, board_name)
+                worksheet.write(row_num, 4, chapter.chapter_name)
+
+        elif related_id_name.competitive_subject_id:
+            for row_num, chapter in enumerate(chapters_related_to_subject, start=1):
+                for batch in batch_info:
+                    worksheet.write(row_num, 0, batch["batch_name"])
+                    worksheet.write(row_num, 1, subject.subject_name)
+                    worksheet.write(row_num, 2, chapter.chapter_name)
+
 
         elif related_id_name.chapter_id:
             for row_num in range(1, 200):  # Assuming 1000 rows for example
