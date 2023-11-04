@@ -23,6 +23,10 @@ from django.core.files.base import ContentFile  # Import ContentFile
 import os
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 from django.db.models import F
+from reportlab.lib.pagesizes import letter
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle
+from django.http import HttpResponse
+from io import BytesIO
 
 
 def perform_login(data):
@@ -120,7 +124,7 @@ def perform_login(data):
     except Exception as e:
         response_data = {
             "result": False,
-            "message": str(e)
+            "message": "Something went wrong"
         }
         return JsonResponse(response_data, status=401)
 
@@ -480,46 +484,35 @@ def get_purchase_history(request):
 #------------------------------------------------DASHBOARD--------------------------------------------------#
 #-----------------------------------------------------------------------------------------------------------#        
     
-    
+
 def dashboard(user):
     try:
         b_type = user.business_type
         
+        if b_type not in ["competitive", "academic"]:
+            return JsonResponse({
+                "result": False,
+                "message": "Invalid business type"
+            }, status=400)
+
+        data = []
+
         if b_type == "competitive":
-            no_of_exams = CompetitiveExams.objects.filter(business_owner=user, start_date__isnull=False).count()
-            no_of_students = Students.objects.filter(business_owner=user).count()
-            no_of_batches = CompetitiveBatches.objects.filter(business_owner=user).count()
-            no_of_subjects = CompetitiveSubjects.objects.filter(business_owner=user).count()
+            data.append({"name": "Exams", "count": CompetitiveExams.objects.filter(business_owner=user, start_date__isnull=False).count()})
+            data.append({"name": "Students", "count": Students.objects.filter(business_owner=user).count()})
+            data.append({"name": "Batches", "count": CompetitiveBatches.objects.filter(business_owner=user).count()})
+            data.append({"name": "Subjects", "count": CompetitiveSubjects.objects.filter(business_owner=user).count()})
             latest_exams = CompetitiveExams.objects.filter(business_owner=user, start_date__isnull=False).order_by('-start_date')[:5]
-            latest_exam_data = [
-            {
-                "id": exam.id,
-                "title": exam.exam_title,
-                "start_date": exam.start_date.strftime("%Y-%m-%d"),
-            }
-            for exam in latest_exams
-        ]
-            competitive_data = {
-                "no_of_exams": no_of_exams,
-                "no_of_students": no_of_students,
-                "no_of_batches": no_of_batches,
-                "no_of_subjects": no_of_subjects,
-                "latest_exams":latest_exam_data
-            }
-            response_data = {
-                "result":True,
-                "data": competitive_data,
-                "message": "Dashboard data retrived successfully"
-            }
-        if b_type == "academic":
-            no_of_exams = AcademicExams.objects.filter(business_owner=user, start_date__isnull=False).count()
-            no_of_students = Students.objects.filter(business_owner=user).count()
-            no_of_boards = AcademicBoards.objects.filter(business_owner=user).count()
-            no_of_medium = AcademicMediums.objects.filter(board_name__business_owner=user).count()
-            no_of_standards = AcademicStandards.objects.filter(medium_name__board_name__business_owner=user).count()
-            no_of_subjects = AcademicSubjects.objects.filter(standard__medium_name__board_name__business_owner=user).count()
+        else:
+            data.append({"name": "Exams", "count": AcademicExams.objects.filter(business_owner=user, start_date__isnull=False).count()})
+            data.append({"name": "Students", "count": Students.objects.filter(business_owner=user).count()})
+            data.append({"name": "Boards", "count": AcademicBoards.objects.filter(business_owner=user).count()})
+            data.append({"name": "Mediums", "count": AcademicMediums.objects.filter(board_name__business_owner=user).count()})
+            data.append({"name": "Standards", "count": AcademicStandards.objects.filter(medium_name__board_name__business_owner=user).count()})
+            data.append({"name": "Subjects", "count": AcademicSubjects.objects.filter(standard__medium_name__board_name__business_owner=user).count()})
             latest_exams = AcademicExams.objects.filter(business_owner=user, start_date__isnull=False).order_by('-start_date')[:5]
-            latest_exam_data = [
+
+        latest_exam_data = [
             {
                 "id": exam.id,
                 "title": exam.exam_title,
@@ -527,25 +520,19 @@ def dashboard(user):
             }
             for exam in latest_exams
         ]
-            academic_data = {
-                "no_of_exams": no_of_exams,
-                "no_of_students": no_of_students,
-                "no_of_boards":no_of_boards,
-                "no_of_medium": no_of_medium,
-                "no_of_standards": no_of_standards,
-                "no_of_subjects": no_of_subjects,
-                "latest_exams":latest_exam_data
-            }
-            response_data = {
-                "result":True,
-                "data": academic_data,
-                "message": "Dashboard data retrived successfully"
-            }
+
+        data.append({"name": "Latest Exams", "exams": latest_exam_data})
+
+        response_data = {
+            "result": True,
+            "data": data,
+            "message": "Dashboard data retrieved successfully"
+        }
 
         return response_data
 
-        
     except Exception as e:
+        print(e)
         response_data = {
             "result": False,
             "message": "Something went wrong"
@@ -1559,7 +1546,7 @@ def get_comp_chapterlist(request, query):
     except Exception as e:
         response_data = {
                     "result": False,
-                    "message": str(e)
+                    "message": "Something went wrong"
                 }
         return JsonResponse(response_data, status=400)
 
@@ -1938,7 +1925,7 @@ def get_comp_questionlist(request, query):
         print(e)
         response_data = {
                     "result": False,
-                    "message": str(e)
+                    "message": "Something went wrong"
                 }
         return JsonResponse(response_data, status=400)
 
@@ -2399,7 +2386,7 @@ def create_comp_exam(user, data):
     except Exception as e:
         response_data = {
                     "result": False,
-                    "message": str(e)
+                    "message": "Something went wrong"
                 }
         return JsonResponse(response_data, status=400)
 
@@ -2486,7 +2473,7 @@ def start_comp_CompExam(user, data):
     except Exception as e:
         response_data = {
             "result": False,
-            "message": str(e)
+            "message": "Something went wrong"
         }
         return JsonResponse(response_data, status=400)
 
@@ -2522,7 +2509,7 @@ def start_comp_exam(data):
     except Exception as e:
         response_data = {
             "result": False,
-            "message": print(str(e))
+            "message": "Something went wrong"
         }
         return JsonResponse(response_data, status=400)
 
@@ -2790,7 +2777,7 @@ def create_excel_with_column_names_student(file_path,flag,related_id, sheet_name
     except Exception as e:
         response_data = {
             "result": False,
-            "message": str(e)
+            "message": "Something went wrong"
         }
         
         return response_data
@@ -3114,6 +3101,240 @@ def remove_student(student_id):
                     "message": "Something went wrong"
                 }
         return JsonResponse(response_data, status=400)
+
+
+#-----------------------------------------------------------------------------------------------------------#
+#-------------------------------------------------REPORT----------------------------------------------------#
+#-----------------------------------------------------------------------------------------------------------#
+
+
+
+
+def get_examreport(request, query):
+    try:
+        user = request.user
+        if user.business_type == "competitive":
+            exams = CompetitiveExams.objects.filter(business_owner=user.id, start_date__isnull=False)
+            if query.batch_id:
+                exams = exams.filter(batch=query.batch_id)
+            if query.subject_id:
+                exams = exams.filter(exam_data__subject=query.subject_id)
+            if query.start_date and query.end_date:
+                exams = exams.filter(start_date__gte=query.start_date, start_date__lte=query.end_date)
+        elif user.business_type == "academic":
+            exams = AcademicExams.objects.filter(business_owner=user.id, start_date__isnull=False)
+            if query.board_id:
+                exams = exams.filter(standard__medium_name__board_name=query.board_id)
+            if query.medium_id:
+                exams = exams.filter(standard__medium_name=query.medium_id)
+            if query.standard_id:
+                exams = exams.filter(standard=query.standard_id)
+            if query.subject_id:
+                exams = exams.filter(exam_data__subject=query.subject_id)
+            if query.start_date and query.end_date:
+                exams = exams.filter(start_date__gte=query.start_date, start_date__lte=query.end_date)
+        else:
+            return JsonResponse({
+                "result": False,
+                "message": "Invalid business type"
+            }, status=400)
+
+        exam_detail = []
+        for exam in exams:
+            results = Results.objects.filter(competitive_exam=exam.id) if user.business_type == "competitive" else Results.objects.filter(academic_exam=exam.id)
+            passed_students = results.filter(result='pass').count()
+            failed_students = results.filter(result='fail').count()
+            total_students = results.count()
+
+            exam_data = {
+                "id": str(exam.id),
+                "exam_title": exam.exam_title,
+                "total_question": exam.total_questions,
+                "time_duration": exam.time_duration,
+                "negative_marks": exam.negative_marks,
+                "total_marks": exam.total_marks,
+                "start_date": exam.start_date,
+                "total_students": total_students,
+                "passed_students": passed_students,
+                "failed_students": failed_students
+            }
+
+            if user.business_type == "academic":
+                exam_data.update({
+                    "board_id": str(exam.standard.medium_name.board_name.id),
+                    "board_name": exam.standard.medium_name.board_name.board_name,
+                    "medium_id": str(exam.standard.medium_name.id),
+                    "medium_name": exam.standard.medium_name.medium_name,
+                    "standard_id": str(exam.standard.id),
+                    "standard_name": exam.standard.standard,
+                })
+            else:
+                exam_data.update({
+                    "batch": str(exam.batch.id),
+                    "batch_name": exam.batch.batch_name,
+                })
+
+            exam_detail.append(exam_data)
+
+        paginated_comp_exam_data, items_per_page = paginate_data(request, exam_detail)
+
+        return {
+            "result": True,
+            "data": list(paginated_comp_exam_data) if paginated_comp_exam_data else [],
+            "message": "Data retrieved successfully",   
+            "pagination": {
+                "page": paginated_comp_exam_data.number,
+                "total_docs": paginated_comp_exam_data.paginator.count,
+                "total_pages": paginated_comp_exam_data.paginator.num_pages,
+                "per_page": items_per_page,
+            },
+        }
+    except Exception as e:
+        response_data = {
+            "result": False,
+            "message": "Something went wrong"
+        }
+        return JsonResponse(response_data, status=400)
+
+
+def generate_pdf_report(exam_detail):
+    buffer = BytesIO()
+    pdf = SimpleDocTemplate(buffer, pagesize=letter)
+    content = []
+
+    # Extract exam_info from exam_detail dictionary
+    header_data = [
+        [f"Exam Title: {exam_detail.get('exam_title', '')}"],
+        [f"Total Questions: {exam_detail.get('total_question', '')}"],
+        [f"Time Duration: {exam_detail.get('time_duration', '')}"],
+        [f"Negative Marks: {exam_detail.get('negative_marks', '')}"],
+        [f"Total Marks: {exam_detail.get('total_marks', '')}"],
+        [f"Start Date: {exam_detail.get('start_date', '')}"]
+    ]
+    if 'board_id' in exam_detail:
+        header_data.append([f"Board Name: {exam_detail.get('board_name', '')}"])
+        header_data.append([f"Medium Name: {exam_detail.get('medium_name', '')}"])
+        header_data.append([f"Standard Name: {exam_detail.get('standard_name', '')}"])
+    elif 'batch' in exam_detail:
+        header_data.append([f"Batch Name: {exam_detail.get('batch_name', '')}"])
+
+    header_table = Table(header_data)
+    header_table.setStyle(TableStyle([
+        ('TEXTCOLOR', (0, 0), (-1, -1), (0, 0, 1)),
+        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+    ]))
+    content.append(header_table)
+
+    # Extract students_data from exam_detail dictionary
+    students_data = exam_detail.get("students_data", [])
+    student_info = [['First Name', 'Last Name', 'Right Answers', 'Wrong Answers', 'Mark', 'Time']]
+    for student in students_data:
+        student_info.append([
+            student.get('student_first_name', ''),
+            student.get('student_last_name', ''),
+            str(student.get('total_right_answers', '')),
+            str(student.get('total_wrong_answers', '')),
+            str(student.get('mark', '')),
+            str(student.get('time', ''))
+        ])
+
+    students_table = Table(student_info)
+    students_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), (0, 0, 0)),
+        ('TEXTCOLOR', (0, 0), (-1, 0), (1, 1, 1)),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+    ]))
+    content.append(students_table)
+
+    pdf.build(content)
+    buffer.seek(0)
+    response = HttpResponse(buffer.getvalue(), content_type='application/pdf')
+    response['Content-Disposition'] = 'attachment; filename="exam_report.pdf"'
+    buffer.close()
+    return response
+
+
+
+def exam_detail_report(request, exam_id, query):
+    try:
+        user_type = request.user.business_type
+        if user_type not in ["competitive", "academic"]:
+            raise ValueError("Invalid business type")
+        
+        exam_model = CompetitiveExams if user_type == "competitive" else AcademicExams
+        result_model = Results.objects.filter(competitive_exam=exam_id) if user_type == "competitive" else Results.objects.filter(academic_exam=exam_id)
+        exam = exam_model.objects.get(id=exam_id)
+        
+        exam_detail = {
+                "exam_title": exam.exam_title,
+                "total_question": exam.total_questions,
+                "time_duration": exam.time_duration,
+                "negative_marks": exam.negative_marks,
+                "total_marks": exam.total_marks,
+                "start_date": exam.start_date
+        }
+        if request.user.business_type == "academic":
+            exam_detail.update({
+                "board_id": str(exam.standard.medium_name.board_name.id),
+                "board_name": exam.standard.medium_name.board_name.board_name,
+                "medium_id": str(exam.standard.medium_name.id),
+                "medium_name": exam.standard.medium_name.medium_name,
+                "standard_id": str(exam.standard.id),
+                "standard_name": exam.standard.standard,
+            })
+        else:
+            exam_detail.update({
+                "batch": str(exam.batch.id),
+                "batch_name": exam.batch.batch_name,
+            })
+        students_data = []
+        for result in result_model:
+            student = Students.objects.get(id=result.student.id)
+            wrong_answers = StudentAnswers.objects.filter(
+                student=student.id,
+                competitive_exam=exam_id if user_type == "competitive" else None,
+                academic_exam=exam_id if user_type == "academic" else None,
+                is_correct__in=[False]
+            ).count()
+            right_answers = StudentAnswers.objects.filter(
+                student=student.id,
+                competitive_exam=exam_id if user_type == "competitive" else None,
+                academic_exam=exam_id if user_type == "academic" else None,
+                is_correct__in=[True]
+            ).count()
+
+            student_data = {
+                    "student_first_name": student.first_name,
+                    "student_last_name": student.last_name,
+                    "total_right_answers": right_answers,
+                    "total_wrong_answers": wrong_answers,
+                    "mark": result.score,
+                    "time": result.time_duration
+            }
+            students_data.append(student_data)
+
+        exam_detail["students_data"] = students_data
+
+        if query.generate_pdf:
+            pdf_response = generate_pdf_report(exam_detail)
+            return pdf_response
+
+        response_data = {
+            "result": True,
+            "data": exam_detail,
+            "message":"Report retrived successfully"
+        }
+        return response_data
+
+    except Exception as e:
+        response_data = {
+            "result": False,
+            "message": "Something went wrong"
+        }
+        return JsonResponse(response_data, status=400)
+
+
+
 
 
 
@@ -3676,7 +3897,7 @@ def get_boards_list(request,filter_prompt):
     except Exception as e:
         response_data = {
                     "result": False,
-                    "message": str(e)
+                    "message": "Something went wrong"
                 }
         return JsonResponse(response_data, status=400)
     
@@ -4115,7 +4336,7 @@ def upload_from_xl(xl_file, user, flag,param_prompt):
     except Exception as e:
         response_data = {
             "result": False,
-            "message": str(e)
+            "message": "Something went wrong"
         }
 
         return response_data
@@ -4201,7 +4422,7 @@ def create_excel_with_column_names(file_path,flag,related_id_name, sheet_name="S
     except Exception as e:
         response_data = {
             "result": False,
-            "message": str(e)
+            "message": "Something went wrong"
         }
         
         return response_data
@@ -5754,7 +5975,7 @@ def update_question_data(data, question_id):
     except Exception as e:
         response_data = {
                     "result": False,
-                    "message": str(e)
+                    "message": "Something went wrong"
                 }
         return JsonResponse(response_data, status=400)
  
@@ -6018,7 +6239,7 @@ def create_academic_exam(user, data):
     except Exception as e:
         response_data = {
                     "result": False,
-                    "message": str(e)
+                    "message": "Something went wrong"
                 }
         return JsonResponse(response_data, status=400)
 
@@ -6095,7 +6316,7 @@ def get_acad_examlist(request, query):
     except Exception as e:
         response_data = {
             "result": False,
-            "message": str(e)
+            "message": "Something went wrong"
         }
         return JsonResponse(response_data, status=400)
     
@@ -6133,7 +6354,7 @@ def start_acad_exam(data):
     except Exception as e:
         response_data = {
             "result": False,
-            "message": print(str(e))
+            "message": print("Something went wrong")
         }
         return JsonResponse(response_data, status=400)
 
@@ -6193,10 +6414,7 @@ def get_acad_examreport(user, query):
                     "message": "Something went wrong"
                 }
         return JsonResponse(response_data, status=400)
-    
 
-
-from django.db import transaction
 
 def start_acad_CSExam(user, data):
     
@@ -6278,7 +6496,7 @@ def start_acad_CSExam(user, data):
     except Exception as e:
         response_data = {
             "result": False,
-            "message": str(e)
+            "message": "Something went wrong"
         }
         return JsonResponse(response_data, status=400)
 
