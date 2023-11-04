@@ -27,7 +27,7 @@ from openpyxl import load_workbook
 from PIL import Image
 from io import BytesIO
 import openpyxl
-from openpyxl_image_loader import SheetImageLoader
+
 
 def perform_login(data):
     try:
@@ -3838,15 +3838,7 @@ def create_competitive_chapter(chapter_name, subject_instance, batch_ids):
 
     return competitive_chapter_instance, created
 
-def create_competitive_question(competitive_chapter, question, options, answer, question_category, marks, time_duration,competitive_question_image_data, business_owner):
-    if competitive_question_image_data:
-            # Handle the image data here
-            image_data = base64.b64decode(competitive_question_image_data)
-            timestamp = int(time.time())
-            unique_filename = f"question_{timestamp}.png"
-            competitive_question_image = ContentFile(image_data, name=unique_filename)
-    else:
-        competitive_question_image = None
+def create_competitive_question(competitive_chapter, question, options, answer, question_category, marks, time_duration, business_owner):
     question_instance, created = CompetitiveQuestions.objects.get_or_create(
         competitve_chapter=competitive_chapter,
         question=question,
@@ -3856,7 +3848,6 @@ def create_competitive_question(competitive_chapter, question, options, answer, 
         marks=marks,
         time_duration=time_duration,
         business_owner=business_owner,
-        competitive_question_image=competitive_question_image
     )
     return question_instance, created
 
@@ -3949,7 +3940,7 @@ def upload_from_xl(xl_file, user, flag,param_prompt):
                         if created:
                             created_chapters.append(chapter_instance)
 
-            elif flag == "question":
+            elif flag == "academic_question":
                 board_name = row.get("board_name")
                 medium_name = row.get("medium_name")
                 standard_name = row.get("standard_name")
@@ -4087,25 +4078,12 @@ def upload_from_xl(xl_file, user, flag,param_prompt):
                 marks = row.get("marks")
                 time_duration = row.get("time_duration")
                 competitive_question_image_path = row.get("competitive_question_image")
-                print(competitive_question_image_path)
 
                 if (
                     batch_name and subject_name and
                     chapter_name and question_text and option1 and option2 and option3 and
                     option4 and answer and question_category and marks and time_duration
                 ):
-                    if pd.notna(competitive_question_image_path):
-                        binary_data2 = base64.b64decode(competitive_question_image_path)
-                        print(binary_data2)
-                        with open(binary_data2, 'rb') as image_file:
-                            # Read the binary data from the file
-                            binary_data = image_file.read()
-                            print(binary_data,"eeeee")
-                        # Encode the binary data as base64
-                        competitive_question_image_data = base64.b64encode(binary_data).decode('utf-8')
-                        print(competitive_question_image_data,"fsfdsdf")
-                    else:
-                        competitive_question_image_data = None
 
                     competitive_chapters = CompetitiveChapters.objects.filter(
                         chapter_name=chapter_name,
@@ -4133,7 +4111,7 @@ def upload_from_xl(xl_file, user, flag,param_prompt):
 
                             # Create question instance
                             question_instance, created = create_competitive_question(
-                                competitive_chapter, question_text, options_instance, answer, question_category, marks, time_duration,competitive_question_image_data,user
+                                competitive_chapter, question_text, options_instance, answer, question_category, marks, time_duration,user
                             )
 
                             if created:

@@ -58,7 +58,7 @@ def delete_board(request, board_id):
 @router.post("/import-data", response={200: DeleteOut, 400: dict, 401: dict})
 @verify_token
 def upload_file(request, xl_file: UploadedFile = File(...),flag: str = Query(...),param_prompt: UploadData = Query(...)):
-    if flag not in ["board", "medium","standard","subject","chapter","question","batch","competitive_subject","competitive_chapter","competitive_question"]:
+    if flag not in ["board", "medium","standard","subject","chapter","academic_question","batch","competitive_subject","competitive_chapter","competitive_question"]:
         return JSONResponse(content={"message": "Invalid flag."}, status_code=400)
     return upload_from_xl(xl_file, request.user,flag,param_prompt)
 
