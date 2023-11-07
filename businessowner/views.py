@@ -232,7 +232,7 @@ def add_competitive_chapter(request, data: CompChapterIn):
     return add_comp_chapter(data, request.user)
     
 
-@router.get("/competitive/chapter", response={200:CompChapterResponse, 400: dict, 401: dict})
+@router.get("/competitive/chapter", response={200:dict, 400: dict, 401: dict})
 @verify_token
 # @paginate(CustomPagination)
 def get_competitive_chapterlist(request, query:CompChapterFilter = Query(...)):

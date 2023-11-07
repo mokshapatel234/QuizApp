@@ -1091,7 +1091,7 @@ class UpdateQuestionIn(Schema):
    chapter_id: Optional[UUID]
    question_category: Optional[str]
    marks: Optional[int]
-   time: Optional[int]
+   time: Optional[str]
    status: Optional[str]
 
 

@@ -1519,8 +1519,20 @@ def get_comp_chapterlist(request, query):
                     ]
                 }
                 chapters_list.append(subject_info)
-                
-            return chapters_list
+                paginated_comp_chapters, items_per_page = paginate_data(request, chapters_list)
+
+            return {
+                "result": True,
+                "data": list(paginated_comp_chapters),
+                "message": "Data retrieved successfully",   
+                "pagination": {
+                    "page": paginated_comp_chapters.number,
+                    "total_docs": paginated_comp_chapters.paginator.count,
+                    "total_pages": paginated_comp_chapters.paginator.num_pages,
+                    "per_page": items_per_page,
+                },
+            }
+
         else:
             for chapter in chapters:
                 subject_id = CompetitiveSubjects.objects.get(id=chapter.subject_name_id)
@@ -5130,7 +5142,18 @@ def get_academic_chapter_list(request, filter_prompt):
                     ]
                 }
                 academic_chapters_list.append(subject_info)
-            return academic_chapters_list
+            paginated_chapters, items_per_page = paginate_data(request, academic_chapters_list)
+            return {
+                "result": True,
+                "data": list(paginated_chapters),
+                "message": "Data retrieved successfully",   
+                "pagination": {
+                    "page": paginated_chapters.number,
+                    "total_docs": paginated_chapters.paginator.count,
+                    "total_pages": paginated_chapters.paginator.num_pages,
+                    "per_page": items_per_page,
+                },
+            }
         else:
             academic_chapters_list = [
                 {

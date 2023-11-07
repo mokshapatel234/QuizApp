@@ -113,9 +113,8 @@ def get_exam(request, exam_id, subject_id=None):
     return get_exam_detail_question(request.user, exam_id, subject_id)
 
 
-@router.get("/examHistory/subject", response={200:List[SubjectList], 401:dict, 400:dict})
+@router.get("/examHistory/subject", response={200:SubjectListResponse, 401:dict, 400:dict})
 @verify_token
-@paginate(CustomPagination)
 def get_academic_subjects(request):
     result = get_subject_list(request.user)
     return result
