@@ -23,6 +23,16 @@ from django.core.files.base import ContentFile  # Import ContentFile
 import os
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 from django.db.models import F
+from reportlab.lib.pagesizes import letter
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle
+from django.http import HttpResponse
+from io import BytesIO
+from reportlab.lib import colors
+from reportlab.lib.units import inch
+from openpyxl import load_workbook
+from PIL import Image
+from io import BytesIO
+import openpyxl
 
 
 def perform_login(data):
@@ -120,7 +130,7 @@ def perform_login(data):
     except Exception as e:
         response_data = {
             "result": False,
-            "message": str(e)
+            "message": "Something went wrong"
         }
         return JsonResponse(response_data, status=401)
 
@@ -488,46 +498,35 @@ def get_purchase_history(request):
 #------------------------------------------------DASHBOARD--------------------------------------------------#
 #-----------------------------------------------------------------------------------------------------------#        
     
-    
+
 def dashboard(user):
     try:
         b_type = user.business_type
         
+        if b_type not in ["competitive", "academic"]:
+            return JsonResponse({
+                "result": False,
+                "message": "Invalid business type"
+            }, status=400)
+
+        data = []
+
         if b_type == "competitive":
-            no_of_exams = CompetitiveExams.objects.filter(business_owner=user, start_date__isnull=False).count()
-            no_of_students = Students.objects.filter(business_owner=user).count()
-            no_of_batches = CompetitiveBatches.objects.filter(business_owner=user).count()
-            no_of_subjects = CompetitiveSubjects.objects.filter(business_owner=user).count()
+            data.append({"name": "Exams", "count": CompetitiveExams.objects.filter(business_owner=user, start_date__isnull=False).count()})
+            data.append({"name": "Students", "count": Students.objects.filter(business_owner=user).count()})
+            data.append({"name": "Batches", "count": CompetitiveBatches.objects.filter(business_owner=user).count()})
+            data.append({"name": "Subjects", "count": CompetitiveSubjects.objects.filter(business_owner=user).count()})
             latest_exams = CompetitiveExams.objects.filter(business_owner=user, start_date__isnull=False).order_by('-start_date')[:5]
-            latest_exam_data = [
-            {
-                "id": exam.id,
-                "title": exam.exam_title,
-                "start_date": exam.start_date.strftime("%Y-%m-%d"),
-            }
-            for exam in latest_exams
-        ]
-            competitive_data = {
-                "no_of_exams": no_of_exams,
-                "no_of_students": no_of_students,
-                "no_of_batches": no_of_batches,
-                "no_of_subjects": no_of_subjects,
-                "latest_exams":latest_exam_data
-            }
-            response_data = {
-                "result":True,
-                "data": competitive_data,
-                "message": "Dashboard data retrived successfully"
-            }
-        if b_type == "academic":
-            no_of_exams = AcademicExams.objects.filter(business_owner=user, start_date__isnull=False).count()
-            no_of_students = Students.objects.filter(business_owner=user).count()
-            no_of_boards = AcademicBoards.objects.filter(business_owner=user).count()
-            no_of_medium = AcademicMediums.objects.filter(board_name__business_owner=user).count()
-            no_of_standards = AcademicStandards.objects.filter(medium_name__board_name__business_owner=user).count()
-            no_of_subjects = AcademicSubjects.objects.filter(standard__medium_name__board_name__business_owner=user).count()
+        else:
+            data.append({"name": "Exams", "count": AcademicExams.objects.filter(business_owner=user, start_date__isnull=False).count()})
+            data.append({"name": "Students", "count": Students.objects.filter(business_owner=user).count()})
+            data.append({"name": "Boards", "count": AcademicBoards.objects.filter(business_owner=user).count()})
+            data.append({"name": "Mediums", "count": AcademicMediums.objects.filter(board_name__business_owner=user).count()})
+            data.append({"name": "Standards", "count": AcademicStandards.objects.filter(medium_name__board_name__business_owner=user).count()})
+            data.append({"name": "Subjects", "count": AcademicSubjects.objects.filter(standard__medium_name__board_name__business_owner=user).count()})
             latest_exams = AcademicExams.objects.filter(business_owner=user, start_date__isnull=False).order_by('-start_date')[:5]
-            latest_exam_data = [
+
+        latest_exam_data = [
             {
                 "id": exam.id,
                 "title": exam.exam_title,
@@ -535,25 +534,19 @@ def dashboard(user):
             }
             for exam in latest_exams
         ]
-            academic_data = {
-                "no_of_exams": no_of_exams,
-                "no_of_students": no_of_students,
-                "no_of_boards":no_of_boards,
-                "no_of_medium": no_of_medium,
-                "no_of_standards": no_of_standards,
-                "no_of_subjects": no_of_subjects,
-                "latest_exams":latest_exam_data
-            }
-            response_data = {
-                "result":True,
-                "data": academic_data,
-                "message": "Dashboard data retrived successfully"
-            }
+
+        data.append({"name": "Latest Exams", "exams": latest_exam_data})
+
+        response_data = {
+            "result": True,
+            "data": data,
+            "message": "Dashboard data retrieved successfully"
+        }
 
         return response_data
 
-        
     except Exception as e:
+        print(e)
         response_data = {
             "result": False,
             "message": "Something went wrong"
@@ -1499,6 +1492,7 @@ def get_comp_chapterlist(request, query):
                 search_query |= Q(chapter_name__icontains=term) | Q(subject_name__subject_name__icontains=term) | Q(batches__batch_name__icontains=term) | Q(status__icontains=term)
 
             chapters = chapters.filter(search_query)
+        
 
         chapters_list = []
         if query.subject_ids:
@@ -1534,11 +1528,11 @@ def get_comp_chapterlist(request, query):
             }
 
         else:
+            chapters = CompetitiveChapters.objects.all().order_by('-created_at')
             for chapter in chapters:
                 subject_id = CompetitiveSubjects.objects.get(id=chapter.subject_name_id)
                 batch_info = [{"id": str(batch.id), "batch_name": batch.batch_name} for batch in chapter.batches.all()]
-                chapter_data = [
-                    {
+                chapter_data = {
                     "id": str(chapter.id),
                     "chapter_name": chapter.chapter_name,
                     "subject_id": str(subject_id.id),
@@ -1548,9 +1542,9 @@ def get_comp_chapterlist(request, query):
                     "created_at": chapter.created_at,
                     "updated_at": chapter.updated_at,
                 }
-                ]
+                
                 chapters_list.append(chapter_data)
-            paginated_comp_chapters, items_per_page = paginate_data(request, chapter_data)
+            paginated_comp_chapters, items_per_page = paginate_data(request, chapters_list)
 
             return {
                 "result": True,
@@ -1579,7 +1573,7 @@ def get_comp_chapterlist(request, query):
     except Exception as e:
         response_data = {
                     "result": False,
-                    "message": str(e)
+                    "message": "Something went wrong"
                 }
         return JsonResponse(response_data, status=400)
 
@@ -1958,7 +1952,7 @@ def get_comp_questionlist(request, query):
         print(e)
         response_data = {
                     "result": False,
-                    "message": str(e)
+                    "message": "Something went wrong"
                 }
         return JsonResponse(response_data, status=400)
 
@@ -2419,7 +2413,7 @@ def create_comp_exam(user, data):
     except Exception as e:
         response_data = {
                     "result": False,
-                    "message": str(e)
+                    "message": "Something went wrong"
                 }
         return JsonResponse(response_data, status=400)
 
@@ -2506,7 +2500,7 @@ def start_comp_CompExam(user, data):
     except Exception as e:
         response_data = {
             "result": False,
-            "message": str(e)
+            "message": "Something went wrong"
         }
         return JsonResponse(response_data, status=400)
 
@@ -2542,7 +2536,7 @@ def start_comp_exam(data):
     except Exception as e:
         response_data = {
             "result": False,
-            "message": print(str(e))
+            "message": "Something went wrong"
         }
         return JsonResponse(response_data, status=400)
 
@@ -2810,7 +2804,7 @@ def create_excel_with_column_names_student(file_path,flag,related_id, sheet_name
     except Exception as e:
         response_data = {
             "result": False,
-            "message": str(e)
+            "message": "Something went wrong"
         }
         
         return response_data
@@ -3135,6 +3129,251 @@ def remove_student(student_id):
                     "message": "Something went wrong"
                 }
         return JsonResponse(response_data, status=400)
+
+
+#-----------------------------------------------------------------------------------------------------------#
+#-------------------------------------------------REPORT----------------------------------------------------#
+#-----------------------------------------------------------------------------------------------------------#
+
+
+
+
+def get_examreport(request, query):
+    try:
+        user = request.user
+        if user.business_type == "competitive":
+            exams = CompetitiveExams.objects.filter(business_owner=user.id, start_date__isnull=False)
+            if query.batch_id:
+                exams = exams.filter(batch=query.batch_id)
+            if query.subject_id:
+                exams = exams.filter(exam_data__subject=query.subject_id)
+            if query.start_date and query.end_date:
+                exams = exams.filter(start_date__gte=query.start_date, start_date__lte=query.end_date)
+        elif user.business_type == "academic":
+            exams = AcademicExams.objects.filter(business_owner=user.id, start_date__isnull=False)
+            if query.board_id:
+                exams = exams.filter(standard__medium_name__board_name=query.board_id)
+            if query.medium_id:
+                exams = exams.filter(standard__medium_name=query.medium_id)
+            if query.standard_id:
+                exams = exams.filter(standard=query.standard_id)
+            if query.subject_id:
+                exams = exams.filter(exam_data__subject=query.subject_id)
+            if query.start_date and query.end_date:
+                exams = exams.filter(start_date__gte=query.start_date, start_date__lte=query.end_date)
+        else:
+            return JsonResponse({
+                "result": False,
+                "message": "Invalid business type"
+            }, status=400)
+
+        exam_detail = []
+        for exam in exams:
+            results = Results.objects.filter(competitive_exam=exam.id) if user.business_type == "competitive" else Results.objects.filter(academic_exam=exam.id)
+            passed_students = results.filter(result='pass').count()
+            failed_students = results.filter(result='fail').count()
+            total_students = results.count()
+
+            exam_data = {
+                "id": str(exam.id),
+                "exam_title": exam.exam_title,
+                "total_question": exam.total_questions,
+                "time_duration": exam.time_duration,
+                "negative_marks": exam.negative_marks,
+                "total_marks": exam.total_marks,
+                "start_date": exam.start_date,
+                "total_students": total_students,
+                "passed_students": passed_students,
+                "failed_students": failed_students
+            }
+
+            if user.business_type == "academic":
+                exam_data.update({
+                    "board_id": str(exam.standard.medium_name.board_name.id),
+                    "board_name": exam.standard.medium_name.board_name.board_name,
+                    "medium_id": str(exam.standard.medium_name.id),
+                    "medium_name": exam.standard.medium_name.medium_name,
+                    "standard_id": str(exam.standard.id),
+                    "standard_name": exam.standard.standard,
+                })
+            else:
+                exam_data.update({
+                    "batch": str(exam.batch.id),
+                    "batch_name": exam.batch.batch_name,
+                })
+
+            exam_detail.append(exam_data)
+
+        paginated_comp_exam_data, items_per_page = paginate_data(request, exam_detail)
+
+        return {
+            "result": True,
+            "data": list(paginated_comp_exam_data) if paginated_comp_exam_data else [],
+            "message": "Data retrieved successfully",   
+            "pagination": {
+                "page": paginated_comp_exam_data.number,
+                "total_docs": paginated_comp_exam_data.paginator.count,
+                "total_pages": paginated_comp_exam_data.paginator.num_pages,
+                "per_page": items_per_page,
+            },
+        }
+    except Exception as e:
+        response_data = {
+            "result": False,
+            "message": "Something went wrong"
+        }
+        return JsonResponse(response_data, status=400)
+
+
+def generate_pdf_report(exam_detail):
+    buffer = BytesIO()
+    pdf = SimpleDocTemplate(buffer, pagesize=letter)
+    content = []
+
+    # Extract exam_info from exam_detail dictionary
+    header_data = [
+        [f"Exam Title: {exam_detail.get('exam_title', '')}",
+        f"Total Questions: {exam_detail.get('total_question', '')}",
+        f"Time Duration: {exam_detail.get('time_duration', '')}"],
+        [''],
+        [f"Negative Marks: {exam_detail.get('negative_marks', '')}",
+        f"Total Marks: {exam_detail.get('total_marks', '')}",
+        ],
+        [''],
+        [f"Start Date: {exam_detail.get('start_date', '')}"]
+    ]
+    if 'board_id' in exam_detail:
+        header_data.append([''])
+        header_data.append([f"Board Name: {exam_detail.get('board_name', '')}",
+                            f"Medium Name: {exam_detail.get('medium_name', '')}",
+                            f"Standard Name: {exam_detail.get('standard_name', '')}"
+                            ])
+        header_data.append([''])
+    elif 'batch' in exam_detail:
+        header_data.append([''])
+        header_data.append([f"Batch Name: {exam_detail.get('batch_name', '')}"])
+        header_data.append([''])
+    header_table = Table(header_data, colWidths=[2.3*inch, 2.3*inch, 2.3*inch])
+    header_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#3498db')),  # Set header background color
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),  # Set header text color
+        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+        ('FONTNAME', (0, 0), (-1, -1), 'Helvetica-Bold'),  # Use a bold font
+        ('FONTSIZE', (0, 0), (-1, -1), 12),  # Set font size
+    ]))
+    content.append(header_table)
+
+    # Extract students_data from exam_detail dictionary
+    students_data = exam_detail.get("students_data", [])
+    student_info = [['First Name', 'Last Name', 'Right Answers', 'Wrong Answers', 'Mark', 'Time']]
+    for student in students_data:
+        student_info.append([
+            student.get('student_first_name', ''),
+            student.get('student_last_name', ''),
+            str(student.get('total_right_answers', '')),
+            str(student.get('total_wrong_answers', '')),
+            str(student.get('mark', '')),
+            str(student.get('time', ''))
+        ])
+
+    students_table = Table(student_info, colWidths=[1.5*inch, 1.5*inch, 1*inch, 1*inch, 1*inch, 1*inch])
+    students_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#2ecc71')),  # Set table header background color
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),  # Set table header text color
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('GRID', (0, 0), (-1, -1), 1, colors.black),  # Add grid lines
+    ]))
+    content.append(students_table)
+
+    pdf.build(content)
+    buffer.seek(0)
+    response = HttpResponse(buffer.getvalue(), content_type='application/pdf')
+    response['Content-Disposition'] = 'attachment; filename="exam_report.pdf"'
+    buffer.close()
+    return response
+
+
+
+def exam_detail_report(request, exam_id, query):
+    try:
+        user_type = request.user.business_type
+        if user_type not in ["competitive", "academic"]:
+            raise ValueError("Invalid business type")
+        
+        exam_model = CompetitiveExams if user_type == "competitive" else AcademicExams
+        result_model = Results.objects.filter(competitive_exam=exam_id) if user_type == "competitive" else Results.objects.filter(academic_exam=exam_id)
+        exam = exam_model.objects.get(id=exam_id)
+        
+        exam_detail = {
+                "exam_title": exam.exam_title,
+                "total_question": exam.total_questions,
+                "time_duration": exam.time_duration,
+                "negative_marks": exam.negative_marks,
+                "total_marks": exam.total_marks,
+                "start_date": exam.start_date
+        }
+        if request.user.business_type == "academic":
+            exam_detail.update({
+                "board_id": str(exam.standard.medium_name.board_name.id),
+                "board_name": exam.standard.medium_name.board_name.board_name,
+                "medium_id": str(exam.standard.medium_name.id),
+                "medium_name": exam.standard.medium_name.medium_name,
+                "standard_id": str(exam.standard.id),
+                "standard_name": exam.standard.standard,
+            })
+        else:
+            exam_detail.update({
+                "batch": str(exam.batch.id),
+                "batch_name": exam.batch.batch_name,
+            })
+        students_data = []
+        for result in result_model:
+            student = Students.objects.get(id=result.student.id)
+            wrong_answers = StudentAnswers.objects.filter(
+                student=student.id,
+                competitive_exam=exam_id if user_type == "competitive" else None,
+                academic_exam=exam_id if user_type == "academic" else None,
+                is_correct__in=[False]
+            ).count()
+            right_answers = StudentAnswers.objects.filter(
+                student=student.id,
+                competitive_exam=exam_id if user_type == "competitive" else None,
+                academic_exam=exam_id if user_type == "academic" else None,
+                is_correct__in=[True]
+            ).count()
+
+            student_data = {
+                    "student_first_name": student.first_name,
+                    "student_last_name": student.last_name,
+                    "total_right_answers": right_answers,
+                    "total_wrong_answers": wrong_answers,
+                    "mark": result.score,
+                    "time": result.time_duration
+            }
+            students_data.append(student_data)
+
+        exam_detail["students_data"] = students_data
+
+        if query.generate_pdf:
+            pdf_response = generate_pdf_report(exam_detail)
+            return pdf_response
+
+        response_data = {
+            "result": True,
+            "data": exam_detail,
+            "message":"Report retrived successfully"
+        }
+        return response_data
+
+    except Exception as e:
+        response_data = {
+            "result": False,
+            "message": "Something went wrong"
+        }
+        return JsonResponse(response_data, status=400)
+
+
+
 
 
 
@@ -3697,7 +3936,7 @@ def get_boards_list(request,filter_prompt):
     except Exception as e:
         response_data = {
                     "result": False,
-                    "message": str(e)
+                    "message": "Something went wrong"
                 }
         return JsonResponse(response_data, status=400)
     
@@ -3869,6 +4108,7 @@ def create_competitive_question(competitive_chapter, question, options, answer, 
 
 def upload_from_xl(xl_file, user, flag,param_prompt):
     try:
+        
         xl_data = pd.read_excel(xl_file.file)
         created_boards = []
         existing_boards = []
@@ -3890,6 +4130,8 @@ def upload_from_xl(xl_file, user, flag,param_prompt):
         existing_competitive_chapters = [] 
         created_competitive_questions = []
         existing_competitive_questions = []
+        error_messages = []
+        error_messages2 = []
         for _, row in xl_data.iterrows():
             if flag == "board":
                 board_name = row.get("board_name")
@@ -3953,8 +4195,12 @@ def upload_from_xl(xl_file, user, flag,param_prompt):
                         if created:
                             created_chapters.append(chapter_instance)
 
-            elif flag == "question":
-                chapter_id = row.get("chapter_id")
+            elif flag == "academic_question":
+                board_name = row.get("board_name")
+                medium_name = row.get("medium_name")
+                standard_name = row.get("standard_name")
+                subject_name = row.get("subject_name")
+                chapter_name = row.get("chapter_name")
                 question_text = row.get("question")
                 option1 = row.get("option1")
                 option2 = row.get("option2")
@@ -3965,32 +4211,51 @@ def upload_from_xl(xl_file, user, flag,param_prompt):
                 marks = row.get("marks")
                 time_duration = row.get("time_duration")
 
-                if question_text and option1 and option2 and option3 and option4 and answer and question_category and marks and time_duration :
-                    academic_chapter_id = chapter_id
-                    academic_chapter = AcademicChapters.objects.get(id=academic_chapter_id)
+                if (
+                    board_name and medium_name and standard_name and subject_name and
+                    chapter_name and question_text and option1 and option2 and option3 and
+                    option4 and answer and question_category and marks and time_duration
+                ):
+                    # Find all academic chapters that match the criteria
+                    academic_chapters = AcademicChapters.objects.filter(
+                        subject_name__subject_name=subject_name,
+                        subject_name__standard__standard=standard_name,
+                        subject_name__standard__medium_name__medium_name=medium_name,
+                        subject_name__standard__medium_name__board_name__board_name=board_name,
+                        chapter_name=chapter_name,
+                        subject_name__standard__medium_name__board_name__business_owner=user
+                    )
 
-                    existing_question = AcademicQuestions.objects.filter(
-                        question=question_text,
-                    ).first()
-
-                    if existing_question:
-                        existing_questions.append(question_text)
+                    if not academic_chapters:
+                        error_messages.append("No matching academic chapters found.")
                     else:
-                        # Create options instance
-                        options_instance = Options.objects.create(
-                            option1=option1,
-                            option2=option2,
-                            option3=option3,
-                            option4=option4
-                        )
+                        for academic_chapter in academic_chapters:
+                            existing_question = AcademicQuestions.objects.filter(
+                                question=question_text,
+                                academic_chapter=academic_chapter
+                            ).first()
 
-                        # Create question instance
-                        question_instance, created = create_question(
-                            academic_chapter, question_text, options_instance, answer, question_category, marks, time_duration, user
-                        )
+                            if existing_question:
+                                existing_questions.append(question_text)
+                            else:
+                                # Create options instance
+                                options_instance = Options.objects.create(
+                                    option1=option1,
+                                    option2=option2,
+                                    option3=option3,
+                                    option4=option4
+                                )
 
-                        if created:
-                            created_questions.append(question_instance)
+                                # Create question instance
+                                question_instance, created = create_question(
+                                    academic_chapter, question_text, options_instance, answer, question_category, marks, time_duration, user
+                                )
+
+                                if created:
+                                    created_questions.append(question_instance)
+                else:
+                    error_messages2.append("some fileds are missing.")
+
 
             elif flag == "batch":
                 batch_name = row.get("batch_name")
@@ -4055,7 +4320,9 @@ def upload_from_xl(xl_file, user, flag,param_prompt):
 
 
             elif flag == "competitive_question":
-                chapter_id = row.get("chapter_id")
+                batch_name = row.get("batch_name")
+                subject_name = row.get("subject_name")
+                chapter_name = row.get("chapter_name")
                 question_text = row.get("question")
                 option1 = row.get("option1")
                 option2 = row.get("option2")
@@ -4065,35 +4332,47 @@ def upload_from_xl(xl_file, user, flag,param_prompt):
                 question_category = row.get("question_category")
                 marks = row.get("marks")
                 time_duration = row.get("time_duration")
+                competitive_question_image_path = row.get("competitive_question_image")
 
-                if question_text and option1 and option2 and option3 and option4 and answer and question_category and marks and time_duration:
-                    competitive_chapter_id = chapter_id
-                    competitive_chapter = CompetitiveChapters.objects.get(id=competitive_chapter_id)
+                if (
+                    batch_name and subject_name and
+                    chapter_name and question_text and option1 and option2 and option3 and
+                    option4 and answer and question_category and marks and time_duration
+                ):
 
-                    existing_question = CompetitiveQuestions.objects.filter(
-                        competitve_chapter=competitive_chapter,
-                        question=question_text,
-                    ).first()
-
-                    if existing_question:
-                        existing_competitive_questions.append(question_text)
+                    competitive_chapters = CompetitiveChapters.objects.filter(
+                        chapter_name=chapter_name,
+                        subject_name__business_owner = user
+                    )
+                    if not competitive_chapters:
+                        error_messages.append("No matching academic chapters found.")
                     else:
-                        # Create options instance
-                        options_instance = Options.objects.create(
-                            option1=option1,
-                            option2=option2,
-                            option3=option3,
-                            option4=option4
-                        )
+                        for competitive_chapter in competitive_chapters:
+                                existing_question = CompetitiveQuestions.objects.filter(
+                                    question=question_text,
+                                    competitve_chapter=competitive_chapter
+                                ).first()
 
-                        # Create question instance
-                        question_instance, created = create_competitive_question(
-                            competitive_chapter, question_text, options_instance, answer, question_category, marks, time_duration, user
-                        )
+                        if existing_question:
+                            existing_competitive_questions.append(question_text)
+                        else:
+                            # Create options instance
+                            options_instance = Options.objects.create(
+                                option1=option1,
+                                option2=option2,
+                                option3=option3,
+                                option4=option4
+                            )
 
-                        if created:
-                            created_competitive_questions.append(question_instance)
-            
+                            # Create question instance
+                            question_instance, created = create_competitive_question(
+                                competitive_chapter, question_text, options_instance, answer, question_category, marks, time_duration,user
+                            )
+
+                            if created:
+                                created_competitive_questions.append(question_instance)
+                else:
+                    error_messages2.append("some fileds are missing.")
             
                             
         response_data = {
@@ -4131,12 +4410,18 @@ def upload_from_xl(xl_file, user, flag,param_prompt):
 
         if existing_competitive_questions:
             response_data["message"] = "Some questions already exist."
+
+        if error_messages:
+            response_data["message"] = "chapter not found for this user."
+        
+        if error_messages2:
+            response_data["message"] = "some fileds are missing."
         return response_data
 
     except Exception as e:
         response_data = {
             "result": False,
-            "message": str(e)
+            "message": "Something went wrong"
         }
 
         return response_data
@@ -4167,8 +4452,26 @@ def create_excel_with_column_names(file_path,flag,related_id_name, sheet_name="S
         elif flag == "competitive_question":
             column_names = ["chapter_id","question","option1","option2","option3","option4","answer","question_category","marks","time_duration"] if related_id_name.chapter_id else ["plase enter chapter_id in params"]
         # Create a new workbook
-
-       
+        elif flag == "academic_subject":
+            if related_id_name.subject_id:
+                subject = AcademicSubjects.objects.get(id=related_id_name.subject_id)
+                chapters_related_to_subject = AcademicChapters.objects.filter(subject_name=related_id_name.subject_id)
+                subject_name = subject.subject_name
+                standard_name = subject.standard.standard
+                medium_name = subject.standard.medium_name.medium_name
+                board_name = subject.standard.medium_name.board_name.board_name
+            column_names = ["board_name","medium_name","standard_name","subject_name","chapter_name","question","option1","option2","option3","option4","answer","question_category","marks","time_duration"] if standard_name else ["plase enter standard_id in params"]
+        
+        elif flag == "competitve_subject":
+            if related_id_name.competitive_subject_id:
+                subject = CompetitiveSubjects.objects.get(id=related_id_name.competitive_subject_id)
+                chapters_related_to_subject = CompetitiveChapters.objects.filter(subject_name=related_id_name.competitive_subject_id)
+                if chapters_related_to_subject.exists():
+                    # Get all batch names for the chapters_related_to_subject
+                    batch_info = []
+                    for chapter in chapters_related_to_subject:
+                        batch_info.extend([{"batch_name": batch.batch_name} for batch in chapter.batches.all()])
+                column_names = ["batch_name","subject_name","chapter_name","question","competitive_question_image","option1","option2","option3","option4","answer","question_category","marks","time_duration"]
         file_path = f"format_{flag}.xlsx"
 
         workbook = xlsxwriter.Workbook(file_path)
@@ -4194,9 +4497,25 @@ def create_excel_with_column_names(file_path,flag,related_id_name, sheet_name="S
                 worksheet.write(row_num, 0, related_id_name.standard_id)
 
         
+        # elif related_id_name.subject_id:
+        #     for row_num in range(1, 30):  # Assuming 1000 rows for example
+        #         worksheet.write(row_num, 0, related_id_name.subject_id)
+
         elif related_id_name.subject_id:
-            for row_num in range(1, 30):  # Assuming 1000 rows for example
-                worksheet.write(row_num, 0, related_id_name.subject_id)
+            for row_num, chapter in enumerate(chapters_related_to_subject, start=1):
+                worksheet.write(row_num, 3, subject_name)
+                worksheet.write(row_num, 2, standard_name)
+                worksheet.write(row_num, 1, medium_name)
+                worksheet.write(row_num, 0, board_name)
+                worksheet.write(row_num, 4, chapter.chapter_name)
+
+        elif related_id_name.competitive_subject_id:
+            for row_num, chapter in enumerate(chapters_related_to_subject, start=1):
+                for batch in batch_info:
+                    worksheet.write(row_num, 0, batch["batch_name"])
+                    worksheet.write(row_num, 1, subject.subject_name)
+                    worksheet.write(row_num, 2, chapter.chapter_name)
+
 
         elif related_id_name.chapter_id:
             for row_num in range(1, 200):  # Assuming 1000 rows for example
@@ -4222,7 +4541,7 @@ def create_excel_with_column_names(file_path,flag,related_id_name, sheet_name="S
     except Exception as e:
         response_data = {
             "result": False,
-            "message": str(e)
+            "message": "Something went wrong"
         }
         
         return response_data
@@ -5786,7 +6105,7 @@ def update_question_data(data, question_id):
     except Exception as e:
         response_data = {
                     "result": False,
-                    "message": str(e)
+                    "message": "Something went wrong"
                 }
         return JsonResponse(response_data, status=400)
  
@@ -6050,7 +6369,7 @@ def create_academic_exam(user, data):
     except Exception as e:
         response_data = {
                     "result": False,
-                    "message": str(e)
+                    "message": "Something went wrong"
                 }
         return JsonResponse(response_data, status=400)
 
@@ -6127,7 +6446,7 @@ def get_acad_examlist(request, query):
     except Exception as e:
         response_data = {
             "result": False,
-            "message": str(e)
+            "message": "Something went wrong"
         }
         return JsonResponse(response_data, status=400)
     
@@ -6165,7 +6484,7 @@ def start_acad_exam(data):
     except Exception as e:
         response_data = {
             "result": False,
-            "message": print(str(e))
+            "message": print("Something went wrong")
         }
         return JsonResponse(response_data, status=400)
 
@@ -6225,10 +6544,7 @@ def get_acad_examreport(user, query):
                     "message": "Something went wrong"
                 }
         return JsonResponse(response_data, status=400)
-    
 
-
-from django.db import transaction
 
 def start_acad_CSExam(user, data):
     
@@ -6310,7 +6626,7 @@ def start_acad_CSExam(user, data):
     except Exception as e:
         response_data = {
             "result": False,
-            "message": str(e)
+            "message": "Something went wrong"
         }
         return JsonResponse(response_data, status=400)
 
