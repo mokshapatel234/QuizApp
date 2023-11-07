@@ -511,6 +511,7 @@ class Student(Schema):
     parent_contact_no: str
     profile_image: str =None
     address: str =None
+    status: str
     competitive: Optional[Competitive] 
     academic: Optional[Academic] 
 
@@ -1101,7 +1102,7 @@ class UpdateQuestionIn(Schema):
    chapter_id: Optional[UUID]
    question_category: Optional[str]
    marks: Optional[int]
-   time: Optional[int]
+   time: Optional[str]
    status: Optional[str]
 
 

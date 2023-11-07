@@ -365,6 +365,7 @@ def purchase_plan(data, user):
     try:  
         
         plan = Plans.objects.get(id=data.id)
+        business_user = BusinessOwners.objects.get(id=user.id)
         purchases = PurchaseHistory.objects.filter(plan=data.id, business_owner=user)
         for purchase in purchases:
             if purchase.expire_date > timezone.now():
@@ -393,7 +394,14 @@ def purchase_plan(data, user):
             "order_id": order_id,
             "price": plan.price,
             "validity":plan.validity,
-            "plan":purchase_history.plan.plan_name
+            "description":plan.description,
+            "plan":purchase_history.plan.plan_name,
+            "first_name":business_user.first_name,
+            "last_name":business_user.last_name,
+            "contact_no":business_user.contact_no,
+            "email":business_user.email
+
+
         }
         response_data = {
             "result": True,
@@ -1505,8 +1513,20 @@ def get_comp_chapterlist(request, query):
                     ]
                 }
                 chapters_list.append(subject_info)
-                
-            return chapters_list
+                paginated_comp_chapters, items_per_page = paginate_data(request, chapters_list)
+
+            return {
+                "result": True,
+                "data": list(paginated_comp_chapters),
+                "message": "Data retrieved successfully",   
+                "pagination": {
+                    "page": paginated_comp_chapters.number,
+                    "total_docs": paginated_comp_chapters.paginator.count,
+                    "total_pages": paginated_comp_chapters.paginator.num_pages,
+                    "per_page": items_per_page,
+                },
+            }
+
         else:
             chapters = CompetitiveChapters.objects.all().order_by('-created_at')
             for chapter in chapters:
@@ -2842,6 +2862,7 @@ def student_list(request, query):
                 "parent_contact_no": student.parent_contact_no,
                 "profile_image": student.profile_image.url if student.profile_image else None,
                 "address": student.address,
+                "status":student.status,
                 "competitive": {
                         "batch": str(student.batch.id) if student.batch else None,
                         "batch_name":student.batch.batch_name if student.batch else None
@@ -5440,7 +5461,18 @@ def get_academic_chapter_list(request, filter_prompt):
                     ]
                 }
                 academic_chapters_list.append(subject_info)
-            return academic_chapters_list
+            paginated_chapters, items_per_page = paginate_data(request, academic_chapters_list)
+            return {
+                "result": True,
+                "data": list(paginated_chapters),
+                "message": "Data retrieved successfully",   
+                "pagination": {
+                    "page": paginated_chapters.number,
+                    "total_docs": paginated_chapters.paginator.count,
+                    "total_pages": paginated_chapters.paginator.num_pages,
+                    "per_page": items_per_page,
+                },
+            }
         else:
             academic_chapters_list = [
                 {

@@ -260,7 +260,7 @@ def update_profile(user, data):
                         timestamp = int(time.time())
                         unique_filename = f"profile_image_{timestamp}.png"
                         
-                        # student.profile_image.save(unique_filename, ContentFile(image_data))
+                        student.profile_image.save(unique_filename, ContentFile(image_data))
         
                     else:
                         setattr(student, field, value)
@@ -718,7 +718,11 @@ def get_subject_list(user):
                 }
                 for subject in comp_subjects
             ]
-            return comp_subject_list
+            return {
+                "result": True,
+                "data": comp_subject_list,
+                "message": "Competitive subjects retrieved successfully."
+            }
         elif business_owner.business_type == "academic":
             academic_subjects = AcademicSubjects.objects.filter(standard__medium_name__board_name__business_owner=business_owner)
             user_standard = user.standard
@@ -731,7 +735,11 @@ def get_subject_list(user):
                 }
                 for subject in academic_subjects
             ]
-            return academic_subject_list
+            return {
+                "result": True,
+                "data": academic_subject_list,
+                "message": "Competitive subjects retrieved successfully."
+            }
         else:
             response_data = {
                 "result": False,

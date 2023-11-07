@@ -189,7 +189,7 @@ def update_subject(request, subject_id: UUID, data: updateSubjectIn):
 #-----------------------------------------------------------------------------------------------------------#
 
 
-@router.get("/academic/chapter", response={200:AcademicChapterResponse, 401:dict, 400:dict})
+@router.get("/academic/chapter", response={200:dict, 401:dict, 400:dict})
 @verify_token
 def get_academic_chapter(request,filter_prompt: AcademicFilter = Query(...)):
     result = get_academic_chapter_list(request, filter_prompt)

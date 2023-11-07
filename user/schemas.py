@@ -160,3 +160,8 @@ class ExamDetailModelResponse(Schema):
 class SubjectList(Schema):
     id: Optional[str]
     subject_name : Optional[str]
+
+class SubjectListResponse(Schema):
+    result: bool
+    data: List[Optional[SubjectList]]
+    message: str
