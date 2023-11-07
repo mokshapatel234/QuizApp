@@ -27,7 +27,8 @@ from reportlab.lib.pagesizes import letter
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle
 from django.http import HttpResponse
 from io import BytesIO
-
+from reportlab.lib import colors
+from reportlab.lib.units import inch
 
 def perform_login(data):
     try:
@@ -3204,24 +3205,34 @@ def generate_pdf_report(exam_detail):
 
     # Extract exam_info from exam_detail dictionary
     header_data = [
-        [f"Exam Title: {exam_detail.get('exam_title', '')}"],
-        [f"Total Questions: {exam_detail.get('total_question', '')}"],
-        [f"Time Duration: {exam_detail.get('time_duration', '')}"],
-        [f"Negative Marks: {exam_detail.get('negative_marks', '')}"],
-        [f"Total Marks: {exam_detail.get('total_marks', '')}"],
+        [f"Exam Title: {exam_detail.get('exam_title', '')}",
+        f"Total Questions: {exam_detail.get('total_question', '')}",
+        f"Time Duration: {exam_detail.get('time_duration', '')}"],
+        [''],
+        [f"Negative Marks: {exam_detail.get('negative_marks', '')}",
+        f"Total Marks: {exam_detail.get('total_marks', '')}",
+        ],
+        [''],
         [f"Start Date: {exam_detail.get('start_date', '')}"]
     ]
     if 'board_id' in exam_detail:
-        header_data.append([f"Board Name: {exam_detail.get('board_name', '')}"])
-        header_data.append([f"Medium Name: {exam_detail.get('medium_name', '')}"])
-        header_data.append([f"Standard Name: {exam_detail.get('standard_name', '')}"])
+        header_data.append([''])
+        header_data.append([f"Board Name: {exam_detail.get('board_name', '')}",
+                            f"Medium Name: {exam_detail.get('medium_name', '')}",
+                            f"Standard Name: {exam_detail.get('standard_name', '')}"
+                            ])
+        header_data.append([''])
     elif 'batch' in exam_detail:
+        header_data.append([''])
         header_data.append([f"Batch Name: {exam_detail.get('batch_name', '')}"])
-
-    header_table = Table(header_data)
+        header_data.append([''])
+    header_table = Table(header_data, colWidths=[2.3*inch, 2.3*inch, 2.3*inch])
     header_table.setStyle(TableStyle([
-        ('TEXTCOLOR', (0, 0), (-1, -1), (0, 0, 1)),
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#3498db')),  # Set header background color
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),  # Set header text color
         ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+        ('FONTNAME', (0, 0), (-1, -1), 'Helvetica-Bold'),  # Use a bold font
+        ('FONTSIZE', (0, 0), (-1, -1), 12),  # Set font size
     ]))
     content.append(header_table)
 
@@ -3238,11 +3249,12 @@ def generate_pdf_report(exam_detail):
             str(student.get('time', ''))
         ])
 
-    students_table = Table(student_info)
+    students_table = Table(student_info, colWidths=[1.5*inch, 1.5*inch, 1*inch, 1*inch, 1*inch, 1*inch])
     students_table.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), (0, 0, 0)),
-        ('TEXTCOLOR', (0, 0), (-1, 0), (1, 1, 1)),
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#2ecc71')),  # Set table header background color
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),  # Set table header text color
         ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('GRID', (0, 0), (-1, -1), 1, colors.black),  # Add grid lines
     ]))
     content.append(students_table)
 
