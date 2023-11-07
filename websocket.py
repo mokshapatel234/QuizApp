@@ -191,11 +191,12 @@ async def get_current_user(token: str, user_type: str):
 
 
 @sync_to_async
-def save_student_answer(academic_question, competitive_question, selected_answer, student_instance, competitive_exam, academic_exam):
+def save_student_answer(academic_question, competitive_question, selected_answer, is_correct, student_instance, competitive_exam, academic_exam):
     student_answer = StudentAnswers(
         academic_question=academic_question,
         competitive_question=competitive_question,
         selected_answer=selected_answer,
+        is_correct=is_correct,
         student=student_instance,
         competitive_exam=competitive_exam,
         academic_exam=academic_exam,
@@ -481,8 +482,10 @@ async def process_selected_answer(room_id, user_info, selected_answer, current_q
     if question:
         if question.answer == selected_answer:
             student_score += question.marks
+            is_correct = True
         elif negative_marks and question.answer != selected_answer:
             student_score -= negative_marks
+            is_correct = False
 
         student_instance = await get_student(student_id)
 
@@ -490,6 +493,7 @@ async def process_selected_answer(room_id, user_info, selected_answer, current_q
         question if user_info.standard_id else None,
         question if user_info.batch_id else None,
         selected_answer,
+        is_correct,
         student_instance,
         exam if user_info.batch_id else None,
         exam if user_info.standard_id else None

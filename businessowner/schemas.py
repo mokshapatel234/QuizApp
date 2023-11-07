@@ -566,12 +566,23 @@ class CompCreatestartExam(Schema):
     subject_data: List[subjectinfo]
     
 
+#-----------------------------------------------------------------------------------------------------------#
+#-------------------------------------------------REPORT----------------------------------------------------#
+#-----------------------------------------------------------------------------------------------------------#
 
 
+class ReportFilter(Schema):
+    batch_id: Optional[str]
+    board_id: Optional[str]
+    medium_id: Optional[str]
+    standard_id: Optional[str]
+    subject_id: Optional[str]
+    start_date: Optional[str]
+    end_date: Optional[str]
 
 
-
-
+class PdfDownload(Schema):
+    generate_pdf: bool
 
 
 
