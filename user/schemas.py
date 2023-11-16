@@ -65,7 +65,6 @@ class Profile(Schema):
     email: str
     contact_no: str
     profile_image: Optional[str]
-    months: List[str]
     selected_language: str
     total_exams:Optional[int]
     passed_exams:Optional[int]
@@ -152,8 +151,16 @@ class ExamDetailModel(Schema):
     medium_questions: List[QuestionModel]
     hard_questions: List[QuestionModel]
 
-
+class ExamDetailModelResponse(Schema):
+    result: bool
+    data: Optional[ExamDetailModel]
+    message: str
 
 class SubjectList(Schema):
     id: Optional[str]
     subject_name : Optional[str]
+
+class SubjectListResponse(Schema):
+    result: bool
+    data: List[Optional[SubjectList]]
+    message: str

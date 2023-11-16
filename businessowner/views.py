@@ -5,8 +5,7 @@ from ninja import Router, Query
 from .authentication import verify_token
 from typing import List
 from ninja.files import UploadedFile
-from ninja.pagination import paginate, PaginationBase
-from .paginator import CustomPagination
+
 
 
 router = Router()
@@ -162,7 +161,6 @@ def add_competitive_batch(request, data: BatchIn):
 
 @router.get("/competitive/batch",  response={200: BatchResponse, 400: dict, 401: dict})
 @verify_token
-# @paginate(CustomPagination)
 def get_competitive_batchlist(request, query:BatchFilter = Query(...)):
     return get_batchlist(request, query)
 
@@ -198,7 +196,6 @@ def add_competitive_subject(request, data: CompSubjectIn):
 
 @router.get("/competitive/subject",  response={200: CompSubjectResponse, 400: dict, 401: dict})
 @verify_token
-# @paginate(CustomPagination)
 def get_competitive_subjectlist(request, query:BatchFilter = Query(...)):
     return get_comp_subjectlist(request, query)
 
@@ -232,9 +229,8 @@ def add_competitive_chapter(request, data: CompChapterIn):
     return add_comp_chapter(data, request.user)
     
 
-@router.get("/competitive/chapter", response={200:CompChapterResponse, 400: dict, 401: dict})
+@router.get("/competitive/chapter", response={200:dict, 400: dict, 401: dict})
 @verify_token
-# @paginate(CustomPagination)
 def get_competitive_chapterlist(request, query:CompChapterFilter = Query(...)):
     return get_comp_chapterlist(request, query)
 
@@ -270,7 +266,6 @@ def add_competitive_question(request, data: QuestionIn):
 
 @router.get("/competitive/question", response={200: dict, 400: dict, 401: dict})
 @verify_token
-# @paginate(CustomPagination)
 def get_competitive_questionlist(request, query:CompQuestionFilter = Query(...)):
     return get_comp_questionlist(request, query)
 
@@ -312,7 +307,6 @@ def start_competitive_exam(request, data:CompExamQuestion):
 
 @router.get("/competitive/exam", response={200: CompExamOutResponse, 400: dict, 401: dict})
 @verify_token
-# @paginate(CustomPagination)
 def get_competitive_examlist(request, query:CompExamFilter = Query(...)):
     return get_comp_examlist(request, query)
 
@@ -348,7 +342,6 @@ def download_student_file(request,flag: str = Query(...),related_id: StudentdDat
 
 @router.get("/student", response={200: StudentResponse, 400: dict, 401: dict})
 @verify_token
-# @paginate(CustomPagination)
 def get_student_list(request, query: StudentFilter = Query(...)):
     return student_list(request, query)
 
@@ -380,10 +373,15 @@ def delete_student(request, student_id):
 #-----------------------------------------------------------------------------------------------------------#
 
 
-# @router.get("/competitive/examReport", response={200: List[dict], 400: dict, 401: dict})
-# @verify_token
-# @paginate(CustomPagination)
-# def get_competitive_examreport(request, query:CompExamFilter = Query(...)):
-#     return get_comp_examreport(request.user, query)
+@router.get("/examReport", response={200: dict, 400: dict, 401: dict})
+@verify_token
+def get_exam_report(request, query:ReportFilter = Query(...)):
+    return get_examreport(request, query)
+
+
+@router.get("/examReport/{exam_id}", response={200: dict, 400: dict, 401: dict})
+@verify_token
+def get_exam_detail_report(request, exam_id, query:PdfDownload = Query(...)):
+    return exam_detail_report(request, exam_id, query)
 
 

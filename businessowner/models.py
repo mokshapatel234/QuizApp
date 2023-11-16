@@ -631,6 +631,7 @@ class StudentAnswers(models.Model):
     academic_question = models.ForeignKey(AcademicQuestions, on_delete=models.CASCADE, related_name="question_acade")
     competitive_question = models.ForeignKey(CompetitiveQuestions, on_delete=models.CASCADE, related_name="question_comp")
     selected_answer = models.CharField(max_length=50)
+    is_correct = models.BooleanField(default=False)
     student = models.ForeignKey(Students, on_delete=models.CASCADE, related_name="student_answer")
     competitive_exam = models.ForeignKey(CompetitiveExams, on_delete=models.CASCADE, related_name="exam_comp")
     academic_exam = models.ForeignKey(AcademicExams, on_delete=models.CASCADE, related_name="exam_acade") 
