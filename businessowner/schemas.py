@@ -440,7 +440,7 @@ class CompExamOut(Schema):
     time_duration: float
     negative_marks: str
     total_marks:int
-    start_date: datetime
+    start_date: Optional[datetime]
     exam_datas: List[Exammm]
 
 
@@ -1105,7 +1105,8 @@ class UpdateQuestionIn(Schema):
    time: Optional[str]
    status: Optional[str]
 
-
+class PresignedUrl(Schema):
+    file_name: str
 #-----------------------------------------------------------------------------------------------------------#
 #---------------------------------------------------EXAM----------------------------------------------------#
 #-----------------------------------------------------------------------------------------------------------#

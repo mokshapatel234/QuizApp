@@ -65,7 +65,6 @@ class Profile(Schema):
     email: str
     contact_no: str
     profile_image: Optional[str]
-    months: List[str]
     selected_language: str
     total_exams:Optional[int]
     passed_exams:Optional[int]
