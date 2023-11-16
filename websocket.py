@@ -671,7 +671,7 @@ async def room_connection(
                    
             elif message == "finish":
                 await save_results(room_id, student_id, student_score, user_info,time_duration)
-                break
+                # break
 
             elif message.startswith("get_result"):
                 if user_info.business_type == "competitive":

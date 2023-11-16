@@ -27,8 +27,16 @@ from openpyxl import load_workbook
 from PIL import Image
 from io import BytesIO
 import openpyxl
-
-
+from openpyxl_image_loader import SheetImageLoader
+import boto3
+from dotenv import load_dotenv
+import pathlib
+s3_client = boto3.client(
+        's3',
+        aws_access_key_id='AKIAS5UGKMCVJSQA2DU7',
+        aws_secret_access_key='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',
+        region_name='ap-south-1'
+    )
 def perform_login(data):
     try:
         user = BusinessOwners.objects.get(email=data.email)
@@ -2158,7 +2166,7 @@ def create_comp_exam(user, data):
         def backtrack(selected_questions, remaining_time, remaining_marks, remaining_easy_questions, remaining_medium_questions, remaining_hard_questions, question_data_list):
             taken_time = time.time() - start_time
             if taken_time > 120:  # minutes in seconds
-                raise TimeoutError("Backtracking took too long")
+                raise TimeoutError("Questions not found.")
             if remaining_time < 0 and remaining_marks < 0:
                 return False
             if remaining_easy_questions == 0 and remaining_medium_questions == 0 and remaining_hard_questions == 0:
@@ -2534,7 +2542,7 @@ def start_comp_exam(data):
 
 def get_comp_examlist(request, query):
     try: 
-        exams = CompetitiveExams.objects.filter(business_owner=request.user, start_date__isnull=False).order_by('-created_at')
+        exams = CompetitiveExams.objects.filter(business_owner=request.user, start_date__isnull=True).order_by('-created_at')
         exam_list = []
         
         if query.batch_id:
@@ -2934,7 +2942,7 @@ def student_detail(student_id):
     except Exception as e:
         response_data = {
                     "result": False,
-                    "message": "Something went wrong"
+                    "message": str(e)
                 }
         return JsonResponse(response_data, status=400)
 
@@ -3796,7 +3804,15 @@ def create_chapter(chapter_name, subject_id):
     )
     return chapter_instance, created
 
-def create_question(academic_chapter, question, options, answer, question_category, marks, time_duration, business_owner):
+def create_question(academic_chapter, question, options, answer, question_category, marks, time_duration,img_data, business_owner):
+    if img_data:
+            # Handle the image data here
+            image_data = base64.b64decode(img_data)
+            timestamp = int(time.time())
+            unique_filename = f"question_{timestamp}.png"
+            academic_question_image = ContentFile(image_data, name=unique_filename)
+    else:
+        academic_question_image = None
     question_instance, created = AcademicQuestions.objects.get_or_create(
         academic_chapter=academic_chapter,
         question=question,
@@ -3806,6 +3822,7 @@ def create_question(academic_chapter, question, options, answer, question_catego
         marks=marks,
         time_duration=time_duration,
         business_owner=business_owner,
+        academic_question_image=academic_question_image
     )
     return question_instance, created
 
@@ -3838,7 +3855,16 @@ def create_competitive_chapter(chapter_name, subject_instance, batch_ids):
 
     return competitive_chapter_instance, created
 
-def create_competitive_question(competitive_chapter, question, options, answer, question_category, marks, time_duration, business_owner):
+def create_competitive_question(competitive_chapter, question, options, answer, question_category, marks, time_duration, img_data,business_owner):
+
+    if img_data:
+            # Handle the image data here
+            image_data = base64.b64decode(img_data)
+            timestamp = int(time.time())
+            unique_filename = f"question_{timestamp}.png"
+            competitive_question_image = ContentFile(image_data, name=unique_filename)
+    else:
+        competitive_question_image = None
     question_instance, created = CompetitiveQuestions.objects.get_or_create(
         competitve_chapter=competitive_chapter,
         question=question,
@@ -3848,12 +3874,103 @@ def create_competitive_question(competitive_chapter, question, options, answer, 
         marks=marks,
         time_duration=time_duration,
         business_owner=business_owner,
+        competitive_question_image=competitive_question_image
     )
     return question_instance, created
 
+def get_options_image_data(column_name, Option1_start_row, xl_file):
+    print(Option1_start_row, "start row")
+    bucket_name = os.getenv('AWS_STORAGE_BUCKET_NAME')
+    # Load the OpenPyXL workbook
+    pxl_doc = openpyxl.load_workbook(xl_file.file)
+
+    # Get the sheet containing the image
+    sheet = pxl_doc['Sheet1']
+
+    # Create an image loader object
+    image_loader = SheetImageLoader(sheet)
+
+    row_number = Option1_start_row
+
+    while True:
+        try:
+            cell_content = sheet[f'{column_name}{row_number}'].value
+            print(cell_content, "at cell content")
+            if isinstance(cell_content, str):
+                # If the cell contains text, yield it
+                yield cell_content
+            else:
+                image = image_loader.get(f'{column_name}{row_number}')
+                print(image)
+
+                if image:
+                    # Save the image to BytesIO
+                    image_stream = BytesIO()
+                    image.save(image_stream, format=image.format)
+                    image_stream.seek(0)
+                    timestamp = datetime.now().strftime("%Y%m%d%H%M%S%f")
+                    # Upload the image to S3
+                    s3_key = f"images/{column_name}_{row_number}_{timestamp}.{image.format}"
+                    s3_client.upload_fileobj(image_stream, bucket_name, s3_key)
+
+                    # Yield the S3 URL
+                    s3_url = f"https://{bucket_name}.s3.amazonaws.com/{s3_key}"
+                    yield s3_url
+                else:
+                    return None
+        except Exception as e:
+            return None
+        
+def get_image_data(column_name, start_row,xl_file):
+    print(start_row,"start row")
+    # Load the OpenPyXL workbook
+    pxl_doc = openpyxl.load_workbook(xl_file.file)
+
+    # Get the sheet containing the image
+    sheet = pxl_doc['Sheet1']
+
+    # Create an image loader object
+    image_loader = SheetImageLoader(sheet)
+
+    row_number = start_row
+
+    while True:
+        try:
+            # Get the image object
+            image = image_loader.get(f'{column_name}{row_number}')
+            
+            if image:
+                # Get the image format
+                image_format = image.format
+
+                # Save the image in the original format
+                image.save('image.{}'.format(image_format), format=image_format)
+
+                # Encode the binary data from the image as base64
+                with open('image.{}'.format(image_format), 'rb') as image_file:
+                    binary_data = image_file.read()
+                    base64_encoded_data = base64.b64encode(binary_data).decode('utf-8')
+
+                yield base64_encoded_data
+                
+            else:
+                return None
+            # row_number += 1
+        except Exception as e:
+            return None
+
+start_row = 2
+academic_start_row = 2
+Option1_start_row = 2
+Option2_start_row = 2
+Option3_start_row = 2
+Option4_start_row = 2
+aca_Option1_start_row = 2
+aca_Option2_start_row = 2
+aca_Option3_start_row = 2
+aca_Option4_start_row = 2
 def upload_from_xl(xl_file, user, flag,param_prompt):
     try:
-        
         xl_data = pd.read_excel(xl_file.file)
         created_boards = []
         existing_boards = []
@@ -3941,6 +4058,11 @@ def upload_from_xl(xl_file, user, flag,param_prompt):
                             created_chapters.append(chapter_instance)
 
             elif flag == "academic_question":
+                aca_column_name = "G"
+                aca_option1_column_name = 'H'
+                aca_option2_column_name = 'I'
+                aca_option3_column_name = 'J'
+                aca_option4_column_name = 'K'
                 board_name = row.get("board_name")
                 medium_name = row.get("medium_name")
                 standard_name = row.get("standard_name")
@@ -3955,7 +4077,14 @@ def upload_from_xl(xl_file, user, flag,param_prompt):
                 question_category = row.get("question_category")
                 marks = row.get("marks")
                 time_duration = row.get("time_duration")
+                global academic_start_row, aca_Option1_start_row,aca_Option2_start_row,aca_Option3_start_row,aca_Option4_start_row
 
+                image_generator = get_image_data(aca_column_name, academic_start_row,xl_file)
+                print(image_generator)
+                if image_generator is not None:
+                    img_data = next(image_generator, None)
+                academic_start_row +=1
+                
                 if (
                     board_name and medium_name and standard_name and subject_name and
                     chapter_name and question_text and option1 and option2 and option3 and
@@ -3983,23 +4112,48 @@ def upload_from_xl(xl_file, user, flag,param_prompt):
                             if existing_question:
                                 existing_questions.append(question_text)
                             else:
+                                image_option_1 = get_options_image_data(aca_option1_column_name, aca_Option1_start_row,xl_file)
+                                if image_option_1 is not None:
+                                    option1_data = next(image_option_1, None)
+                                    print(option1_data,"this is at option1 ")
+                                aca_Option1_start_row += 1
+
+                                image_option_2 = get_options_image_data(aca_option2_column_name, aca_Option2_start_row,xl_file)
+                                if image_option_2 is not None:
+                                    option2_data = next(image_option_2, None)
+                                    print(option2_data,"this is at option2 ")
+                                aca_Option2_start_row += 1
+
+                                image_option_3 = get_options_image_data(aca_option3_column_name, aca_Option3_start_row,xl_file)
+                                if image_option_3 is not None:
+                                    option3_data = next(image_option_3, None)
+                                    print(option3_data,"this is at option3 ")
+                                aca_Option3_start_row += 1
+
+                                image_option_4 = get_options_image_data(aca_option4_column_name, aca_Option4_start_row,xl_file)
+                                if image_option_4 is not None:
+                                    option4_data = next(image_option_4, None)
+                                    print(option4_data,"this is at option4 ")
+                                aca_Option4_start_row += 1
                                 # Create options instance
                                 options_instance = Options.objects.create(
-                                    option1=option1,
-                                    option2=option2,
-                                    option3=option3,
-                                    option4=option4
+                                    option1=option1_data,
+                                    option2=option2_data,
+                                    option3=option3_data,
+                                    option4=option4_data
                                 )
 
                                 # Create question instance
                                 question_instance, created = create_question(
-                                    academic_chapter, question_text, options_instance, answer, question_category, marks, time_duration, user
+                                    academic_chapter, question_text, options_instance, answer, question_category, marks, time_duration,img_data, user
                                 )
 
                                 if created:
                                     created_questions.append(question_instance)
+                        
                 else:
                     error_messages2.append("some fileds are missing.")
+                
 
 
             elif flag == "batch":
@@ -4065,6 +4219,11 @@ def upload_from_xl(xl_file, user, flag,param_prompt):
 
 
             elif flag == "competitive_question":
+                column_name = 'E'  # Example column name
+                option1_column_name = 'F'
+                option2_column_name = 'G'
+                option3_column_name = 'H'
+                option4_column_name = 'I'
                 batch_name = row.get("batch_name")
                 subject_name = row.get("subject_name")
                 chapter_name = row.get("chapter_name")
@@ -4077,8 +4236,14 @@ def upload_from_xl(xl_file, user, flag,param_prompt):
                 question_category = row.get("question_category")
                 marks = row.get("marks")
                 time_duration = row.get("time_duration")
-                competitive_question_image_path = row.get("competitive_question_image")
-
+                global start_row, Option1_start_row,Option2_start_row,Option3_start_row,Option4_start_row
+         
+                image_generator = get_image_data(column_name, start_row,xl_file)
+            
+                if image_generator is not None:
+                    img_data = next(image_generator, None)
+    
+                start_row += 1             
                 if (
                     batch_name and subject_name and
                     chapter_name and question_text and option1 and option2 and option3 and
@@ -4090,35 +4255,72 @@ def upload_from_xl(xl_file, user, flag,param_prompt):
                         subject_name__business_owner = user
                     )
                     if not competitive_chapters:
-                        error_messages.append("No matching academic chapters found.")
+                        error_messages.append("No matching competitive chapters found.")
                     else:
                         for competitive_chapter in competitive_chapters:
-                                existing_question = CompetitiveQuestions.objects.filter(
-                                    question=question_text,
-                                    competitve_chapter=competitive_chapter
-                                ).first()
+                            existing_question = CompetitiveQuestions.objects.filter(
+                                question=question_text,
+                                competitve_chapter=competitive_chapter
+                            ).first()
 
-                        if existing_question:
-                            existing_competitive_questions.append(question_text)
-                        else:
-                            # Create options instance
-                            options_instance = Options.objects.create(
-                                option1=option1,
-                                option2=option2,
-                                option3=option3,
-                                option4=option4
-                            )
+                            if existing_question:
+                                existing_competitive_questions.append(question_text)
+                                # print(existing_competitive_questions)
+                            else:
+                                image_option_1 = get_options_image_data(option1_column_name, Option1_start_row,xl_file)
+                                if image_option_1 is not None:
+                                    option1_data = next(image_option_1, None)
+                                    print(option1_data,"this is at option1 ")
+                                Option1_start_row += 1
 
-                            # Create question instance
-                            question_instance, created = create_competitive_question(
-                                competitive_chapter, question_text, options_instance, answer, question_category, marks, time_duration,user
-                            )
+                                image_option_2 = get_options_image_data(option2_column_name, Option2_start_row,xl_file)
+                                if image_option_2 is not None:
+                                    option2_data = next(image_option_2, None)
+                                    print(option2_data,"this is at option2 ")
+                                Option2_start_row += 1
 
-                            if created:
-                                created_competitive_questions.append(question_instance)
+                                image_option_3 = get_options_image_data(option3_column_name, Option3_start_row,xl_file)
+                                if image_option_3 is not None:
+                                    option3_data = next(image_option_3, None)
+                                    print(option3_data,"this is at option3 ")
+                                Option3_start_row += 1
+
+                                image_option_4 = get_options_image_data(option4_column_name, Option4_start_row,xl_file)
+                                if image_option_4 is not None:
+                                    option4_data = next(image_option_4, None)
+                                    print(option4_data,"this is at option4 ")
+                                Option4_start_row += 1
+
+                                
+                                options_instance = Options.objects.create(
+                                    
+                                    option1=option1_data,
+                                    option2=option2_data,
+                                    option3=option3_data,
+                                    option4=option4_data
+                                )
+                                print(options_instance)
+                                # Create question instance
+                                question_instance, created = create_competitive_question(
+                                    competitive_chapter, question_text, options_instance, answer, question_category, marks, time_duration,img_data,user
+                                )
+
+                                if created:
+                                    created_competitive_questions.append(question_instance)
+                                
                 else:
                     error_messages2.append("some fileds are missing.")
-            
+        
+        academic_start_row = 2
+        start_row = 2 
+        Option1_start_row = 2 
+        Option2_start_row = 2
+        Option3_start_row = 2
+        Option4_start_row = 2  
+        aca_Option1_start_row = 2
+        aca_Option2_start_row = 2
+        aca_Option3_start_row = 2
+        aca_Option4_start_row = 2
                             
         response_data = {
             "result": True,
@@ -4169,7 +4371,7 @@ def upload_from_xl(xl_file, user, flag,param_prompt):
             "message": str(e)
         }
 
-        return response_data
+
         
 import xlsxwriter
 from fastapi.responses import JSONResponse
@@ -5858,7 +6060,7 @@ def create_academic_exam(user, data):
         def backtrack(selected_questions, remaining_time, remaining_marks, remaining_easy_questions, remaining_medium_questions, remaining_hard_questions, question_data_list):
             taken_time = time.time() - start_time
             if taken_time > 120:  # minutes in seconds
-                raise TimeoutError("Backtracking took too long")
+                raise TimeoutError("Questions not found.")
             if remaining_time < 0 and remaining_marks < 0:
                 return False
             if remaining_easy_questions == 0 and remaining_medium_questions == 0 and remaining_hard_questions == 0:
@@ -6109,7 +6311,7 @@ def create_academic_exam(user, data):
 
 def get_acad_examlist(request, query):
     try: 
-        exams = AcademicExams.objects.filter(business_owner=request.user, start_date__isnull=False).order_by('-created_at')
+        exams = AcademicExams.objects.filter(business_owner=request.user, start_date__isnull=True).order_by('-created_at')
        
         if query.standard:
             exams = exams.filter(standard=query.standard)
@@ -6128,6 +6330,7 @@ def get_acad_examlist(request, query):
                      Q(exam_title__icontains=term)
                     | Q(status__icontains=term)
                 )
+            exams = exams.filter(search_query)
        
         exam_list = []
         for exam in exams:
@@ -6180,7 +6383,7 @@ def get_acad_examlist(request, query):
     except Exception as e:
         response_data = {
             "result": False,
-            "message": str(e)
+            "message": "Something went wrong"
         }
         return JsonResponse(response_data, status=400)
     
@@ -6307,8 +6510,7 @@ def start_acad_CSExam(user, data):
             total_marks=data.total_marks,
             negative_marks=data.negative_marks,
             option_e=data.option_e,
-            business_owner=user,
-            start_date=datetime.now()  # Set the start date
+            business_owner=user  
         )
 
         # Get a list of selected question IDs from the provided data
@@ -6448,3 +6650,26 @@ def get_exam_result(user,exam_id):
     except Exception as e:
         print(f"Error fetching results: {e}")
         return {"error": "An error occurred while fetching results."}
+
+
+def get_presigned_key(filename):
+   key = int(datetime.timestamp(datetime.now()))
+   file_name = filename+'_'+str(key)
+   return f"media/options_images/{filename}"
+
+def create_presignedurl(file_name):
+    try:
+        file_name = file_name    
+        ext = pathlib.Path(file_name).suffix
+        prefix = pathlib.Path(file_name).stem
+        key = get_presigned_key(prefix) + str(ext)
+        try:
+            response = s3_client.generate_presigned_post(
+            Bucket=os.getenv('AWS_STORAGE_BUCKET_NAME'), Key=key, ExpiresIn=500
+            )
+            return {"status":200,"result": True, "data": response}
+        except Exception as e:
+            print(e)
+
+    except Exception as e:
+        return {"status":400,"result": False, "error": str(e)}

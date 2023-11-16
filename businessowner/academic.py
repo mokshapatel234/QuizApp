@@ -232,6 +232,11 @@ def add_question(request,data: QuestionIn):
     result = add_question_data(request.user, data)  
     return result
 
+@router.get("/getPresignedUrl", response={200: dict, 401: dict,400:dict})
+@verify_token
+def get_presignedurl(request,file_name:str):
+    result = create_presignedurl(file_name)  
+    return result
 
 @router.get("/academic/question", response={200:dict, 401:dict, 400:dict})
 @verify_token

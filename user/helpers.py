@@ -194,10 +194,7 @@ def get_profile(user, query):
         failed_exams = len(failed_result)
         
         print(total_exams, passed_exams, failed_exams)
-        months = [
-            'January', 'February', 'March', 'April', 'May', 'June',
-            'July', 'August', 'September', 'October', 'November', 'December'
-        ]
+    
         profile_data = Profile(
             id=str(student.id),
             first_name=student.first_name,
@@ -206,7 +203,6 @@ def get_profile(user, query):
             contact_no=student.contact_no,
             profile_image=student.profile_image.url if student.profile_image else None,
             selected_language=student.selected_language,
-            months=months,
             total_exams=total_exams if total_exams else None,  # Added this line
             passed_exams=passed_exams if passed_exams else None,  # Added this line
             failed_exams=failed_exams if failed_exams else None 
