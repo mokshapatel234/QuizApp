@@ -23,26 +23,8 @@ from django.core.files.base import ContentFile  # Import ContentFile
 import os
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 from django.db.models import F
-from reportlab.lib.pagesizes import letter
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle
-from django.http import HttpResponse
-from io import BytesIO
-from reportlab.lib import colors
-from reportlab.lib.units import inch
-from openpyxl import load_workbook
-from PIL import Image
-from io import BytesIO
-import openpyxl
-from openpyxl_image_loader import SheetImageLoader
-import boto3
-from dotenv import load_dotenv
-import pathlib
-s3_client = boto3.client(
-        's3',
-        aws_access_key_id='AKIAS5UGKMCVJSQA2DU7',
-        aws_secret_access_key='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',
-        region_name='ap-south-1'
-    )
+
+
 def perform_login(data):
     try:
         user = BusinessOwners.objects.get(email=data.email)
@@ -1826,6 +1808,7 @@ def get_comp_questionlist(request, query):
     try:
         base_query = CompetitiveQuestions.objects.filter(business_owner=request.user).order_by('-created_at')
         search_query = Q()
+
         if query:
             if query.search:
                 search_query |= (
@@ -1838,10 +1821,10 @@ def get_comp_questionlist(request, query):
                     | Q(marks__icontains=query.search)
                     | Q(time_duration__icontains=query.search)
                     | Q(status__icontains=query.search)
-                    )
+                )
             elif query.status:
                 search_query &= Q(status=query.status)
-                
+
             elif query.batch_id and query.chapter_id:
                 search_query &= Q(competitve_chapter=query.chapter_id)
 
@@ -1854,19 +1837,19 @@ def get_comp_questionlist(request, query):
             elif query.subject_id:
                 search_query &= Q(competitve_chapter__subject_name=query.subject_id)
 
-            # elif query.batch_id:
-            #     batch_id = query.batch_id
-            #     questions = [question for question in questions if str(batch_id) in [str(batch.id) for batch in question.competitve_chapter.batches.all()]]
-
             elif query.question_category:
                 search_query &= Q(question_category=query.question_category)
-            
-        batch_ids = [] 
+
         questions = base_query.filter(search_query)
-        for question in questions:
-            batch_info = [{"id": str(batch.id)} for batch in question.competitve_chapter.batches.all()]
-            batch_id = [info['id'] for info in batch_info]
-            batch_ids.append(batch_id[0])
+        batch_name_to_id = {}
+        for question_data in questions.values('id', 'competitve_chapter__batches__batch_name'):
+            batch_name = question_data['competitve_chapter__batches__batch_name']
+            if batch_name not in batch_name_to_id:
+                try:
+                    batch = CompetitiveBatches.objects.get(batch_name=batch_name)
+                    batch_name_to_id[batch_name] = str(batch.id)
+                except CompetitiveBatches.DoesNotExist:
+                    batch_name_to_id[batch_name] = None
 
         question_list = questions.values(
             'id', 'question', 'competitive_question_image', 'answer', 'marks', 'time_duration', 'status', 'created_at', 'updated_at', 'options_id', 'question_category',
@@ -1877,70 +1860,40 @@ def get_comp_questionlist(request, query):
             batch_name=F('competitve_chapter__batches__batch_name')
         )
 
-        for question, batch_id in zip(question_list, batch_ids):
-            question['batch_id'] = str(batch_id)
+        options_data = Options.objects.filter(id__in=question_list.values_list('options_id', flat=True))
+        options_dict = {option.id: option for option in options_data}
+
+        # Add options to the question_list
         for question_data in question_list:
-    
-            options_data = Options.objects.filter(id=question_data['options_id']).values(
-                'option1', 'option2', 'option3', 'option4'
-            ).first()
-            question_data['options'] = {
-                'option1': options_data['option1'] if options_data else None,
-                'option2': options_data['option2'] if options_data else None,
-                'option3': options_data['option3'] if options_data else None,
-                'option4': options_data['option4'] if options_data else None,
-            }
-            page = request.GET.get('page', 1)
-            items_per_page = request.GET.get('per_page', 5)
-            paginator = Paginator(question_list, items_per_page)
+            option_id = question_data['options_id']
+            options_data = options_dict.get(option_id)
+            if options_data:
+                question_data['options'] = {
+                    'option1': options_data.option1,
+                    'option2': options_data.option2,
+                    'option3': options_data.option3,
+                    'option4': options_data.option4,
+                }
+            else:
+                question_data['options'] = {}
 
-            try:
-                question_list = paginator.page(page)
-            except PageNotAnInteger:
-                question_list = paginator.page(1)
-            except EmptyPage:
-                question_list = paginator.page(paginator.num_pages)
+            batch_name = question_data['batch_name']
+            question_data['batch_id'] = batch_name_to_id.get(batch_name)
 
-            return  {
+
+        paginated_comp, items_per_page = paginate_data(request, question_list)
+
+        return {
                 "result": True,
-                "data": list(question_list),
-                "message":"Data retrieved successfully",
+                "data": list(paginated_comp),
+                "message": "Data retrieved successfully",   
                 "pagination": {
-                    "page": question_list.number,
-                    "total_docs": paginator.count,
-                    "total_pages": paginator.num_pages,
-                    "per_page": items_per_page
+                    "page": paginated_comp.number,
+                    "total_docs": paginated_comp.paginator.count,
+                    "total_pages": paginated_comp.paginator.num_pages,
+                    "per_page": items_per_page,
                 },
-            } 
-            
-            # options_dict = {
-            #     "option1": options_data.option1 if options_data else None,
-            #     "option2": options_data.option2 if options_data else None,
-            #     "option3": options_data.option3 if options_data else None,
-            #     "option4": options_data.option4 if options_data else None,
-            # }
-            # batch_info = [{"id": str(batch.id), "batch_name": batch.batch_name} for batch in question.competitve_chapter.batches.all()]
-            # question_data = {
-            #         # "id": str(question.id),
-            #         # "question": question.question,
-            #         # "question_image":question.competitive_question_image.url if question.competitive_question_image else None,
-            #         # "answer": question.answer,
-            #         # "options": options_dict,  
-            #         "chapter_id": str(question.competitve_chapter.id),
-            #         "chapter_name": question.competitve_chapter.chapter_name,
-            #         "subject_id": str(question.competitve_chapter.subject_name.id),
-            #         "subject_name": question.competitve_chapter.subject_name.subject_name, 
-            #         "batches": batch_info,
-            #         # "question_category": question.question_category,
-            #         # "marks": str(question.marks),
-            #         # "time": str(question.time_duration),
-            #         # "status": question.status,
-            #         # "created_at":question.created_at,
-            #         # "updated_at":question.updated_at
-            #     }
-            # question_list.append(question_data)
-   
-            
+            }
 
     except CompetitiveChapters.DoesNotExist:
         response_data = {
@@ -1948,7 +1901,7 @@ def get_comp_questionlist(request, query):
             "message": "Chapter not found"
         }
         return JsonResponse(response_data, status=400)
-    
+
     except CompetitiveQuestions.DoesNotExist:
         response_data = {
             "result": False,
@@ -1957,10 +1910,9 @@ def get_comp_questionlist(request, query):
         return JsonResponse(response_data, status=400)
 
     except Exception as e:
-        print(e)
         response_data = {
                     "result": False,
-                    "message": "Something went wrong"
+                    "message": str(e)
                 }
         return JsonResponse(response_data, status=400)
 
@@ -2259,12 +2211,12 @@ def create_comp_exam(user, data):
             "subject_marks": subject_marks,
             # Include other relevant data if needed
         })
-            chapter_instance = CompetitiveChapters.objects.filter(id__in=subject_data.chapter)
-            chapters = list(chapter_instance)
-            chapter_ids = [f"{item.id}," for item in chapters]
-            chapters = " ".join(chapter_ids)
-            question_data = CompetitiveQuestions.objects.filter(competitve_chapter__subject_name=subject_instance)
-            question_data = question_data.filter(competitve_chapter__id__in=subject_data.chapter)
+            # chapter_instance = CompetitiveChapters.objects.filter(id__in=subject_data.chapter)
+            # chapters = list(chapter_instance)
+            # chapter_ids = [f"{item.id}," for item in chapters]
+            # chapters = " ".join(chapter_ids)
+            # question_data = CompetitiveQuestions.objects.filter(competitve_chapter__subject_name=subject_instance)
+            question_data = CompetitiveQuestions.objects.filter(competitve_chapter__id__in=subject_data.chapter)
             question_data_list = list(question_data)
             
             selected_questions_set1 = []
@@ -2301,21 +2253,7 @@ def create_comp_exam(user, data):
                 remaining_time = subject_time
                 backtrack_result_set3 = backtrack(selected_questions_set3, remaining_time, remaining_marks, subject_data.easy_question, subject_data.medium_question, subject_data.hard_question, question_data_list)
 
-
             if backtrack_result_set1:
-                exam_data_instance = CompetitiveExamData(
-                    subject=subject_instance,
-                    easy_question=subject_data.easy_question,
-                    chapter=chapters,
-                    medium_question=subject_data.medium_question,
-                    hard_question=subject_data.hard_question,
-                    time_per_subject=subject_time,
-                    marks_per_subject=subject_marks,
-                )
-                # exam_data_instance.save() 
-
-                exam_data_calculated.append(exam_data_instance)
-
                 for question in selected_questions_set1:
                     options_data = Options.objects.get(id=question.options_id)
                     options_dict = {
@@ -2384,22 +2322,7 @@ def create_comp_exam(user, data):
                     selected_comp_questions_set3.append(comp_exam_instance)
 
             print("------------------------------------------------------")
-       
 
-        exam_instance = CompetitiveExams(
-            exam_title=data.exam_title,
-            batch=batch_instance,
-            total_questions=data.total_questions,
-            time_duration=data.time_duration,
-            passing_marks=data.passing_marks,
-            total_marks=data.total_marks,
-            negative_marks=data.negative_marks,
-            option_e=data.option_e,
-            business_owner=user
-        )
-        # exam_instance.save()
-        for exam in exam_data_calculated:
-            exam_instance.exam_data.add(exam) 
         
         result = {
             # "exam_id": exam_instance.id,
@@ -6048,17 +5971,22 @@ def get_academic_question_list(request, filter_prompt):
             # question_category=F('question_category'),
         )
 
+        options_data = Options.objects.filter(id__in=question_list.values_list('options_id', flat=True))
+        options_dict = {option.id: option for option in options_data}
+
         # Add options to the question_list
         for question_data in question_list:
-            options_data = Options.objects.filter(id=question_data['options_id']).values(
-                'option1', 'option2', 'option3', 'option4'
-            ).first()
-            question_data['options'] = {
-                'option1': options_data['option1'] if options_data else None,
-                'option2': options_data['option2'] if options_data else None,
-                'option3': options_data['option3'] if options_data else None,
-                'option4': options_data['option4'] if options_data else None,
-            }
+            option_id = question_data['options_id']
+            options_data = options_dict.get(option_id)
+            if options_data:
+                question_data['options'] = {
+                    'option1': options_data.option1,
+                    'option2': options_data.option2,
+                    'option3': options_data.option3,
+                    'option4': options_data.option4,
+                }
+            else:
+                question_data['options'] = {}
 
         paginated_question_list,items_per_page = paginate_data(request, question_list)
         print(paginated_question_list)
@@ -6410,12 +6338,12 @@ def create_academic_exam(user, data):
             # Include other relevant data if needed
         })
 
-            chapter_instance = AcademicChapters.objects.filter(id__in=subject_data.chapter)
-            chapters = list(chapter_instance)
-            chapter_ids = [f"{item.id}," for item in chapters]
-            chapters = " ".join(chapter_ids)
-            question_data = AcademicQuestions.objects.filter(academic_chapter__subject_name=subject_instance)
-            question_data = question_data.filter(academic_chapter__id__in=subject_data.chapter)
+            # chapter_instance = AcademicChapters.objects.filter(id__in=subject_data.chapter)
+            # chapters = list(chapter_instance)
+            # chapter_ids = [f"{item.id}," for item in chapters]
+            # chapters = " ".join(chapter_ids)
+            # question_data = (academic_chapter__subject_name=subject_instance)
+            question_data = AcademicQuestions.objects.filter(academic_chapter__id__in=subject_data.chapter)
             question_data_list = list(question_data)
             
             selected_questions_set1 = []
@@ -6454,19 +6382,7 @@ def create_academic_exam(user, data):
 
 
             if backtrack_result_set1:
-                exam_data_instance = AcademicExamData(
-                    subject=subject_instance,
-                    easy_question=subject_data.easy_question,
-                    chapter=chapters,
-                    medium_question=subject_data.medium_question,
-                    hard_question=subject_data.hard_question,
-                    time_per_subject=subject_time,
-                    marks_per_subject=subject_marks,
-                )
-                # exam_data_instance.save() 
-
-                exam_data_calculated.append(exam_data_instance)
-
+    
                 for question in selected_questions_set1:
                     options_data = Options.objects.get(id=question.options_id)
                     options_dict = {
@@ -6534,23 +6450,7 @@ def create_academic_exam(user, data):
                     selected_acad_questions_set3.append(acad_exam_instance)
 
             # print("------------------------------------------------------")
-       
 
-        exam_instance = AcademicExams(
-            exam_title=data.exam_title,
-            standard=standard_instance,
-            total_questions=data.total_questions,
-            time_duration=data.time_duration,
-            passing_marks=data.passing_marks,
-            total_marks=data.total_marks,
-            negative_marks=data.negative_marks,
-            option_e=data.option_e,
-            business_owner=user
-        )
-        # exam_instance.save()
-        for exam in exam_data_calculated:
-            exam_instance.exam_data.add(exam) 
-        # subject_json = serializers.serialize('json', [subject_instance])
         
         result = {
             "subject_data": subject_data_list,
