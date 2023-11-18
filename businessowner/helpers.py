@@ -22,8 +22,28 @@ from urllib.request import urlopen
 from django.core.files.base import ContentFile  # Import ContentFile
 import os
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
+from reportlab.lib.pagesizes import letter
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle
+from django.http import HttpResponse
+from io import BytesIO
+from reportlab.lib import colors
+from reportlab.lib.units import inch
 from django.db.models import F
+from PIL import Image
+from io import BytesIO
+import openpyxl
 
+
+from openpyxl_image_loader import SheetImageLoader
+import boto3
+from dotenv import load_dotenv
+import pathlib
+s3_client = boto3.client(
+        's3',
+        aws_access_key_id='AKIAS5UGKMCVJSQA2DU7',
+        aws_secret_access_key='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',
+        region_name='ap-south-1'
+    )
 
 def perform_login(data):
     try:
@@ -2655,14 +2675,14 @@ def upload_student(xl_file, user):
                 "address": row["address"],
             }
 
-            standard_id = row.get("standard_id")  # Change to "standard_id"
-            if standard_id:
-                standard_instance = AcademicStandards.objects.get(id=standard_id)  # Use standard_id
+            standard_name = row.get("standard_name")  # Change to "standard_id"
+            if standard_name:
+                standard_instance = AcademicStandards.objects.get(standard=standard_name)
                 student_info["standard"] = standard_instance
 
-            batch_id = row.get("batch_id")  # Change to "batch_id"
-            if batch_id:
-                batch_instance = CompetitiveBatches.objects.get(id=batch_id)  # Use batch_id
+            batch_name = row.get("batch_name")  # Change to "batch_id"
+            if batch_name:
+                batch_instance = CompetitiveBatches.objects.get(batch_name=batch_name)  # Use batch_id
                 student_info["batch"] = batch_instance
             
             existing_student = Students.objects.filter(business_owner=user, contact_no=student_info["contact_no"]).first()
@@ -2693,17 +2713,26 @@ def upload_student(xl_file, user):
 def create_excel_with_column_names_student(file_path,flag,related_id, sheet_name="Sheet1"):
 
     try:
+        timestamp = int(time.time())
         
         if flag == "standard":
-            column_names = ["standard_id","first_name","last_name","email","contact_no","parent_name","parent_contact_no","address"] if related_id.standard_id else ["standard_name"]
+            if related_id.standard_id:
+                standard = AcademicStandards.objects.get(id=related_id.standard_id)
+                standard_name = standard.standard
+                print(standard_name)
+            column_names = ["standard_name","first_name","last_name","email","contact_no","parent_name","parent_contact_no","address"] if related_id.standard_id else ["standard_name"]
     
         elif flag == "batch":
-            column_names = ["batch_id","first_name","last_name","email","contact_no","parent_name","parent_contact_no","address"] if related_id.batch_id else ["batch_name"]
+            if related_id.batch_id:
+                batch = CompetitiveBatches.objects.get(id=related_id.batch_id)
+                batch_name = batch.batch_name
+
+            column_names = ["batch_name","first_name","last_name","email","contact_no","parent_name","parent_contact_no","address"] if related_id.batch_id else ["batch_name"]
     
         # Create a new workbook
 
        
-        file_path = f"format_{flag}.xlsx"
+        file_path = f"{timestamp}.xlsx"
 
         workbook = xlsxwriter.Workbook(file_path)
         worksheet = workbook.add_worksheet(sheet_name)
@@ -2716,11 +2745,11 @@ def create_excel_with_column_names_student(file_path,flag,related_id, sheet_name
         
         if related_id.standard_id:
             for row_num in range(1, 30):  # Assuming 1000 rows for example
-                worksheet.write(row_num, 0, related_id.standard_id)
+                worksheet.write(row_num, 0, standard_name)
 
         elif related_id.batch_id:
             for row_num in range(1, 30):  # Assuming 1000 rows for example
-                worksheet.write(row_num, 0, related_id.batch_id)
+                worksheet.write(row_num, 0, batch_name)
 
         # Close the workbook
         workbook.close()
@@ -2729,7 +2758,7 @@ def create_excel_with_column_names_student(file_path,flag,related_id, sheet_name
             file_content = file.read()
         
         response = HttpResponse(file_content, content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
-        response['Content-Disposition'] = f'attachment; filename={file_path}'
+        response['Content-Disposition'] = f'attachment; filename=add_student_formate_{file_path}'
         return response
        
     except Exception as e:
@@ -3158,6 +3187,7 @@ def get_examreport(request, query):
 
 def generate_pdf_report(exam_detail):
     buffer = BytesIO()
+    timestamp = int(time.time())
     pdf = SimpleDocTemplate(buffer, pagesize=letter)
     content = []
 
@@ -3171,7 +3201,11 @@ def generate_pdf_report(exam_detail):
         f"Total Marks: {exam_detail.get('total_marks', '')}",
         ],
         [''],
-        [f"Start Date: {exam_detail.get('start_date', '')}"]
+        [f"Passed_students: {exam_detail.get('passed_students','')}",
+         f"failed_students: {exam_detail.get('failed_students','')}",
+         f"total_students:{exam_detail.get('total_students','')}"],
+        [''],
+        [f"Start Date: {exam_detail.get('start_date', '')}"],
     ]
     if 'board_id' in exam_detail:
         header_data.append([''])
@@ -3218,8 +3252,9 @@ def generate_pdf_report(exam_detail):
 
     pdf.build(content)
     buffer.seek(0)
+    filename = f"exam_report_{timestamp}.pdf"
     response = HttpResponse(buffer.getvalue(), content_type='application/pdf')
-    response['Content-Disposition'] = 'attachment; filename="exam_report.pdf"'
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
     buffer.close()
     return response
 
@@ -3233,6 +3268,9 @@ def exam_detail_report(request, exam_id, query):
         
         exam_model = CompetitiveExams if user_type == "competitive" else AcademicExams
         result_model = Results.objects.filter(competitive_exam=exam_id) if user_type == "competitive" else Results.objects.filter(academic_exam=exam_id)
+        passed_students = result_model.filter(result='pass').count()
+        failed_students = result_model.filter(result='fail').count()
+        total_students = result_model.count()
         exam = exam_model.objects.get(id=exam_id)
         
         exam_detail = {
@@ -3241,7 +3279,10 @@ def exam_detail_report(request, exam_id, query):
                 "time_duration": exam.time_duration,
                 "negative_marks": exam.negative_marks,
                 "total_marks": exam.total_marks,
-                "start_date": exam.start_date
+                "start_date": exam.start_date,
+                "passed_students": passed_students,
+                "failed_students": failed_students,
+                "total_students": total_students
         }
         if request.user.business_type == "academic":
             exam_detail.update({
@@ -3299,7 +3340,7 @@ def exam_detail_report(request, exam_id, query):
     except Exception as e:
         response_data = {
             "result": False,
-            "message": "Something went wrong"
+            "message": str(e)
         }
         return JsonResponse(response_data, status=400)
 
@@ -4556,6 +4597,7 @@ from fastapi.responses import JSONResponse
 from django.http import HttpResponse
 def create_excel_with_column_names(file_path,flag,related_id_name, sheet_name="Sheet1"):
     try:
+        timestamp = int(time.time())
         if flag == "board":
             column_names = ["board_name"]
         elif flag == "medium":
@@ -4597,7 +4639,10 @@ def create_excel_with_column_names(file_path,flag,related_id_name, sheet_name="S
                     for chapter in chapters_related_to_subject:
                         batch_info.extend([{"batch_name": batch.batch_name} for batch in chapter.batches.all()])
                 column_names = ["batch_name","subject_name","chapter_name","question","competitive_question_image","option1","option2","option3","option4","answer","question_category","marks","time_duration"]
-        file_path = f"format_{flag}.xlsx"
+        if flag == "competitve_subject":
+            file_path = f"competitve_questions_format_{timestamp}.xlsx"
+        else:
+            file_path = f"academic_questions_format_{timestamp}.xlsx"
 
         workbook = xlsxwriter.Workbook(file_path)
         worksheet = workbook.add_worksheet(sheet_name)
