@@ -213,7 +213,7 @@ class BatchResponse(Schema):
     result: bool
     data: List[Batch]
     message: str
-    pagination: PaginationInfo
+    pagination: Optional[PaginationInfo]
 
 class BatchOut(Schema):
     result: bool
@@ -224,6 +224,7 @@ class BatchFilter(Schema):
     status: Optional[str]
     search: Optional[str]
     chapter_id: Optional[str]
+    all_data : Optional[bool]
 
 
 #-----------------------------------------------------------------------------------------------------------#
@@ -252,7 +253,7 @@ class CompSubjectResponse(Schema):
     result: bool
     data: List[CompSubject]
     message: str
-    pagination: PaginationInfo
+    pagination: Optional[PaginationInfo]
 
 class CompSubjectOut(Schema):
     result: bool
@@ -283,6 +284,7 @@ class CompChapterFilter(Schema):
     subject_id: Optional[str]
     search: Optional[str]
     subject_ids: Optional[str]
+    all_data : Optional[bool]
 
 class ChapterBatch(Schema):
     id: str
@@ -337,6 +339,7 @@ class CompQuestionFilter(Schema):
     batch_id: Optional[str]
     question_category: Optional[str]
     search: Optional[str]
+    all_data : Optional[bool]
     
 class OptionUpdateSchema(Schema):
     option1: Optional[str]
@@ -488,6 +491,7 @@ class StudentFilter(Schema):
     medium_id: Optional[str]
     standard_id: Optional[str]
     search: Optional[str]
+    all_data : Optional[bool]
 
 class Competitive(Schema):
     batch: str =None
@@ -511,7 +515,7 @@ class Student(Schema):
     parent_contact_no: str
     profile_image: str =None
     address: str =None
-    status: str
+    # status: str
     competitive: Optional[Competitive] 
     academic: Optional[Academic] 
 
@@ -519,7 +523,7 @@ class StudentResponse(Schema):
     result: bool
     data: List[Student]
     message: str
-    pagination: PaginationInfo
+    pagination: Optional[PaginationInfo]
 
 class StudentOut(Schema):
     result: bool
@@ -829,7 +833,7 @@ class BoardsListResponse(Schema):
     result: bool
     data: List[AcademicBoardSchema]
     message: str
-    pagination: PaginationInfo
+    pagination: Optional[PaginationInfo]
 
 class BoardSchema(Schema):
     board_name: str
@@ -853,6 +857,7 @@ class AcademicFilter(Schema):
     subject_id : Optional[str]
     chapter_id : Optional[str]
     subject_ids: Optional[str]
+    all_data : Optional[bool]
 
 class AcademicBoardOut(Schema):
     result: bool
@@ -884,7 +889,7 @@ class AcademicMediumResponse(Schema):
     result: bool
     data: List[AcademicMedium]
     message: str
-    pagination: PaginationInfo
+    pagination: Optional[PaginationInfo]
 
 class AddAcademicMediumIn(Schema):
     medium_name: str
@@ -926,7 +931,7 @@ class AcademicStandardResponse(Schema):
     result: bool
     data: List[AcademicStandard]
     message: str
-    pagination: PaginationInfo
+    pagination: Optional[PaginationInfo]
 
 class AcademicStandardOut(Schema):
     result : bool
@@ -966,7 +971,7 @@ class AcademicSubjectResponse(Schema):
     result: bool
     data: List[AcademicSubject]
     message: str
-    pagination: PaginationInfo
+    pagination: Optional[PaginationInfo]
 
 class AcademicSubjectList(Schema):
     result : bool

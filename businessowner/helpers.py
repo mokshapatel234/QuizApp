@@ -1047,13 +1047,14 @@ def get_batchlist(request, query):
         batches = CompetitiveBatches.objects.filter(business_owner=request.user).order_by('-created_at')
         chapters = CompetitiveChapters.objects.filter(subject_name__business_owner=request.user)
 
+        filter_conditions = {}
+        
         if query.chapter_id:
             chapters = chapters.filter(id=query.chapter_id)
             if chapters.exists():
                 chapter = chapters.first()
                 batches = chapter.batches.all().order_by('-created_at')
-        if query.status:
-            batches = batches.filter(status=query.status)
+        
         if query.search:
             search_terms = query.search.strip().split()  
             search_query = Q()  
@@ -1061,8 +1062,13 @@ def get_batchlist(request, query):
                 search_query |= Q(batch_name__icontains=term) | Q(status__icontains=term) 
 
             batches = batches.filter(search_query)
+        
+        if query.status:
+            filter_conditions['status'] = query.status
+        
+        batches = batches.filter(**filter_conditions)
+        
         business_owner = BusinessOwners.objects.get(id=request.user.id)
-    
         batches_list = [
             {
                 "id": str(batch.id),
@@ -1075,6 +1081,13 @@ def get_batchlist(request, query):
             }
             for batch in batches
         ]
+        if query.all_data:
+            return {
+                "result": True,
+                "data": batches_list,
+                "message": "All data retrieved successfully",
+            }
+        
         paginated_batches, items_per_page = paginate_data(request, batches_list)
 
         return {
@@ -1255,8 +1268,12 @@ def add_comp_subect(data, user):
 def get_comp_subjectlist(request, query):
     try:
         subjects = CompetitiveSubjects.objects.filter(business_owner=request.user).order_by('-created_at')
+
+        filter_conditions = {}
+
         if query.status:
-            subjects = subjects.filter(status=query.status)
+            filter_conditions['status'] = query.status
+
         if query.search:
             search_terms = query.search.strip().split()  
             search_query = Q()  
@@ -1264,7 +1281,12 @@ def get_comp_subjectlist(request, query):
                 search_query |= Q(subject_name__icontains=term)  | Q(status__icontains=term)
 
             subjects = subjects.filter(search_query)
+
+            subjects = subjects.filter(**filter_conditions)
+
+        
         business_owner = BusinessOwners.objects.get(id=request.user.id)
+
         subject_list = [
             {
                 "id": str(subject.id),
@@ -1277,6 +1299,14 @@ def get_comp_subjectlist(request, query):
             }
             for subject in subjects
         ]
+
+        if query.all_data:
+            return {
+                "result": True,
+                "data": subject_list,
+                "message": "All data retrieved successfully",
+            }
+
         paginated_comp_subjects, items_per_page = paginate_data(request, subject_list)
 
         return {
@@ -1488,13 +1518,15 @@ def get_comp_chapterlist(request, query):
     try:
         chapters = CompetitiveChapters.objects.filter(subject_name__business_owner=request.user).order_by('-created_at')
 
+        filter_conditions = {}
+
         if query.status:
-            chapters = chapters.filter(status=query.status)
+            filter_conditions['status'] = query.status
         if query.subject_id:
-            chapters = chapters.filter(subject_name=query.subject_id)
+            filter_conditions['subject_name'] = query.subject_id
         if query.batch_id:
             batch_id = query.batch_id
-            chapters = [chapter for chapter in chapters if str(batch_id) in [str(batch.id) for batch in chapter.batches.all()]]
+            filter_conditions['batches__id'] = batch_id
         if query.search:
             search_terms = query.search.strip().split()  
             search_query = Q()  
@@ -1502,8 +1534,10 @@ def get_comp_chapterlist(request, query):
                 search_query |= Q(chapter_name__icontains=term) | Q(subject_name__subject_name__icontains=term) | Q(batches__batch_name__icontains=term) | Q(status__icontains=term)
 
             chapters = chapters.filter(search_query)
-        
+            print(chapters)
 
+        chapters = chapters.filter(**filter_conditions)
+        
         chapters_list = []
         if query.subject_ids:
             subject_ids_str = query.subject_ids.strip()
@@ -1523,6 +1557,14 @@ def get_comp_chapterlist(request, query):
                     ]
                 }
                 chapters_list.append(subject_info)
+
+                if query.all_data:
+                    return {
+                    "result": True,
+                    "data": chapters_list,
+                    "message": "All data retrieved successfully",
+                    }
+
                 paginated_comp_chapters, items_per_page = paginate_data(request, chapters_list)
 
             return {
@@ -1538,7 +1580,6 @@ def get_comp_chapterlist(request, query):
             }
 
         else:
-            chapters = CompetitiveChapters.objects.all().order_by('-created_at')
             for chapter in chapters:
                 subject_id = CompetitiveSubjects.objects.get(id=chapter.subject_name_id)
                 batch_info = [{"id": str(batch.id), "batch_name": batch.batch_name} for batch in chapter.batches.all()]
@@ -1554,6 +1595,13 @@ def get_comp_chapterlist(request, query):
                 }
                 
                 chapters_list.append(chapter_data)
+
+            if query.all_data:
+                return {
+                "result": True,
+                "data": chapters_list,
+                "message": "All data retrieved successfully",
+                }
             paginated_comp_chapters, items_per_page = paginate_data(request, chapters_list)
 
             return {
@@ -1900,7 +1948,14 @@ def get_comp_questionlist(request, query):
             batch_name = question_data['batch_name']
             question_data['batch_id'] = batch_name_to_id.get(batch_name)
 
-
+        question_list = [question_data for question_data in question_list if question_data['batch_id'] is not None]
+        if query.all_data:
+            # Return all data without pagination
+            return {
+                "result": True,
+                "data": list(question_list),
+                "message": "All data retrieved successfully",
+            }
         paginated_comp, items_per_page = paginate_data(request, question_list)
 
         return {
@@ -2838,6 +2893,13 @@ def student_list(request, query):
                 
             }
             student_list.append(student_data)
+        
+        if query.all_data:
+            return {
+                "result": True,
+                "data": list(student_list),
+                "message": "All data retrieved successfully",
+            }
 
         paginated_comp_exam_data, items_per_page = paginate_data(request, student_list)
 
@@ -3863,12 +3925,17 @@ def get_boards_list(request,filter_prompt):
     try:
         academic_boards = AcademicBoards.objects.filter(business_owner=request.user).order_by('-created_at')
 
+        filter_conditions = {}
+        
         if filter_prompt.search:
             q_objects = Q(board_name__icontains=filter_prompt.search) | Q(business_owner__business_name__icontains=filter_prompt.search)
             academic_boards = academic_boards.filter(q_objects)
             
-        elif filter_prompt.status:
-            academic_boards = academic_boards.filter(status=filter_prompt.status)
+        if filter_prompt.status:
+            filter_conditions['status'] = filter_prompt.status
+
+        if filter_conditions:
+            academic_boards = academic_boards.filter(**filter_conditions)
         # else:
         #     academic_boards = AcademicBoards.objects.all()
         
@@ -3883,6 +3950,13 @@ def get_boards_list(request,filter_prompt):
             }
             for board in academic_boards
         ]
+        if filter_prompt.all_data:
+            return {
+                "result": True,
+                "data": academic_list,
+                "message": "All data retrieved successfully",
+            }
+
         paginated_boards, items_per_page = paginate_data(request, academic_list)
 
         return {
@@ -3908,7 +3982,7 @@ def get_boards_list(request,filter_prompt):
     except Exception as e:
         response_data = {
                     "result": False,
-                    "message": "Something went wrong"
+                    "message": str(e)
                 }
         return JsonResponse(response_data, status=400)
     
@@ -4802,37 +4876,23 @@ def get_academic_mediums_list(request, filter_prompt):
     try:
         academic_mediums = AcademicMediums.objects.filter(board_name__business_owner=request.user).order_by('-created_at')
 
+        filter_conditions = {}
+
         if filter_prompt.search:
             q_objects = Q(medium_name__icontains=filter_prompt.search) | Q(board_name__board_name__icontains=filter_prompt.search)
             academic_mediums = academic_mediums.filter(q_objects)
 
-        elif filter_prompt.status and filter_prompt.board_id and filter_prompt.medium_id:
-            academic_mediums = academic_mediums.filter(
-                status=filter_prompt.status,
-                board_name__id=filter_prompt.board_id,
-                id=filter_prompt.medium_id
-            )
-        elif filter_prompt.status and filter_prompt.board_id:
-            academic_mediums = academic_mediums.filter(
-                status=filter_prompt.status,
-                board_name__id=filter_prompt.board_id
-            )
-        elif filter_prompt.status and filter_prompt.medium_id:
-            academic_mediums = academic_mediums.filter(
-                status=filter_prompt.status,
-                id=filter_prompt.medium_id
-            )
-        elif filter_prompt.board_id and filter_prompt.medium_id:
-            academic_mediums = academic_mediums.filter(
-                board_name__id=filter_prompt.board_id,
-                id=filter_prompt.medium_id
-            )
-        elif filter_prompt.status:
-            academic_mediums = academic_mediums.filter(status=filter_prompt.status)
-        elif filter_prompt.board_id:
-            academic_mediums = academic_mediums.filter(board_name__id=filter_prompt.board_id)
-        elif filter_prompt.medium_id:
-            academic_mediums = academic_mediums.filter(id=filter_prompt.medium_id)
+        else: 
+            if filter_prompt.status:
+                filter_conditions['status'] = filter_prompt.status
+            if filter_prompt.board_id:
+                filter_conditions['board_name__id'] = filter_prompt.board_id
+            # if filter_prompt.medium_id:
+            #     filter_conditions['id'] = filter_prompt.medium_id
+
+            if filter_conditions:
+                academic_mediums = academic_mediums.filter(**filter_conditions)
+
         academic_medium_list = [
             {
                 "id": str(medium.id),
@@ -4845,6 +4905,13 @@ def get_academic_mediums_list(request, filter_prompt):
             }
             for medium in academic_mediums
         ]
+        if filter_prompt.all_data:
+            return {
+                "result": True,
+                "data": academic_medium_list,
+                "message": "All data retrieved successfully",
+            }
+
         paginated_mediums, items_per_page = paginate_data(request, academic_medium_list)
 
         return {
@@ -5058,7 +5125,8 @@ def delete_medium_data(user,medium_id):
 def get_academic_standard_list(request, filter_prompt):
     try:
         academic_standards = AcademicStandards.objects.filter(medium_name__board_name__business_owner=request.user).order_by('-created_at')
-        
+
+        filter_conditions = {}
 
         if filter_prompt.search:
             q_objects = (
@@ -5067,19 +5135,19 @@ def get_academic_standard_list(request, filter_prompt):
             )
             academic_standards = academic_standards.filter(q_objects)
 
-        elif filter_prompt.medium_id and filter_prompt.board_id:
-            academic_standards = academic_standards.filter(medium_name__id=filter_prompt.medium_id)
-        elif filter_prompt.status:
-            academic_standards = academic_standards.filter(status=filter_prompt.status)
-        elif filter_prompt.medium_id:
-            academic_standards = academic_standards.filter(medium_name__id=filter_prompt.medium_id)
-        elif filter_prompt.board_id:
-            academic_standards = academic_standards.filter(medium_name__board_name__id=filter_prompt.board_id)
-        elif filter_prompt.standard_id:
-            academic_standards = academic_standards.filter(id=filter_prompt.standard_id)
-
         else:
-            academic_standards = AcademicStandards.objects.filter(medium_name__board_name__business_owner=request.user)
+            if filter_prompt.medium_id:
+                filter_conditions['medium_name__id'] = filter_prompt.medium_id
+            if filter_prompt.board_id:
+                filter_conditions['medium_name__board_name__id'] = filter_prompt.board_id
+            if filter_prompt.status:
+                filter_conditions['status'] = filter_prompt.status
+            # if filter_prompt.standard_id:
+            #     filter_conditions['id'] = filter_prompt.standard_id
+
+            if filter_conditions:
+                academic_standards = academic_standards.filter(**filter_conditions)
+
         academic_standard_list = [
             {
                 "id": str(standards.id),
@@ -5094,6 +5162,12 @@ def get_academic_standard_list(request, filter_prompt):
             }
             for standards in academic_standards
         ]
+        if filter_prompt.all_data:
+            return {
+                "result": True,
+                "data": academic_standard_list,
+                "message": "All data retrieved successfully",
+            }
         
         paginated_standards, items_per_page = paginate_data(request, academic_standard_list)
 
@@ -5306,8 +5380,9 @@ def update_standard_data(user,data,standard_id):
 def get_academic_subject_list(request, filter_prompt):
     try:
         academic_subjects = AcademicSubjects.objects.filter(standard__medium_name__board_name__business_owner=request.user).order_by('-created_at')
-        print(academic_subjects,'asdfaf')
-        q_objects = Q()
+
+        filter_conditions = {}
+        
         if filter_prompt.search:
             q_objects = (
                 Q(subject_name__icontains=filter_prompt.search) |
@@ -5316,30 +5391,31 @@ def get_academic_subject_list(request, filter_prompt):
             academic_subjects = academic_subjects.filter(q_objects)
             
         elif filter_prompt.status:
-            q_objects &= Q(status=filter_prompt.status)
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     
+            filter_conditions['status'] = filter_prompt.status
+
         elif filter_prompt.medium_id and filter_prompt.board_id and filter_prompt.standard_id:
-            q_objects &= (
-                Q(standard__medium_name__id=filter_prompt.medium_id) &
-                Q(standard__medium_name__board_name__id=filter_prompt.board_id) &
-                Q(standard__id=filter_prompt.standard_id)
-            )
+            filter_conditions['standard__medium_name__id'] = filter_prompt.medium_id
+            filter_conditions['standard__medium_name__board_name__id'] = filter_prompt.board_id
+            filter_conditions['standard__id'] = filter_prompt.standard_id
+
         elif filter_prompt.medium_id and filter_prompt.board_id:
-            q_objects &= (
-                Q(standard__medium_name__id=filter_prompt.medium_id) &
-                Q(standard__medium_name__board_name__id=filter_prompt.board_id)
-            )
+            filter_conditions['standard__medium_name__id'] = filter_prompt.medium_id
+            filter_conditions['standard__medium_name__board_name__id'] = filter_prompt.board_id
+
         elif filter_prompt.medium_id:
-            q_objects &= Q(standard__medium_name__id=filter_prompt.medium_id)
+            filter_conditions['standard__medium_name__id'] = filter_prompt.medium_id
+
         elif filter_prompt.board_id:
-            q_objects &= Q(standard__medium_name__board_name__id=filter_prompt.board_id)
+            filter_conditions['standard__medium_name__board_name__id'] = filter_prompt.board_id
+
         elif filter_prompt.standard_id:
-            q_objects &= Q(standard__id=filter_prompt.standard_id)
+            filter_conditions['standard__id'] = filter_prompt.standard_id
 
-        elif filter_prompt.subject_id:
-            q_objects &= Q(id=filter_prompt.subject_id)
+        # elif filter_prompt.subject_id:
+        #     filter_conditions['id'] = filter_prompt.subject_id
 
-        academic_subjects = academic_subjects.filter(q_objects)
+        if filter_conditions:
+            academic_subjects = academic_subjects.filter(**filter_conditions)
 
         academic_subject_list = [
             {
@@ -5357,6 +5433,14 @@ def get_academic_subject_list(request, filter_prompt):
             }
             for subject in academic_subjects
         ]
+
+        if filter_prompt.all_data:
+            return {
+                "result": True,
+                "data": academic_subject_list,
+                "message": "All data retrieved successfully",
+            } 
+
         paginated_subjects, items_per_page = paginate_data(request, academic_subject_list)
 
         return {
@@ -5578,7 +5662,8 @@ def update_subject_data(user,data,subject_id):
 def get_academic_chapter_list(request, filter_prompt):
     try:
         academic_chapters = AcademicChapters.objects.filter(subject_name__standard__medium_name__board_name__business_owner=request.user).order_by('-created_at')
-        
+    
+        filter_conditions = {}
 
         if filter_prompt.search:
             q_objects = (
@@ -5587,29 +5672,32 @@ def get_academic_chapter_list(request, filter_prompt):
                 Q(status__icontains=filter_prompt.search)
             )
             academic_chapters = academic_chapters.filter(q_objects)
+
         elif filter_prompt.board_id and filter_prompt.medium_id and filter_prompt.standard_id and filter_prompt.subject_id:
-            academic_chapters = academic_chapters.filter(subject_name__id=filter_prompt.subject_id)
+            filter_conditions['subject_name__id'] = filter_prompt.subject_id
 
         elif filter_prompt.board_id and filter_prompt.medium_id and filter_prompt.standard_id:
-            academic_chapters = academic_chapters.filter(subject_name__standard_id__id=filter_prompt.standard_id)
+            filter_conditions['subject_name__standard_id__id'] = filter_prompt.standard_id
 
         elif filter_prompt.board_id and filter_prompt.medium_id:
-            academic_chapters = academic_chapters.filter(subject_name__standard__medium_name__id=filter_prompt.medium_id)
+            filter_conditions['subject_name__standard__medium_name__id'] = filter_prompt.medium_id
 
         elif filter_prompt.status:
-            academic_chapters = academic_chapters.filter(status=filter_prompt.status)
+            filter_conditions['status'] = filter_prompt.status
 
         elif filter_prompt.medium_id:
-            academic_chapters = academic_chapters.filter(subject_name__standard__medium_name__id=filter_prompt.medium_id)
+            filter_conditions['subject_name__standard__medium_name__id'] = filter_prompt.medium_id
 
         elif filter_prompt.board_id:
-            academic_chapters = academic_chapters.filter(subject_name__standard__medium_name__board_name__id=filter_prompt.board_id)
+            filter_conditions['subject_name__standard__medium_name__board_name__id'] = filter_prompt.board_id
 
         elif filter_prompt.subject_id:
-            academic_chapters = academic_chapters.filter(subject_name__id=filter_prompt.subject_id)
+            filter_conditions['subject_name__id'] = filter_prompt.subject_id
 
         elif filter_prompt.chapter_id:
-            academic_chapters = academic_chapters.filter(id=filter_prompt.chapter_id)
+            filter_conditions['id'] = filter_prompt.chapter_id
+
+        academic_chapters = academic_chapters.filter(**filter_conditions)
         
         academic_chapters_list = []
 
@@ -5631,6 +5719,8 @@ def get_academic_chapter_list(request, filter_prompt):
                     ]
                 }
                 academic_chapters_list.append(subject_info)
+            
+
             paginated_chapters, items_per_page = paginate_data(request, academic_chapters_list)
             return {
                 "result": True,
@@ -5662,6 +5752,13 @@ def get_academic_chapter_list(request, filter_prompt):
                 }
                 for chapter in academic_chapters
             ]
+
+            if filter_prompt.all_data:
+                return {
+                "result": True,
+                "data": academic_chapters_list,
+                "message": "All data retrieved successfully",
+            }
             paginated_chapters, items_per_page = paginate_data(request, academic_chapters_list)
 
             return {
@@ -5996,7 +6093,7 @@ def get_academic_question_list(request, filter_prompt):
                 q_objects &= Q(academic_chapter__subject_name__standard__medium_name__id=filter_prompt.medium_id)
             elif filter_prompt.board_id:
                 q_objects &= Q(academic_chapter__subject_name__standard__medium_name__board_name__id=filter_prompt.board_id)
-
+            
         # Apply filters to the base query
         questions = base_query.filter(q_objects)
 
@@ -6032,6 +6129,13 @@ def get_academic_question_list(request, filter_prompt):
                 }
             else:
                 question_data['options'] = {}
+            
+        if filter_prompt.all_data:
+                return {
+                    "result": True,
+                    "data": list(question_list),
+                    "message": "All data retrieved successfully",
+                }
 
         paginated_question_list,items_per_page = paginate_data(request, question_list)
         print(paginated_question_list)
