@@ -1867,7 +1867,7 @@ def add_comp_question(user,data):
     except Exception as e:
         response_data = {
                     "result": False,
-                    "message": "Something went wrong"
+                    "message": str(e)
                 }
         return JsonResponse(response_data, status=400)
  
@@ -2586,8 +2586,7 @@ def get_comp_examlist(request, query):
                 #         })
                 exam_data_list.append({"subject": subject_name, "chapters": chapter})
 
-            exam_detail = [
-                {
+            exam_detail = {
                 "id":str(exam.id),
                 "exam_title": exam.exam_title,
                 "batch": str(exam.batch.id),
@@ -2599,9 +2598,9 @@ def get_comp_examlist(request, query):
                 "start_date":exam.start_date,
                 "exam_datas": exam_data_list
             }
-            ]
+            
             exam_list.append(exam_detail)
-        paginated_comp_exam_data, items_per_page = paginate_data(request, exam_detail)
+        paginated_comp_exam_data, items_per_page = paginate_data(request, exam_list)
 
         return {
             "result": True,
