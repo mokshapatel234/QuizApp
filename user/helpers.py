@@ -350,7 +350,7 @@ def get_news(user):
             business_owner=user.selected_institute,
             status="active",
         ).order_by('-created_at')[:5]
-
+    
         news_list = []
 
         for news in newses:
@@ -447,7 +447,7 @@ def get_exam_history(user, query):
                     result = Results.objects.get(competitive_exam=exam,student=user)
     
                 except Results.DoesNotExist:
-                    result = None
+                    continue
 
                 # If query.month is not provided or not valid, add all exams to the list
                 if not query.month or (query.month and exam.start_date.month == int(query.month)):

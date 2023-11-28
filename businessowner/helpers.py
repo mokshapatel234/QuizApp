@@ -38,10 +38,12 @@ from openpyxl_image_loader import SheetImageLoader
 import boto3
 from dotenv import load_dotenv
 import pathlib
+aws_access_key_id = os.getenv("AWS_ACCESS_KEY_ID")
+aws_secret_access_key = os.getenv("AWS_SECRET_ACCESS_KEY")
 s3_client = boto3.client(
         's3',
-        aws_access_key_id='AKIAS5UGKMCVJSQA2DU7',
-        aws_secret_access_key='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',
+        aws_access_key_id=aws_access_key_id,
+        aws_secret_access_key=aws_secret_access_key,
         region_name='ap-south-1'
     )
 
@@ -793,7 +795,7 @@ def add_news(data, user):
     except Exception as e:
         response_data = {
             "result": False,
-            "message": "Something went wrong"
+            "message": str(e)
         }
         return JsonResponse(response_data, status=500)
     
