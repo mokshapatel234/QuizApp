@@ -1,4 +1,5 @@
 from ninja import Schema
+from pydantic import constr
 from datetime import datetime
 from typing import Optional,List,Dict
 from uuid import UUID
@@ -562,7 +563,7 @@ class CompCreatestartExam(Schema):
     batch_id: UUID
     total_questions: int
     time_duration: float
-    negative_marks: str
+    negative_marks: constr(min_length=1)
     passing_marks: int
     total_marks: int
     option_e: bool
@@ -1201,7 +1202,7 @@ class AcadeCreatestartExam(Schema):
     standard_id: UUID
     total_questions: int
     time_duration: float
-    negative_marks: str
+    negative_marks: constr(min_length=1)
     passing_marks: int
     total_marks: int
     option_e: bool

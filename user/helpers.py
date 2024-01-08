@@ -427,7 +427,6 @@ def get_exam_history(user, query):
        
         if business_owner.business_type == "competitive":        
             exams = CompetitiveExams.objects.filter(business_owner=business_owner, start_date__isnull=False).order_by('-created_at')
-            print(exams)
             exam_list = []
             
             if query.subject_id:
@@ -445,14 +444,16 @@ def get_exam_history(user, query):
             for exam in exams:
                 try:
                     result = Results.objects.get(competitive_exam=exam,student=user)
-    
+                    
                 except Results.DoesNotExist:
-                    continue
-
+                    result = None
+                
                 # If query.month is not provided or not valid, add all exams to the list
                 if not query.month or (query.month and exam.start_date.month == int(query.month)):
                     # Add filtering by year
+
                     if not query.year or (query.year and exam.start_date.year == int(query.year)):
+                        
                         exam_data_list = []
                         for exam_data in exam.exam_data.all():
                             subject_name = exam_data.subject.subject_name
@@ -468,6 +469,7 @@ def get_exam_history(user, query):
                             "result": result.result if result else None
                         }
                         exam_list.append(exam_detail)
+
 
             return exam_list
 
@@ -519,6 +521,7 @@ def get_exam_detail(user, exam_id):
         business_owner = BusinessOwners.objects.get(id=user.selected_institute.id)
         if business_owner.business_type == "competitive":
             exam = CompetitiveExams.objects.get(id=exam_id)
+
                 
             try:
                 result = Results.objects.get(competitive_exam=exam, student=user)
@@ -540,7 +543,7 @@ def get_exam_detail(user, exam_id):
                             chapters.append(chapter.chapter_name)
                         except CompetitiveChapters.DoesNotExist:
                             pass  
-                
+
                 exam_data_list.append({"subject_id": subject_id, "subject": subject_name, "chapters": chapters})
 
             exam_detail = {

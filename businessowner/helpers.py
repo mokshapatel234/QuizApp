@@ -1912,25 +1912,22 @@ def get_comp_questionlist(request, query):
 
         questions = base_query.filter(search_query)
         batch_name_to_id = {}
-        for question_data in questions.values('id', 'competitve_chapter__batches__batch_name'):
-            batch_name = question_data['competitve_chapter__batches__batch_name']
-            if batch_name not in batch_name_to_id:
-                try:
-                    batch = CompetitiveBatches.objects.get(batch_name=batch_name)
-                    batch_name_to_id[batch_name] = str(batch.id)
-                except CompetitiveBatches.DoesNotExist:
-                    batch_name_to_id[batch_name] = None
+        
+        unique_questions = set()
+        question_list = []
 
-        question_list = questions.values(
-            'id', 'question', 'competitive_question_image', 'answer', 'marks', 'time_duration', 'status', 'created_at', 'updated_at', 'options_id', 'question_category',
+        for question_data in questions.values('id', 'question', 'competitive_question_image', 'answer', 'marks', 'time_duration', 'status', 'created_at', 'updated_at', 'options_id', 'question_category',
             chapter_id=F('competitve_chapter__id'),
             chapter_name=F('competitve_chapter__chapter_name'),
             subject_id=F('competitve_chapter__subject_name__id'),
             subject_name=F('competitve_chapter__subject_name__subject_name'),
             batch_name=F('competitve_chapter__batches__batch_name')
-        )
+        ):
+            if question_data['question'] not in unique_questions:
+                unique_questions.add(question_data['question'])
+                question_list.append(question_data)
 
-        options_data = Options.objects.filter(id__in=question_list.values_list('options_id', flat=True))
+        options_data = Options.objects.filter(id__in=[q['options_id'] for q in question_list])
         options_dict = {option.id: option for option in options_data}
 
         # Add options to the question_list
@@ -1950,7 +1947,6 @@ def get_comp_questionlist(request, query):
             batch_name = question_data['batch_name']
             question_data['batch_id'] = batch_name_to_id.get(batch_name)
 
-        question_list = [question_data for question_data in question_list if question_data['batch_id'] is not None]
         if query.all_data:
             # Return all data without pagination
             return {
@@ -1958,19 +1954,20 @@ def get_comp_questionlist(request, query):
                 "data": list(question_list),
                 "message": "All data retrieved successfully",
             }
+
         paginated_comp, items_per_page = paginate_data(request, question_list)
 
         return {
-                "result": True,
-                "data": list(paginated_comp),
-                "message": "Data retrieved successfully",   
-                "pagination": {
-                    "page": paginated_comp.number,
-                    "total_docs": paginated_comp.paginator.count,
-                    "total_pages": paginated_comp.paginator.num_pages,
-                    "per_page": items_per_page,
-                },
-            }
+            "result": True,
+            "data": list(paginated_comp),
+            "message": "Data retrieved successfully",
+            "pagination": {
+                "page": paginated_comp.number,
+                "total_docs": paginated_comp.paginator.count,
+                "total_pages": paginated_comp.paginator.num_pages,
+                "per_page": items_per_page,
+            },
+        }
 
     except CompetitiveChapters.DoesNotExist:
         response_data = {
@@ -1988,12 +1985,11 @@ def get_comp_questionlist(request, query):
 
     except Exception as e:
         response_data = {
-                    "result": False,
-                    "message": str(e)
-                }
+            "result": False,
+            "message": str(e)
+        }
         return JsonResponse(response_data, status=400)
-
-
+        
 def get_comp_question(user, question_id):
     try:
         question = CompetitiveQuestions.objects.get(id=question_id)
