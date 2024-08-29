@@ -15,7 +15,7 @@ def notify_user(sender, instance, created, **kwargs):
                   f'email: {instance.email}\n' \
                   f'password: {instance.password}\n\n' \
                   f'Thank you!'
-        from_email = settings.EMAIL_HOST_USER  # Replace with your email address
+        from_email = settings.EMAIL_HOST_USER
         recipient_list = [instance.email]
 
         send_mail(subject, message, from_email, recipient_list)
